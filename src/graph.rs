@@ -14,6 +14,10 @@ const BACKWARD: MultimapTableDefinition<&str, &str> = MultimapTableDefinition::n
 /// title -> file mtime (nanoseconds since epoch), used to detect changed notes
 /// during incremental reindex.
 const MTIMES: TableDefinition<&str, u64> = TableDefinition::new("mtimes");
+/// Index metadata (key "index_version"): bumped when the schema/tokenizer
+/// changes so stale indexes get rebuilt automatically.
+const META: TableDefinition<&str, u64> = TableDefinition::new("meta");
+const INDEX_VERSION_KEY: &str = "index_version";
 
 /// One note's contribution to the graph: its outgoing link targets plus the
 /// file mtime recorded at index time.
@@ -99,6 +103,30 @@ impl Graph {
         txn.delete_table(MTIMES).context("clearing mtimes table")?;
         txn.commit().context("committing graph clear")?;
         self.apply(notes, &[])
+    }
+
+    /// The index-format version recorded when this vault was last indexed.
+    pub fn index_version(&self) -> Result<Option<u64>> {
+        let txn = self.db.begin_read().context("beginning read transaction")?;
+        let table = match txn.open_table(META) {
+            Ok(t) => t,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        Ok(table.get(INDEX_VERSION_KEY)?.map(|v| v.value()))
+    }
+
+    pub fn set_index_version(&self, version: u64) -> Result<()> {
+        let txn = self
+            .db
+            .begin_write()
+            .context("beginning write transaction")?;
+        {
+            let mut table = txn.open_table(META)?;
+            table.insert(INDEX_VERSION_KEY, version)?;
+        }
+        txn.commit().context("committing index version")?;
+        Ok(())
     }
 
     /// mtimes recorded at last index time, keyed by title.

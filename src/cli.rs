@@ -345,6 +345,7 @@ fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: b
     if all_vaults {
         let registry = Registry::open()?;
         for (name, path) in registry.list()? {
+            indexer::reindex(&path, false)?;
             found |= print_hits(crate::search::query(&path, query)?, Some(&name));
         }
     } else if let Some(name) = vault_name {
@@ -352,8 +353,10 @@ fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: b
         let path = registry
             .get(name)?
             .with_context(|| format!("vault \"{name}\" is not registered"))?;
+        indexer::reindex(&path, false)?;
         found = print_hits(crate::search::query(&path, query)?, None);
     } else {
+        indexer::reindex(vault, false)?;
         found = print_hits(crate::search::query(vault, query)?, None);
     }
     if !found {

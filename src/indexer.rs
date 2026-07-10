@@ -8,23 +8,34 @@ use crate::graph::{Graph, NoteUpdate};
 use crate::search;
 use crate::vault::{self, Note};
 
+/// Bump whenever the tantivy schema or tokenizer changes; vaults indexed
+/// with an older version are rebuilt in full automatically.
+/// 1 = default tokenizer (pre-versioning), 2 = thai_mixed tokenizer.
+pub const INDEX_VERSION: u64 = 2;
+
 pub struct ReindexReport {
     pub indexed: usize,
     pub removed: usize,
     pub full: bool,
+    /// The rebuild was forced by an index-format change, not requested.
+    pub upgraded: bool,
 }
 
 impl std::fmt::Display for ReindexReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.full {
-            write!(f, "reindexed {} note(s) (full)", self.indexed)
+            write!(f, "reindexed {} note(s) (full)", self.indexed)?;
         } else {
             write!(
                 f,
                 "reindexed {} note(s), removed {}",
                 self.indexed, self.removed
-            )
+            )?;
         }
+        if self.upgraded {
+            write!(f, " [index format changed; rebuilt automatically]")?;
+        }
+        Ok(())
     }
 }
 
@@ -64,6 +75,10 @@ pub fn reindex(vault: &Path, full: bool) -> Result<ReindexReport> {
     let notes = vault::list_notes(vault)?;
     let graph = Graph::open(vault)?;
 
+    // A schema/tokenizer change invalidates the whole index: force a rebuild.
+    let upgraded = graph.index_version()? != Some(INDEX_VERSION);
+    let full = full || upgraded;
+
     if full {
         let mut updates = Vec::with_capacity(notes.len());
         let mut bodies = Vec::with_capacity(notes.len());
@@ -74,10 +89,12 @@ pub fn reindex(vault: &Path, full: bool) -> Result<ReindexReport> {
         }
         graph.rebuild(&updates)?;
         search::rebuild(vault, &bodies)?;
+        graph.set_index_version(INDEX_VERSION)?;
         return Ok(ReindexReport {
             indexed: notes.len(),
             removed: 0,
             full: true,
+            upgraded,
         });
     }
 
@@ -100,6 +117,7 @@ pub fn reindex(vault: &Path, full: bool) -> Result<ReindexReport> {
         indexed: updates.len(),
         removed: removals.len(),
         full: false,
+        upgraded: false,
     };
     if !updates.is_empty() || !removals.is_empty() {
         graph.apply(&updates, &removals)?;
