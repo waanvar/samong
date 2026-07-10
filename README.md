@@ -6,8 +6,8 @@
 โดยไฟล์ `.md` ยังคงเป็น source of truth เพียงแหล่งเดียวเสมอ — index ทั้งหมดอยู่ใน `<vault>/.brain/`
 และสร้างใหม่ได้ทุกเมื่อด้วย `banyan reindex`
 
-> **สถานะ**: Phase 1 (ดู `PLAN.md`) — วงจรชีวิตโน้ตครบ + incremental reindex + watch mode
-> ยังไม่มี multi-vault/Thai tokenizer/API/Web UI
+> **สถานะ**: Phase 2 (ดู `PLAN.md`) — multi-vault + cross-vault links แล้ว
+> ยังไม่มี Thai tokenizer/API/Web UI
 
 ## ติดตั้ง / Build
 
@@ -37,6 +37,23 @@ banyan list                    # แสดงรายชื่อโน้ต�
 banyan reindex                 # sync index กับไฟล์ .md (เฉพาะไฟล์ที่เปลี่ยน)
 banyan reindex --full          # rebuild ทุกอย่างจากศูนย์
 banyan watch                   # เฝ้า vault แล้วอัปเดต index อัตโนมัติ
+```
+
+### Multi-vault
+
+ลงทะเบียน vault ไว้ที่ registry กลาง (`~/.config/banyan/`) แล้วลิงก์ข้าม vault ได้ด้วย
+`[[ชื่อ-vault/ชื่อโน้ต]]` — ลิงก์ภายใน vault เดิมยังเป็น `[[โน้ต]]` ตามปกติ
+(เข้ากันได้กับ Obsidian เหมือนเดิม)
+
+```sh
+banyan vault add work ~/vaults/work    # ลงทะเบียน + index ให้ทันที
+banyan vault list
+banyan vault remove work               # เอาออกจาก registry (ไฟล์ไม่ถูกแตะ)
+
+banyan links "Note" --all-vaults       # รวม backlinks จากทุก vault ที่ลงทะเบียน
+banyan graph --all-vaults              # รวม graph ทุก vault (node เป็น vault/note)
+banyan search --vault work "คำค้น"     # ค้นเฉพาะ vault ที่ระบุ
+banyan search --all-vaults "คำค้น"     # ค้นทุก vault
 ```
 
 ## Development
