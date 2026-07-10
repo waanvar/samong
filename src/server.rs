@@ -503,6 +503,14 @@ pub fn spawn_watcher(state: Arc<AppState>, vaults: Vec<(String, PathBuf)>) -> Re
 
 // ---------- assembly ----------
 
+/// API router plus the built web UI served from `ui_dir`, with an
+/// index.html fallback so the SPA handles its own navigation.
+pub fn router_with_ui(state: Arc<AppState>, ui_dir: &std::path::Path) -> Router {
+    use tower_http::services::{ServeDir, ServeFile};
+    let spa = ServeDir::new(ui_dir).fallback(ServeFile::new(ui_dir.join("index.html")));
+    router(state).fallback_service(spa)
+}
+
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/vaults", get(list_vaults))
@@ -519,7 +527,8 @@ pub fn router(state: Arc<AppState>) -> Router {
 }
 
 /// Start the server on 127.0.0.1:port (local-first: never binds elsewhere).
-pub async fn run(port: u16) -> Result<()> {
+/// When `ui_dir` contains a built web UI (index.html), it is served at `/`.
+pub async fn run(port: u16, ui_dir: Option<PathBuf>) -> Result<()> {
     let vaults = {
         // Scoped: handlers each open the registry themselves, and redb
         // allows only one live handle per file per process.
@@ -537,13 +546,22 @@ pub async fn run(port: u16) -> Result<()> {
     let state = AppState::new();
     spawn_watcher(Arc::clone(&state), vaults)?;
 
+    let app = match ui_dir.filter(|dir| dir.join("index.html").exists()) {
+        Some(dir) => {
+            println!("serving web UI from {}", dir.display());
+            router_with_ui(state, &dir)
+        }
+        None => {
+            println!("web UI not found — serving API only");
+            router(state)
+        }
+    };
+
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .with_context(|| format!("binding {addr}"))?;
     println!("banyan-server listening on http://{addr} (Ctrl+C to stop)");
-    axum::serve(listener, router(state))
-        .await
-        .context("serving")?;
+    axum::serve(listener, app).await.context("serving")?;
     Ok(())
 }

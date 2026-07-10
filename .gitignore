@@ -1,2 +1,6 @@
 /target
 .brain/
+node_modules/
+web/dist/
+.demo/
+.claude/
