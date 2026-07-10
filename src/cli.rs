@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand};
 
 use crate::graph::Graph;
 use crate::indexer;
+use crate::registry::Registry;
 use crate::vault;
 use crate::watch;
 
@@ -40,19 +41,51 @@ enum Command {
         full: bool,
     },
     /// Show forward links and backlinks for a note
-    Links { title: String },
+    Links {
+        title: String,
+        /// Also show backlinks from every registered vault
+        #[arg(long)]
+        all_vaults: bool,
+    },
     /// List notes that no other note links to
     Orphans,
     /// List links that point at notes that do not exist
     Broken,
     /// Full-text search across the vault
-    Search { query: String },
+    Search {
+        query: String,
+        /// Search a registered vault by name instead of the current directory
+        #[arg(long, conflicts_with = "all_vaults")]
+        vault: Option<String>,
+        /// Search every registered vault
+        #[arg(long)]
+        all_vaults: bool,
+    },
     /// Print every link-graph edge as "from -> to"
-    Graph,
+    Graph {
+        /// Combine the graphs of every registered vault (nodes prefixed "vault/")
+        #[arg(long)]
+        all_vaults: bool,
+    },
     /// List every note in the vault
     List,
     /// Watch the vault and keep the index up to date automatically
     Watch,
+    /// Manage the central vault registry (~/.config/banyan)
+    Vault {
+        #[command(subcommand)]
+        action: VaultAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum VaultAction {
+    /// Register a vault under a name usable in [[name/note]] links
+    Add { name: String, path: PathBuf },
+    /// List every registered vault
+    List,
+    /// Remove a vault from the registry (files are left untouched)
+    Remove { name: String },
 }
 
 /// The vault is always the current working directory.
@@ -74,6 +107,12 @@ fn editor_command() -> (String, Vec<String>) {
     } else {
         ("vi".to_string(), Vec::new())
     }
+}
+
+/// Path for human eyes: hide the `\\?\` verbatim prefix canonicalize adds on Windows.
+fn display_path(path: &Path) -> String {
+    let s = path.display().to_string();
+    s.strip_prefix(r"\\?\").map(str::to_string).unwrap_or(s)
 }
 
 fn require_note(vault: &Path, title: &str) -> Result<vault::Note> {
@@ -180,22 +219,175 @@ fn cmd_orphans(vault: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Does a raw link target resolve to a note in another registered vault?
+fn resolves_cross_vault(registry: &Registry, target: &str) -> Result<bool> {
+    let Some((vault_name, title)) = vault::split_cross_vault(target) else {
+        return Ok(false);
+    };
+    let Some(other_vault) = registry.get(vault_name)? else {
+        return Ok(false);
+    };
+    Ok(vault::find_note(&other_vault, title)?.is_some())
+}
+
 fn cmd_broken(vault: &Path) -> Result<()> {
     indexer::reindex(vault, false)?;
     let titles: HashSet<String> = vault::list_notes(vault)?
         .into_iter()
         .map(|n| n.title)
         .collect();
-    let graph = Graph::open(vault)?;
+    let registry = Registry::open()?;
     let mut found = false;
-    for (from, to) in graph.all_edges()? {
-        if !titles.contains(&to) {
-            println!("{from} -> [[{to}]]");
-            found = true;
+    let edges = {
+        let graph = Graph::open(vault)?;
+        graph.all_edges()?
+    };
+    for (from, to) in edges {
+        if titles.contains(&to) || resolves_cross_vault(&registry, &to)? {
+            continue;
         }
+        println!("{from} -> [[{to}]]");
+        found = true;
     }
     if !found {
         println!("no broken links");
+    }
+    Ok(())
+}
+
+fn cmd_links(vault: &Path, title: &str, all_vaults: bool) -> Result<()> {
+    let (forward, back) = {
+        let graph = Graph::open(vault)?;
+        (graph.forward_links(title)?, graph.backlinks(title)?)
+    };
+
+    println!("forward links ({}):", forward.len());
+    for target in &forward {
+        println!("  -> {target}");
+    }
+    println!("backlinks ({}):", back.len());
+    for source in &back {
+        println!("  <- {source}");
+    }
+
+    if !all_vaults {
+        return Ok(());
+    }
+    let registry = Registry::open()?;
+    let Some(my_name) = registry.name_of(vault)? else {
+        println!("(current vault is not registered; cross-vault backlinks unavailable)");
+        return Ok(());
+    };
+    // Other vaults reference this note as [[my_name/title]]; each vault's own
+    // graph already indexed that raw target, so one backward lookup per vault.
+    let qualified = format!("{my_name}/{title}");
+    let mut cross = Vec::new();
+    for (other_name, other_path) in registry.list()? {
+        if other_name == my_name {
+            continue;
+        }
+        let sources = {
+            let graph = Graph::open(&other_path)?;
+            graph.backlinks(&qualified)?
+        };
+        for source in sources {
+            cross.push(format!("{other_name}/{source}"));
+        }
+    }
+    println!("cross-vault backlinks ({}):", cross.len());
+    for source in cross {
+        println!("  <- {source}");
+    }
+    Ok(())
+}
+
+fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
+    if !all_vaults {
+        let graph = Graph::open(vault)?;
+        for (from, to) in graph.all_edges()? {
+            println!("{from} -> {to}");
+        }
+        return Ok(());
+    }
+    let registry = Registry::open()?;
+    let vaults = registry.list()?;
+    let names: HashSet<&str> = vaults.iter().map(|(n, _)| n.as_str()).collect();
+    for (name, path) in &vaults {
+        let edges = {
+            let graph = Graph::open(path)?;
+            graph.all_edges()?
+        };
+        for (from, to) in edges {
+            // Cross-vault targets are already "vault/title"; qualify the rest.
+            let to = match vault::split_cross_vault(&to) {
+                Some((prefix, _)) if names.contains(prefix) => to.clone(),
+                _ => format!("{name}/{to}"),
+            };
+            println!("{name}/{from} -> {to}");
+        }
+    }
+    Ok(())
+}
+
+fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool {
+    let found = !hits.is_empty();
+    for hit in hits {
+        match prefix {
+            Some(name) => println!("{name}/{}: {}", hit.title, hit.snippet),
+            None => println!("{}: {}", hit.title, hit.snippet),
+        }
+    }
+    found
+}
+
+fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: bool) -> Result<()> {
+    let mut found = false;
+    if all_vaults {
+        let registry = Registry::open()?;
+        for (name, path) in registry.list()? {
+            found |= print_hits(crate::search::query(&path, query)?, Some(&name));
+        }
+    } else if let Some(name) = vault_name {
+        let registry = Registry::open()?;
+        let path = registry
+            .get(name)?
+            .with_context(|| format!("vault \"{name}\" is not registered"))?;
+        found = print_hits(crate::search::query(&path, query)?, None);
+    } else {
+        found = print_hits(crate::search::query(vault, query)?, None);
+    }
+    if !found {
+        println!("no results");
+    }
+    Ok(())
+}
+
+fn cmd_vault(action: VaultAction) -> Result<()> {
+    let registry = Registry::open()?;
+    match action {
+        VaultAction::Add { name, path } => {
+            let canonical = registry.add(&name, &path)?;
+            // Index it right away so cross-vault lookups work immediately.
+            let report = indexer::reindex(&canonical, false)?;
+            println!("registered \"{name}\" at {}", display_path(&canonical));
+            println!("{report}");
+        }
+        VaultAction::List => {
+            let vaults = registry.list()?;
+            if vaults.is_empty() {
+                println!("no vaults registered");
+            }
+            for (name, path) in vaults {
+                println!("{name}\t{}", display_path(&path));
+            }
+        }
+        VaultAction::Remove { name } => {
+            if registry.remove(&name)? {
+                println!("removed \"{name}\" from the registry");
+            } else {
+                bail!("vault \"{name}\" is not registered");
+            }
+        }
     }
     Ok(())
 }
@@ -218,43 +410,22 @@ pub fn run() -> Result<()> {
             println!("{report}");
             println!("reindex complete");
         }
-        Command::Links { title } => {
-            let graph = Graph::open(&vault)?;
-            let forward = graph.forward_links(&title)?;
-            let back = graph.backlinks(&title)?;
-
-            println!("forward links ({}):", forward.len());
-            for target in &forward {
-                println!("  -> {target}");
-            }
-            println!("backlinks ({}):", back.len());
-            for source in &back {
-                println!("  <- {source}");
-            }
-        }
+        Command::Links { title, all_vaults } => cmd_links(&vault, &title, all_vaults)?,
         Command::Orphans => cmd_orphans(&vault)?,
         Command::Broken => cmd_broken(&vault)?,
-        Command::Search { query } => {
-            let hits = crate::search::query(&vault, &query)?;
-            if hits.is_empty() {
-                println!("no results");
-            }
-            for hit in hits {
-                println!("{}: {}", hit.title, hit.snippet);
-            }
-        }
-        Command::Graph => {
-            let graph = Graph::open(&vault)?;
-            for (from, to) in graph.all_edges()? {
-                println!("{from} -> {to}");
-            }
-        }
+        Command::Search {
+            query,
+            vault: vault_name,
+            all_vaults,
+        } => cmd_search(&vault, &query, vault_name.as_deref(), all_vaults)?,
+        Command::Graph { all_vaults } => cmd_graph(&vault, all_vaults)?,
         Command::List => {
             for note in vault::list_notes(&vault)? {
                 println!("{}", note.title);
             }
         }
         Command::Watch => watch::run(&vault)?,
+        Command::Vault { action } => cmd_vault(action)?,
     }
 
     Ok(())

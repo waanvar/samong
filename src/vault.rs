@@ -75,6 +75,17 @@ pub fn list_notes(vault: &Path) -> Result<Vec<Note>> {
     Ok(notes)
 }
 
+/// Split a wikilink target of the form `vault-name/note-title`. Whether the
+/// prefix actually names a registered vault is the caller's job to check —
+/// unregistered prefixes stay plain in-vault targets (Obsidian folder links).
+pub fn split_cross_vault(target: &str) -> Option<(&str, &str)> {
+    let (vault_name, title) = target.split_once('/')?;
+    if vault_name.is_empty() || title.is_empty() {
+        return None;
+    }
+    Some((vault_name, title))
+}
+
 /// Locate a note by title anywhere in the vault (including subdirectories).
 pub fn find_note(vault: &Path, title: &str) -> Result<Option<Note>> {
     Ok(list_notes(vault)?.into_iter().find(|n| n.title == title))
@@ -217,6 +228,18 @@ mod tests {
         let (rewritten, count) = rewrite_wikilinks(content, "C++ (lang)", "Cpp");
         assert_eq!(count, 1);
         assert_eq!(rewritten, "link to [[Cpp]]");
+    }
+
+    #[test]
+    fn split_cross_vault_requires_both_halves() {
+        assert_eq!(split_cross_vault("work/Note"), Some(("work", "Note")));
+        assert_eq!(
+            split_cross_vault("work/deep/Note"),
+            Some(("work", "deep/Note"))
+        );
+        assert_eq!(split_cross_vault("plain"), None);
+        assert_eq!(split_cross_vault("/Note"), None);
+        assert_eq!(split_cross_vault("work/"), None);
     }
 
     #[test]
