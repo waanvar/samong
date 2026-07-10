@@ -4,13 +4,30 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Schema, TantivyDocument, Value, STORED, STRING, TEXT};
+use tantivy::schema::{
+    IndexRecordOption, Schema, TantivyDocument, TextFieldIndexing, TextOptions, Value, STORED,
+    STRING,
+};
 use tantivy::snippet::SnippetGenerator;
+use tantivy::tokenizer::{LowerCaser, RemoveLongFilter, TextAnalyzer};
 use tantivy::{doc, Index, IndexWriter, Term};
 
+use crate::thai::ThaiTokenizer;
 use crate::vault::BRAIN_DIR;
 
 const INDEX_HEAP_BYTES: usize = 50_000_000;
+/// Mixed Thai/non-Thai tokenizer; must be registered on every opened index.
+const THAI_TOKENIZER_NAME: &str = "thai_mixed";
+
+fn register_tokenizers(index: &Index) {
+    index.tokenizers().register(
+        THAI_TOKENIZER_NAME,
+        TextAnalyzer::builder(ThaiTokenizer)
+            .filter(RemoveLongFilter::limit(100))
+            .filter(LowerCaser)
+            .build(),
+    );
+}
 
 pub struct SearchHit {
     pub title: String,
@@ -20,7 +37,14 @@ pub struct SearchHit {
 fn build_schema() -> Schema {
     let mut builder = Schema::builder();
     builder.add_text_field("title", STRING | STORED);
-    builder.add_text_field("body", TEXT | STORED);
+    let body_options = TextOptions::default()
+        .set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer(THAI_TOKENIZER_NAME)
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        )
+        .set_stored();
+    builder.add_text_field("body", body_options);
     builder.build()
 }
 
@@ -31,13 +55,15 @@ fn index_dir(vault: &Path) -> std::path::PathBuf {
 /// Open the vault's persistent index, creating an empty one on first use.
 fn open_or_create(vault: &Path) -> Result<Index> {
     let dir = index_dir(vault);
-    if dir.exists() {
-        Index::open_in_dir(&dir).context("opening tantivy index")
+    let index = if dir.exists() {
+        Index::open_in_dir(&dir).context("opening tantivy index")?
     } else {
         fs::create_dir_all(&dir)
             .with_context(|| format!("creating index dir {}", dir.display()))?;
-        Index::create_in_dir(&dir, build_schema()).context("creating tantivy index")
-    }
+        Index::create_in_dir(&dir, build_schema()).context("creating tantivy index")?
+    };
+    register_tokenizers(&index);
+    Ok(index)
 }
 
 /// Apply an incremental batch: upsert changed notes and drop removed ones,
@@ -84,6 +110,7 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
         return Ok(Vec::new());
     }
     let index = Index::open_in_dir(&dir).context("opening tantivy index")?;
+    register_tokenizers(&index);
     let schema = index.schema();
     let title_field = schema
         .get_field("title")

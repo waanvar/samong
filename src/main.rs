@@ -3,6 +3,7 @@ mod graph;
 mod indexer;
 mod registry;
 mod search;
+mod thai;
 mod vault;
 mod watch;
 
