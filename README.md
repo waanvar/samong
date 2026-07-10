@@ -6,8 +6,8 @@
 โดยไฟล์ `.md` ยังคงเป็น source of truth เพียงแหล่งเดียวเสมอ — index ทั้งหมดอยู่ใน `<vault>/.brain/`
 และสร้างใหม่ได้ทุกเมื่อด้วย `banyan reindex`
 
-> **สถานะ**: Phase 4 (ดู `PLAN.md`) — มี local API server แล้ว
-> ยังไม่มี Web UI
+> **สถานะ**: Phase 5 (ดู `PLAN.md`) — มี Web UI แล้ว 🎉
+> เหลือ Phase 6: polish & release
 
 ## ติดตั้ง / Build
 
@@ -99,6 +99,26 @@ banyan-server --port 3000
 
 server เฝ้าไฟล์ทุก vault อัตโนมัติ — แก้ .md ด้วยโปรแกรมอื่น (เช่น Obsidian)
 index จะอัปเดตเองและ ws clients ได้รับแจ้ง
+
+### Web UI
+
+หน้าเว็บดีไซน์ต้นฉบับ (ธีม "ต้นไทร" — เขียวเรือนยอด + wikilink สีน้ำตาลราก)
+รองรับภาษาไทยเป็น first-class ด้วยฟอนต์ IBM Plex Sans Thai ฝังในตัว
+
+```sh
+cd web && npm install && npm run build   # ครั้งแรกครั้งเดียว
+banyan-server                            # เสิร์ฟ UI ที่ http://127.0.0.1:3000
+```
+
+- Layout 3 ส่วน: รายชื่อโน้ต / editor แบบ เขียน–คู่กัน–อ่าน / backlinks + โครงร่าง
+- พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ต (รวมข้าม vault) — คลิก wikilink เพื่อกระโดด
+  ถ้าโน้ตยังไม่มีจะสร้างให้เลย
+- `Ctrl+K` — command palette: เปิดโน้ต, ค้นหา full-text ภาษาไทย, สร้างโน้ตใหม่
+- Graph view (d3-force): คลิก node เปิดโน้ต, โหมดรวมทุก vault แยกสีตาม vault
+- ธีมมืด/สว่าง, บันทึกอัตโนมัติ, real-time ผ่าน WebSocket
+  (แก้ไฟล์จากที่อื่นแล้วหน้าจออัปเดตเอง)
+
+สำหรับพัฒนา UI: `cd web && npm run dev` (Vite proxy ไปที่ banyan-server พอร์ต 3000)
 
 ## Development
 
