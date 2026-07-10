@@ -6,8 +6,8 @@
 โดยไฟล์ `.md` ยังคงเป็น source of truth เพียงแหล่งเดียวเสมอ — index ทั้งหมดอยู่ใน `<vault>/.brain/`
 และสร้างใหม่ได้ทุกเมื่อด้วย `banyan reindex`
 
-> **สถานะ**: Phase 2 (ดู `PLAN.md`) — multi-vault + cross-vault links แล้ว
-> ยังไม่มี Thai tokenizer/API/Web UI
+> **สถานะ**: Phase 3 (ดู `PLAN.md`) — ค้นหาภาษาไทยแบบตัดคำได้แล้ว 🇹🇭
+> ยังไม่มี API server/Web UI
 
 ## ติดตั้ง / Build
 
@@ -55,6 +55,26 @@ banyan graph --all-vaults              # รวม graph ทุก vault (node �
 banyan search --vault work "คำค้น"     # ค้นเฉพาะ vault ที่ระบุ
 banyan search --all-vaults "คำค้น"     # ค้นทุก vault
 ```
+
+### Thai full-text search 🇹🇭
+
+จุดที่ Obsidian ทำไม่ได้: Banyan ตัดคำไทยด้วยพจนานุกรม newmm
+([nlpo3](https://github.com/PyThaiNLP/nlpo3)) ทำให้**ค้นคำไทยที่อยู่กลางประโยค
+โดยไม่มีวรรคคั่นเจอ**
+
+```sh
+# โน้ตมีข้อความ "ตลาดหลักทรัพย์แห่งประเทศไทยเปิดทำการวันนี้"
+banyan search "ตลาดหลักทรัพย์"   # เจอ พร้อมไฮไลต์ตำแหน่งคำ
+banyan search "ประเทศไทย"        # เจอเช่นกัน
+```
+
+- ข้อความไทยปนอังกฤษในโน้ตเดียวกันค้นได้ทั้งสองภาษา
+- index เก่าจะถูก rebuild อัตโนมัติเมื่อ schema/tokenizer เปลี่ยน
+  (เก็บ index version ไว้ใน redb)
+- ข้อจำกัด: คำทับศัพท์ใหม่ๆ ที่ไม่อยู่ในพจนานุกรม (เช่น "แอป") อาจถูกตัดคำ
+  ไม่ตรงกับที่คาด — พจนานุกรมคำศัพท์ผู้ใช้จะตามมาภายหลัง
+- พจนานุกรม: `words_th.txt` จาก [PyThaiNLP](https://github.com/PyThaiNLP/pythainlp)
+  (Apache-2.0) ฝังมาในไบนารี ใช้งาน offline ได้
 
 ## Development
 
