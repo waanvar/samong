@@ -1,6 +1,7 @@
 mod cli;
 mod graph;
 mod indexer;
+mod registry;
 mod search;
 mod vault;
 mod watch;
