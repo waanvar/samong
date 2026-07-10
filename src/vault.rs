@@ -75,6 +75,27 @@ pub fn list_notes(vault: &Path) -> Result<Vec<Note>> {
     Ok(notes)
 }
 
+/// Locate a note by title anywhere in the vault (including subdirectories).
+pub fn find_note(vault: &Path, title: &str) -> Result<Option<Note>> {
+    Ok(list_notes(vault)?.into_iter().find(|n| n.title == title))
+}
+
+/// Rewrite every `[[old]]` / `[[old|alias]]` in `content` to point at `new`,
+/// preserving aliases. Returns the new content and how many links were rewritten.
+pub fn rewrite_wikilinks(content: &str, old: &str, new: &str) -> (String, usize) {
+    let pattern = Regex::new(&format!(r"\[\[\s*{}\s*(\|[^\]]+)?\]\]", regex::escape(old)))
+        .expect("escaped wikilink regex is valid");
+    let mut count = 0;
+    let rewritten = pattern
+        .replace_all(content, |caps: &regex::Captures| {
+            count += 1;
+            let alias = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            format!("[[{new}{alias}]]")
+        })
+        .into_owned();
+    (rewritten, count)
+}
+
 /// Create a new, empty note. Fails if a note with this title already exists.
 pub fn create_note(vault: &Path, title: &str) -> Result<PathBuf> {
     let path = note_path(vault, title);
@@ -88,12 +109,6 @@ pub fn create_note(vault: &Path, title: &str) -> Result<PathBuf> {
     fs::write(&path, format!("# {title}\n\n"))
         .with_context(|| format!("writing new note {}", path.display()))?;
     Ok(path)
-}
-
-/// Read a note's raw markdown content by title.
-pub fn read_note(vault: &Path, title: &str) -> Result<String> {
-    let path = note_path(vault, title);
-    fs::read_to_string(&path).with_context(|| format!("reading note {}", path.display()))
 }
 
 #[cfg(test)]
@@ -175,5 +190,44 @@ mod tests {
     fn title_from_path_strips_extension() {
         let path = Path::new("/vault/My Note.md");
         assert_eq!(title_from_path(path).as_deref(), Some("My Note"));
+    }
+
+    #[test]
+    fn rewrite_plain_and_aliased_wikilinks() {
+        let content = "See [[Old Note]] and [[Old Note|nickname]] but not [[Other]]";
+        let (rewritten, count) = rewrite_wikilinks(content, "Old Note", "New Note");
+        assert_eq!(count, 2);
+        assert_eq!(
+            rewritten,
+            "See [[New Note]] and [[New Note|nickname]] but not [[Other]]"
+        );
+    }
+
+    #[test]
+    fn rewrite_does_not_match_partial_titles() {
+        let content = "[[Note]] and [[Note Two]]";
+        let (rewritten, count) = rewrite_wikilinks(content, "Note", "Renamed");
+        assert_eq!(count, 1);
+        assert_eq!(rewritten, "[[Renamed]] and [[Note Two]]");
+    }
+
+    #[test]
+    fn rewrite_escapes_regex_metacharacters_in_title() {
+        let content = "link to [[C++ (lang)]]";
+        let (rewritten, count) = rewrite_wikilinks(content, "C++ (lang)", "Cpp");
+        assert_eq!(count, 1);
+        assert_eq!(rewritten, "link to [[Cpp]]");
+    }
+
+    #[test]
+    fn find_note_locates_notes_in_subdirectories() {
+        let dir = tempfile::tempdir().unwrap();
+        let sub = dir.path().join("area");
+        fs::create_dir_all(&sub).unwrap();
+        fs::write(sub.join("Nested.md"), "# Nested\n").unwrap();
+
+        let found = find_note(dir.path(), "Nested").unwrap().unwrap();
+        assert_eq!(found.path, sub.join("Nested.md"));
+        assert!(find_note(dir.path(), "Missing").unwrap().is_none());
     }
 }

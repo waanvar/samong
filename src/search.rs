@@ -6,7 +6,7 @@ use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::{Schema, TantivyDocument, Value, STORED, STRING, TEXT};
 use tantivy::snippet::SnippetGenerator;
-use tantivy::{doc, Index, IndexWriter};
+use tantivy::{doc, Index, IndexWriter, Term};
 
 use crate::vault::BRAIN_DIR;
 
@@ -17,15 +17,54 @@ pub struct SearchHit {
     pub snippet: String,
 }
 
-fn build_schema() -> (Schema, tantivy::schema::Field, tantivy::schema::Field) {
+fn build_schema() -> Schema {
     let mut builder = Schema::builder();
-    let title = builder.add_text_field("title", STRING | STORED);
-    let body = builder.add_text_field("body", TEXT | STORED);
-    (builder.build(), title, body)
+    builder.add_text_field("title", STRING | STORED);
+    builder.add_text_field("body", TEXT | STORED);
+    builder.build()
 }
 
 fn index_dir(vault: &Path) -> std::path::PathBuf {
     vault.join(BRAIN_DIR).join("tantivy")
+}
+
+/// Open the vault's persistent index, creating an empty one on first use.
+fn open_or_create(vault: &Path) -> Result<Index> {
+    let dir = index_dir(vault);
+    if dir.exists() {
+        Index::open_in_dir(&dir).context("opening tantivy index")
+    } else {
+        fs::create_dir_all(&dir)
+            .with_context(|| format!("creating index dir {}", dir.display()))?;
+        Index::create_in_dir(&dir, build_schema()).context("creating tantivy index")
+    }
+}
+
+/// Apply an incremental batch: upsert changed notes and drop removed ones,
+/// in a single commit. The title field is raw-indexed, so `delete_term` on it
+/// removes exactly one note's previous document.
+pub fn apply(vault: &Path, upserts: &[(String, String)], removals: &[String]) -> Result<()> {
+    let index = open_or_create(vault)?;
+    let schema = index.schema();
+    let title_field = schema.get_field("title")?;
+    let body_field = schema.get_field("body")?;
+
+    let mut writer: IndexWriter = index
+        .writer(INDEX_HEAP_BYTES)
+        .context("creating index writer")?;
+
+    for title in removals {
+        writer.delete_term(Term::from_field_text(title_field, title));
+    }
+    for (title, body) in upserts {
+        writer.delete_term(Term::from_field_text(title_field, title));
+        writer.add_document(doc!(
+            title_field => title.as_str(),
+            body_field => body.as_str(),
+        ))?;
+    }
+    writer.commit().context("committing index")?;
+    Ok(())
 }
 
 /// Rebuild the full-text index from scratch for the given `(title, body)` notes.
@@ -35,22 +74,7 @@ pub fn rebuild(vault: &Path, notes: &[(String, String)]) -> Result<()> {
         fs::remove_dir_all(&dir)
             .with_context(|| format!("clearing index dir {}", dir.display()))?;
     }
-    fs::create_dir_all(&dir).with_context(|| format!("creating index dir {}", dir.display()))?;
-
-    let (schema, title_field, body_field) = build_schema();
-    let index = Index::create_in_dir(&dir, schema).context("creating tantivy index")?;
-    let mut writer: IndexWriter = index
-        .writer(INDEX_HEAP_BYTES)
-        .context("creating index writer")?;
-
-    for (title, body) in notes {
-        writer.add_document(doc!(
-            title_field => title.as_str(),
-            body_field => body.as_str(),
-        ))?;
-    }
-    writer.commit().context("committing index")?;
-    Ok(())
+    apply(vault, notes, &[])
 }
 
 /// Run a full-text query against the vault's index, returning matches with a highlighted snippet.
@@ -151,6 +175,48 @@ mod tests {
         assert_eq!(query(dir.path(), "alpha").unwrap().len(), 1);
 
         rebuild(dir.path(), &[("B".to_string(), "beta content".to_string())]).unwrap();
+        assert!(query(dir.path(), "alpha").unwrap().is_empty());
+        assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn apply_upserts_single_note_without_touching_others() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
+            &[
+                ("A".to_string(), "alpha content".to_string()),
+                ("B".to_string(), "beta content".to_string()),
+            ],
+        )
+        .unwrap();
+
+        apply(
+            dir.path(),
+            &[("A".to_string(), "gamma content".to_string())],
+            &[],
+        )
+        .unwrap();
+
+        assert!(query(dir.path(), "alpha").unwrap().is_empty());
+        assert_eq!(query(dir.path(), "gamma").unwrap().len(), 1);
+        assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn apply_removes_deleted_note() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
+            &[
+                ("A".to_string(), "alpha content".to_string()),
+                ("B".to_string(), "beta content".to_string()),
+            ],
+        )
+        .unwrap();
+
+        apply(dir.path(), &[], &["A".to_string()]).unwrap();
+
         assert!(query(dir.path(), "alpha").unwrap().is_empty());
         assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
     }
