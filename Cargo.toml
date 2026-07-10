@@ -1,0 +1,19 @@
+[package]
+name = "banyan"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "Local-first, Obsidian-compatible knowledge base CLI with fast link graph and full-text search"
+
+[dependencies]
+anyhow = "1.0.103"
+clap = { version = "4.6.1", features = ["derive"] }
+redb = "2.6.3"
+regex = "1.13.0"
+tantivy = "0.26.1"
+walkdir = "2.5.0"
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+tempfile = "3.27.0"
