@@ -6,8 +6,8 @@
 โดยไฟล์ `.md` ยังคงเป็น source of truth เพียงแหล่งเดียวเสมอ — index ทั้งหมดอยู่ใน `<vault>/.brain/`
 และสร้างใหม่ได้ทุกเมื่อด้วย `banyan reindex`
 
-> **สถานะ**: Phase 3 (ดู `PLAN.md`) — ค้นหาภาษาไทยแบบตัดคำได้แล้ว 🇹🇭
-> ยังไม่มี API server/Web UI
+> **สถานะ**: Phase 4 (ดู `PLAN.md`) — มี local API server แล้ว
+> ยังไม่มี Web UI
 
 ## ติดตั้ง / Build
 
@@ -75,6 +75,30 @@ banyan search "ประเทศไทย"        # เจอเช่นกั
   ไม่ตรงกับที่คาด — พจนานุกรมคำศัพท์ผู้ใช้จะตามมาภายหลัง
 - พจนานุกรม: `words_th.txt` จาก [PyThaiNLP](https://github.com/PyThaiNLP/pythainlp)
   (Apache-2.0) ฝังมาในไบนารี ใช้งาน offline ได้
+
+### Local API server
+
+`banyan-server` เปิด REST + WebSocket API บนเครื่อง (bind `127.0.0.1` เท่านั้น
+local-first ไม่มี auth) สำหรับ Web UI ใน Phase 5 หรือเครื่องมืออื่น
+
+```sh
+banyan-server --port 3000
+```
+
+| Endpoint | หน้าที่ |
+|---|---|
+| `GET /api/vaults` | รายชื่อ vault ที่ลงทะเบียน |
+| `GET /api/vaults/{vault}/notes` | รายชื่อโน้ตใน vault |
+| `GET /api/notes/{vault}/{title}` | อ่านเนื้อหา markdown |
+| `PUT /api/notes/{vault}/{title}` | เขียน/สร้างโน้ต (body = markdown) |
+| `DELETE /api/notes/{vault}/{title}` | ลบโน้ต + รายงาน backlinks ที่ค้าง |
+| `GET /api/notes/{vault}/{title}/links` | forward + backlinks + cross-vault |
+| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ค้นทุก vault) |
+| `GET /api/graph?vault=` | nodes + edges เป็น JSON |
+| `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน (จาก watcher) |
+
+server เฝ้าไฟล์ทุก vault อัตโนมัติ — แก้ .md ด้วยโปรแกรมอื่น (เช่น Obsidian)
+index จะอัปเดตเองและ ws clients ได้รับแจ้ง
 
 ## Development
 
