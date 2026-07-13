@@ -16,7 +16,9 @@ export function App() {
   const [content, setContent] = useState<string>("");
   const [dirty, setDirty] = useState(false);
   const [links, setLinks] = useState<NoteLinks | null>(null);
-  const [view, setView] = useState<"editor" | "graph">("editor");
+  const [view, setView] = useState<"editor" | "graph">(() =>
+    new URLSearchParams(location.search).get("view") === "graph" ? "graph" : "editor",
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [theme, setTheme] = useState(

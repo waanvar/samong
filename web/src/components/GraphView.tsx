@@ -28,6 +28,12 @@ interface Props {
 
 export function GraphView({ vault, vaults, onOpen }: Props) {
   const [allVaults, setAllVaults] = useState(vaults.length > 1);
+
+  // The vault list arrives async; when it does, default to the combined view
+  // (covers landing directly on ?view=graph before vaults have loaded).
+  useEffect(() => {
+    setAllVaults(vaults.length > 1);
+  }, [vaults.length]);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [zoom, setZoom] = useState(1);
