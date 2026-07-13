@@ -3,7 +3,10 @@ name = "banyan"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-only"
-description = "Local-first, Obsidian-compatible knowledge base CLI with fast link graph and full-text search"
+description = "Local-first, Obsidian-compatible knowledge base with Thai full-text search"
+repository = "https://github.com/waanvar/banyan"
+keywords = ["knowledge-base", "notes", "markdown", "thai", "search"]
+categories = ["command-line-utilities", "text-processing"]
 
 # MSVC PDBs balloon the target dir past several GB; tests don't need them.
 [profile.dev]

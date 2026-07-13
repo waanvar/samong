@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux
+            archive: tar
+          - os: windows-latest
+            target: x86_64-windows
+            archive: zip
+          - os: macos-latest
+            target: aarch64-macos
+            archive: tar
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web UI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build binaries
+        run: cargo build --release --bins
+
+      - name: Package
+        shell: bash
+        run: |
+          name="banyan-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "stage/$name/web"
+          cp target/release/banyan* "stage/$name/" 2>/dev/null || true
+          rm -f "stage/$name/"*.d "stage/$name/"*.pdb
+          cp -r web/dist "stage/$name/web/dist"
+          cp README.md README.en.md LICENSE "stage/$name/"
+          cd stage
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "../$name.zip" "$name"
+          else
+            tar czf "../$name.tar.gz" "$name"
+          fi
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            banyan-*.zip
+            banyan-*.tar.gz
