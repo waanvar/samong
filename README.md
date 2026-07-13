@@ -1,133 +1,140 @@
 # Banyan 🌳
 
-โน้ต = ไฟล์ Markdown ธรรมดา เข้ากันได้กับ [Obsidian](https://obsidian.md) (`[[wikilink]]` และ
-`[[wikilink|alias]]`) — Banyan เพิ่ม link graph ที่เร็ว ([redb](https://github.com/cberner/redb))
-และ full-text search ([tantivy](https://github.com/quickwit-oss/tantivy)) ให้กับ vault ของคุณ
-โดยไฟล์ `.md` ยังคงเป็น source of truth เพียงแหล่งเดียวเสมอ — index ทั้งหมดอยู่ใน `<vault>/.brain/`
-และสร้างใหม่ได้ทุกเมื่อด้วย `banyan reindex`
+[![CI](https://github.com/waanvar/banyan/actions/workflows/ci.yml/badge.svg)](https://github.com/waanvar/banyan/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-> **สถานะ**: Phase 5 (ดู `PLAN.md`) — มี Web UI แล้ว 🎉
-> เหลือ Phase 6: polish & release
+**มันสมองที่สองแบบ local-first เขียนด้วย Rust — ค้นหาภาษาไทยแบบตัดคำได้จริง**
 
-## ติดตั้ง / Build
+โน้ตของคุณคือไฟล์ Markdown ธรรมดา เข้ากันได้กับ [Obsidian](https://obsidian.md)
+(`[[wikilink]]` / `[[wikilink|alias]]`) — Banyan เพิ่ม link graph ที่เร็ว,
+full-text search ที่**ตัดคำไทยได้**, ลิงก์ข้าม vault, API และ Web UI
+โดยไฟล์ `.md` เป็น source of truth เพียงแหล่งเดียวเสมอ
 
-```sh
-cargo build --release
-```
+*[English version →](README.en.md)*
 
-Binary จะอยู่ที่ `target/release/banyan` (หรือ `banyan.exe` บน Windows)
+![Banyan editor](docs/editor-dark.png)
 
-## การใช้งาน
+## ทำไมต้อง Banyan
 
-Vault = current working directory เสมอในเวอร์ชันนี้
+- 🇹🇭 **ค้นคำไทยกลางประโยคเจอ** — "ตลาดหลักทรัพย์แห่งประเทศไทยเปิดทำการ"
+  ค้นด้วย "ตลาดหลักทรัพย์" หรือ "ประเทศไทย" เจอทันทีพร้อมไฮไลต์
+  (ตัดคำด้วยพจนานุกรม newmm ผ่าน [nlpo3](https://github.com/PyThaiNLP/nlpo3) —
+  สิ่งที่ Obsidian ทำไม่ได้)
+- 📁 **ไฟล์ของคุณ เครื่องของคุณ** — โน้ต = Markdown ธรรมดา ไม่มี lock-in
+  index ทั้งหมดอยู่ใน `<vault>/.brain/` และสร้างใหม่ได้เสมอด้วย `banyan reindex`
+- 🔗 **Multi-vault** — ลิงก์ข้ามโปรเจกต์ด้วย `[[ชื่อ-vault/ชื่อโน้ต]]`
+  backlinks ข้าม vault แสดงครบ
+- ⚡ **เร็ว** — link graph ใน [redb](https://github.com/cberner/redb),
+  ค้นหาด้วย [tantivy](https://github.com/quickwit-oss/tantivy),
+  incremental reindex แตะเฉพาะไฟล์ที่เปลี่ยน
 
-```sh
-cd my-vault/
+## ติดตั้ง
 
-banyan new "My First Note"     # สร้างโน้ตใหม่แล้ว index ให้อัตโนมัติ
-banyan edit "My First Note"    # เปิดโน้ตใน $EDITOR แล้ว reindex เมื่อปิด
-banyan rename "Old" "New"      # เปลี่ยนชื่อ + แก้ [[wikilink]] ในทุกโน้ตที่ลิงก์มา
-banyan delete "My First Note"  # ลบโน้ต + เตือน backlinks ที่จะค้าง
-banyan links "My First Note"   # แสดง forward links และ backlinks
-banyan orphans                 # โน้ตที่ไม่มีใครลิงก์หา
-banyan broken                  # ลิงก์ที่ชี้ไปโน้ตที่ไม่มีจริง
-banyan search "some query"     # ค้นหาแบบ full-text
-banyan graph                   # แสดงทุก edge ของ link graph (from -> to)
-banyan list                    # แสดงรายชื่อโน้ตทั้งหมด
-banyan reindex                 # sync index กับไฟล์ .md (เฉพาะไฟล์ที่เปลี่ยน)
-banyan reindex --full          # rebuild ทุกอย่างจากศูนย์
-banyan watch                   # เฝ้า vault แล้วอัปเดต index อัตโนมัติ
-```
-
-### Multi-vault
-
-ลงทะเบียน vault ไว้ที่ registry กลาง (`~/.config/banyan/`) แล้วลิงก์ข้าม vault ได้ด้วย
-`[[ชื่อ-vault/ชื่อโน้ต]]` — ลิงก์ภายใน vault เดิมยังเป็น `[[โน้ต]]` ตามปกติ
-(เข้ากันได้กับ Obsidian เหมือนเดิม)
+ต้องมี [Rust](https://rustup.rs) (stable) และ [Node.js](https://nodejs.org) 20+
+(เฉพาะถ้าจะใช้ Web UI)
 
 ```sh
-banyan vault add work ~/vaults/work    # ลงทะเบียน + index ให้ทันที
-banyan vault list
-banyan vault remove work               # เอาออกจาก registry (ไฟล์ไม่ถูกแตะ)
-
-banyan links "Note" --all-vaults       # รวม backlinks จากทุก vault ที่ลงทะเบียน
-banyan graph --all-vaults              # รวม graph ทุก vault (node เป็น vault/note)
-banyan search --vault work "คำค้น"     # ค้นเฉพาะ vault ที่ระบุ
-banyan search --all-vaults "คำค้น"     # ค้นทุก vault
+git clone https://github.com/waanvar/banyan.git
+cd banyan
+cargo build --release              # ได้ banyan + banyan-server ใน target/release/
+cd web && npm install && npm run build   # (ทางเลือก) build Web UI
 ```
 
-### Thai full-text search 🇹🇭
-
-จุดที่ Obsidian ทำไม่ได้: Banyan ตัดคำไทยด้วยพจนานุกรม newmm
-([nlpo3](https://github.com/PyThaiNLP/nlpo3)) ทำให้**ค้นคำไทยที่อยู่กลางประโยค
-โดยไม่มีวรรคคั่นเจอ**
+หรือติดตั้ง CLI ตรงจาก git:
 
 ```sh
-# โน้ตมีข้อความ "ตลาดหลักทรัพย์แห่งประเทศไทยเปิดทำการวันนี้"
-banyan search "ตลาดหลักทรัพย์"   # เจอ พร้อมไฮไลต์ตำแหน่งคำ
-banyan search "ประเทศไทย"        # เจอเช่นกัน
+cargo install --git https://github.com/waanvar/banyan banyan
 ```
 
-- ข้อความไทยปนอังกฤษในโน้ตเดียวกันค้นได้ทั้งสองภาษา
-- index เก่าจะถูก rebuild อัตโนมัติเมื่อ schema/tokenizer เปลี่ยน
-  (เก็บ index version ไว้ใน redb)
-- ข้อจำกัด: คำทับศัพท์ใหม่ๆ ที่ไม่อยู่ในพจนานุกรม (เช่น "แอป") อาจถูกตัดคำ
-  ไม่ตรงกับที่คาด — พจนานุกรมคำศัพท์ผู้ใช้จะตามมาภายหลัง
-- พจนานุกรม: `words_th.txt` จาก [PyThaiNLP](https://github.com/PyThaiNLP/pythainlp)
-  (Apache-2.0) ฝังมาในไบนารี ใช้งาน offline ได้
-
-### Local API server
-
-`banyan-server` เปิด REST + WebSocket API บนเครื่อง (bind `127.0.0.1` เท่านั้น
-local-first ไม่มี auth) สำหรับ Web UI ใน Phase 5 หรือเครื่องมืออื่น
+## เริ่มใช้งาน
 
 ```sh
-banyan-server --port 3000
+mkdir my-vault && cd my-vault
+banyan new "โน้ตแรกของฉัน"        # สร้างโน้ต + index อัตโนมัติ
+banyan vault add my-vault .        # ลงทะเบียนเข้า registry (~/.config/banyan)
+banyan-server                      # เปิด Web UI ที่ http://127.0.0.1:3000
 ```
+
+![Graph view](docs/graph-dark.png)
+
+## คำสั่ง CLI
+
+| คำสั่ง | หน้าที่ |
+|---|---|
+| `banyan new <ชื่อ>` | สร้างโน้ตใหม่ + index |
+| `banyan edit <ชื่อ>` | เปิดใน `$EDITOR` แล้ว reindex เมื่อปิด |
+| `banyan rename <เก่า> <ใหม่>` | เปลี่ยนชื่อ + แก้ `[[wikilink]]` ทุกโน้ตที่ลิงก์มา |
+| `banyan delete <ชื่อ>` | ลบโน้ต + เตือน backlinks ที่จะค้าง |
+| `banyan links <ชื่อ> [--all-vaults]` | forward links + backlinks (รวมข้าม vault) |
+| `banyan orphans` / `banyan broken` | โน้ตที่ไม่มีใครลิงก์ / ลิงก์ที่ชี้ไปโน้ตที่ไม่มี |
+| `banyan search <คำ> [--vault <ชื่อ>\|--all-vaults]` | ค้นหา full-text (ไทย/อังกฤษ) |
+| `banyan graph [--all-vaults]` | edges ของ link graph |
+| `banyan list` | รายชื่อโน้ตทั้งหมด |
+| `banyan reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
+| `banyan watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
+| `banyan vault add/list/remove` | จัดการ registry กลาง |
+
+## Web UI
+
+ดีไซน์ต้นฉบับธีม "ต้นไทร" (ไม่ลอก Obsidian) — typography ไทยด้วย
+IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้
+
+- Layout 3 ส่วน: รายชื่อโน้ต / editor (เขียน–คู่กัน–อ่าน) / backlinks + โครงร่าง
+- พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ตรวมข้าม vault — คลิก wikilink เพื่อกระโดด
+  ถ้าโน้ตยังไม่มีจะสร้างให้
+- `Ctrl+K` command palette: เปิดโน้ต / ค้น full-text / สร้างโน้ตใหม่
+- Graph view (d3-force) คลิก node เปิดโน้ต โหมดรวมทุก vault แยกสีตาม vault
+- ธีมมืด/สว่าง, บันทึกอัตโนมัติ, real-time ผ่าน WebSocket —
+  แก้ไฟล์จาก Obsidian หรือ editor อื่นแล้วหน้าจออัปเดตเอง
+
+พัฒนา UI: `cd web && npm run dev` (Vite proxy ไป banyan-server พอร์ต 3000)
+
+## API (banyan-server)
+
+Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่มี auth)
 
 | Endpoint | หน้าที่ |
 |---|---|
 | `GET /api/vaults` | รายชื่อ vault ที่ลงทะเบียน |
 | `GET /api/vaults/{vault}/notes` | รายชื่อโน้ตใน vault |
-| `GET /api/notes/{vault}/{title}` | อ่านเนื้อหา markdown |
-| `PUT /api/notes/{vault}/{title}` | เขียน/สร้างโน้ต (body = markdown) |
-| `DELETE /api/notes/{vault}/{title}` | ลบโน้ต + รายงาน backlinks ที่ค้าง |
+| `GET/PUT/DELETE /api/notes/{vault}/{title}` | อ่าน / เขียน / ลบ markdown |
 | `GET /api/notes/{vault}/{title}/links` | forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ค้นทุก vault) |
+| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ทุก vault) |
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
-| `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน (จาก watcher) |
+| `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
 
-server เฝ้าไฟล์ทุก vault อัตโนมัติ — แก้ .md ด้วยโปรแกรมอื่น (เช่น Obsidian)
-index จะอัปเดตเองและ ws clients ได้รับแจ้ง
+## สถาปัตยกรรม
 
-### Web UI
-
-หน้าเว็บดีไซน์ต้นฉบับ (ธีม "ต้นไทร" — เขียวเรือนยอด + wikilink สีน้ำตาลราก)
-รองรับภาษาไทยเป็น first-class ด้วยฟอนต์ IBM Plex Sans Thai ฝังในตัว
-
-```sh
-cd web && npm install && npm run build   # ครั้งแรกครั้งเดียว
-banyan-server                            # เสิร์ฟ UI ที่ http://127.0.0.1:3000
+```
+<vault>/
+  *.md            ← source of truth (Obsidian-compatible)
+  .brain/
+    graph.redb    ← forward/backlinks + mtimes + index version (redb)
+    tantivy/      ← full-text index, tokenizer ไทย newmm (tantivy)
+~/.config/banyan/
+  registry.redb   ← ชื่อ vault -> path สำหรับลิงก์ข้าม vault
 ```
 
-- Layout 3 ส่วน: รายชื่อโน้ต / editor แบบ เขียน–คู่กัน–อ่าน / backlinks + โครงร่าง
-- พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ต (รวมข้าม vault) — คลิก wikilink เพื่อกระโดด
-  ถ้าโน้ตยังไม่มีจะสร้างให้เลย
-- `Ctrl+K` — command palette: เปิดโน้ต, ค้นหา full-text ภาษาไทย, สร้างโน้ตใหม่
-- Graph view (d3-force): คลิก node เปิดโน้ต, โหมดรวมทุก vault แยกสีตาม vault
-- ธีมมืด/สว่าง, บันทึกอัตโนมัติ, real-time ผ่าน WebSocket
-  (แก้ไฟล์จากที่อื่นแล้วหน้าจออัปเดตเอง)
-
-สำหรับพัฒนา UI: `cd web && npm run dev` (Vite proxy ไปที่ banyan-server พอร์ต 3000)
+ลบ `.brain/` ทิ้งเมื่อไหร่ก็ได้ — `banyan reindex` สร้างใหม่จากไฟล์ .md ทั้งหมด
+เมื่อ schema/tokenizer เปลี่ยนเวอร์ชัน index เก่าจะถูก rebuild อัตโนมัติ
 
 ## Development
 
 ```sh
-cargo test
-cargo clippy --all -- -D warnings
+cargo test                              # 57 tests (unit + integration)
+cargo clippy --all --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
+## แผนต่อไป
+
+- พจนานุกรมคำศัพท์ผู้ใช้ (คำทับศัพท์ใหม่ๆ ที่ newmm ไม่รู้จัก)
+- Desktop app ด้วย Tauri
+- Sync ข้ามเครื่อง / AI features — เป็น open-core layer ภายหลัง
+
 ## License
 
-[AGPL-3.0-only](LICENSE)
+[AGPL-3.0-only](LICENSE) — ใช้ฟรี แก้ได้ แต่ถ้านำไปให้บริการต้องเปิดซอร์สส่วนที่แก้
+
+พจนานุกรมตัดคำ `words_th.txt` จาก [PyThaiNLP](https://github.com/PyThaiNLP/pythainlp)
+(Apache-2.0)
