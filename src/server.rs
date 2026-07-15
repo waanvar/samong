@@ -118,17 +118,7 @@ fn resolve_vault(registry: &Registry, name: &str) -> std::result::Result<PathBuf
 
 /// Note titles come from URL segments; never let them escape the vault.
 fn validate_title(title: &str) -> std::result::Result<(), ApiError> {
-    if title.is_empty()
-        || title.contains(['/', '\\'])
-        || title == "."
-        || title == ".."
-        || title.ends_with(".md")
-    {
-        return Err(ApiError::BadRequest(format!(
-            "invalid note title \"{title}\""
-        )));
-    }
-    Ok(())
+    crate::ops::validate_title(title).map_err(ApiError::BadRequest)
 }
 
 // ---------- REST handlers ----------
@@ -273,18 +263,7 @@ async fn get_links(
 
         // Same query-time federation as `banyan links --all-vaults`.
         let registry = Registry::open()?;
-        let qualified = format!("{vault_name}/{title}");
-        let mut cross = Vec::new();
-        for (other_name, other_path) in registry.list()? {
-            if other_name == vault_name {
-                continue;
-            }
-            let sources = {
-                let graph = Graph::open(&other_path)?;
-                graph.backlinks(&qualified)?
-            };
-            cross.extend(sources.into_iter().map(|s| format!("{other_name}/{s}")));
-        }
+        let cross = crate::ops::cross_vault_backlinks(&registry, &vault_name, &title)?;
         Ok(LinksResponse {
             forward,
             backlinks,

@@ -4,6 +4,8 @@
 pub mod cli;
 pub mod graph;
 pub mod indexer;
+pub mod mcp;
+pub mod ops;
 pub mod registry;
 pub mod search;
 pub mod server;

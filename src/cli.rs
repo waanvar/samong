@@ -278,22 +278,7 @@ fn cmd_links(vault: &Path, title: &str, all_vaults: bool) -> Result<()> {
         println!("(current vault is not registered; cross-vault backlinks unavailable)");
         return Ok(());
     };
-    // Other vaults reference this note as [[my_name/title]]; each vault's own
-    // graph already indexed that raw target, so one backward lookup per vault.
-    let qualified = format!("{my_name}/{title}");
-    let mut cross = Vec::new();
-    for (other_name, other_path) in registry.list()? {
-        if other_name == my_name {
-            continue;
-        }
-        let sources = {
-            let graph = Graph::open(&other_path)?;
-            graph.backlinks(&qualified)?
-        };
-        for source in sources {
-            cross.push(format!("{other_name}/{source}"));
-        }
-    }
+    let cross = crate::ops::cross_vault_backlinks(&registry, &my_name, title)?;
     println!("cross-vault backlinks ({}):", cross.len());
     for source in cross {
         println!("  <- {source}");
