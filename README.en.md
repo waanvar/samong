@@ -31,6 +31,9 @@ the single source of truth.
 - ⚡ **Fast** — link graph in [redb](https://github.com/cberner/redb),
   search by [tantivy](https://github.com/quickwit-oss/tantivy), and
   incremental reindexing that only touches changed files.
+- 🤖 **A brain for AI agents** — `banyan-mcp` plugs into Claude Code /
+  Claude Desktop over MCP so agents can search, read, and save knowledge
+  themselves ([setup guide](docs/AI-AGENT.md)).
 
 ## Install
 
@@ -108,6 +111,20 @@ Binds to `127.0.0.1` only (local-first, no auth).
 | `GET /api/search?q=&vault=` | Search (omit `vault` for all vaults) |
 | `GET /api/graph?vault=` | Nodes + edges as JSON |
 | `WS /ws` | Events when .md files change |
+
+## AI agents (banyan-mcp)
+
+`banyan-mcp` is an MCP server over stdio. Agents get these tools:
+`search_notes` (Thai-segmented), `read_note`, `save_note`, `get_links`,
+`list_notes`, `list_vaults` — deliberately no delete tool; erasing knowledge
+stays a human action.
+
+```json
+// .mcp.json in your repo
+{ "mcpServers": { "banyan": { "command": "banyan-mcp" } } }
+```
+
+Full setup and a `CLAUDE.md` recipe: [docs/AI-AGENT.md](docs/AI-AGENT.md)
 
 ## Architecture
 

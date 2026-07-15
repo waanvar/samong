@@ -27,6 +27,9 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 - ⚡ **เร็ว** — link graph ใน [redb](https://github.com/cberner/redb),
   ค้นหาด้วย [tantivy](https://github.com/quickwit-oss/tantivy),
   incremental reindex แตะเฉพาะไฟล์ที่เปลี่ยน
+- 🤖 **เป็นมันสมองของ AI agent ได้** — `banyan-mcp` เสียบเข้า Claude Code /
+  Claude Desktop ผ่าน MCP ให้ agent ค้น-อ่าน-บันทึกความรู้เองได้
+  ([วิธีตั้งค่า](docs/AI-AGENT.md))
 
 ## ติดตั้ง
 
@@ -102,6 +105,19 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 | `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ทุก vault) |
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
 | `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
+
+## AI agent (banyan-mcp)
+
+`banyan-mcp` เป็น MCP server บน stdio — agent ได้ tools: `search_notes`
+(ค้นไทยตัดคำ), `read_note`, `save_note`, `get_links`, `list_notes`,
+`list_vaults` (จงใจไม่มี delete — การลบเป็นเรื่องของมนุษย์)
+
+```json
+// .mcp.json ใน repo ของคุณ
+{ "mcpServers": { "banyan": { "command": "banyan-mcp" } } }
+```
+
+ดูวิธีตั้งค่าเต็มและ recipe สำหรับ `CLAUDE.md` ที่ [docs/AI-AGENT.md](docs/AI-AGENT.md)
 
 ## สถาปัตยกรรม
 
