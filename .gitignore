@@ -1,7 +1,8 @@
 /target
 .brain/
 node_modules/
-web/dist/
+web/dist/*
+!web/dist/.gitkeep
 .demo/
 .claude/
 web/tsconfig.tsbuildinfo

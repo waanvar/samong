@@ -15,13 +15,26 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path as UrlPath, Query, State};
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use notify::{RecursiveMode, Watcher};
+use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
+
+/// The built web UI, baked into the binary so `cargo install` and the release
+/// archives both ship a working UI with nothing to place alongside the exe.
+/// Populated by `web/dist` at compile time (`cd web && npm run build` first);
+/// an unbuilt tree yields an empty set and the server falls back to API-only.
+#[derive(RustEmbed)]
+#[folder = "web/dist"]
+struct WebAssets;
+
+fn has_embedded_ui() -> bool {
+    WebAssets::get("index.html").is_some()
+}
 
 use crate::graph::Graph;
 use crate::indexer;
@@ -482,12 +495,34 @@ pub fn spawn_watcher(state: Arc<AppState>, vaults: Vec<(String, PathBuf)>) -> Re
 
 // ---------- assembly ----------
 
-/// API router plus the built web UI served from `ui_dir`, with an
-/// index.html fallback so the SPA handles its own navigation.
+/// API router plus the built web UI served from `ui_dir` on disk, with an
+/// index.html fallback so the SPA handles its own navigation. Used to override
+/// the baked-in UI during development (`--ui web/dist`).
 pub fn router_with_ui(state: Arc<AppState>, ui_dir: &std::path::Path) -> Router {
     use tower_http::services::{ServeDir, ServeFile};
     let spa = ServeDir::new(ui_dir).fallback(ServeFile::new(ui_dir.join("index.html")));
     router(state).fallback_service(spa)
+}
+
+/// Serve one embedded asset, falling back to index.html for unknown paths so
+/// the SPA owns client-side routing.
+async fn serve_embedded(uri: Uri) -> Response {
+    let path = uri.path().trim_start_matches('/');
+    let path = if path.is_empty() { "index.html" } else { path };
+    let asset = WebAssets::get(path).or_else(|| WebAssets::get("index.html"));
+    match asset {
+        Some(file) => (
+            [(header::CONTENT_TYPE, file.metadata.mimetype())],
+            file.data,
+        )
+            .into_response(),
+        None => (StatusCode::NOT_FOUND, "web UI not built").into_response(),
+    }
+}
+
+/// API router plus the web UI baked into the binary.
+pub fn router_with_embedded_ui(state: Arc<AppState>) -> Router {
+    router(state).fallback(serve_embedded)
 }
 
 pub fn router(state: Arc<AppState>) -> Router {
@@ -506,8 +541,12 @@ pub fn router(state: Arc<AppState>) -> Router {
 }
 
 /// Start the server on 127.0.0.1:port (local-first: never binds elsewhere).
-/// When `ui_dir` contains a built web UI (index.html), it is served at `/`.
-pub async fn run(port: u16, ui_dir: Option<PathBuf>) -> Result<()> {
+///
+/// The web UI is served from, in order of preference: an explicit `ui_dir`
+/// on disk (dev override), then the UI baked into the binary, then API-only.
+/// When `open_browser` is set, the default browser is pointed at the server
+/// once it is listening.
+pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Result<()> {
     let vaults = {
         // Scoped: handlers each open the registry themselves, and redb
         // allows only one live handle per file per process.
@@ -530,8 +569,12 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>) -> Result<()> {
             println!("serving web UI from {}", dir.display());
             router_with_ui(state, &dir)
         }
+        None if has_embedded_ui() => {
+            println!("serving built-in web UI");
+            router_with_embedded_ui(state)
+        }
         None => {
-            println!("web UI not found — serving API only");
+            println!("web UI not built — serving API only (run `cd web && npm run build`)");
             router(state)
         }
     };
@@ -540,7 +583,37 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .with_context(|| format!("binding {addr}"))?;
-    println!("banyan-server listening on http://{addr} (Ctrl+C to stop)");
+    let url = format!("http://{addr}");
+    println!("banyan-server listening on {url} (Ctrl+C to stop)");
+    if open_browser {
+        // Launch off-thread so a slow browser start never delays serving.
+        let url = url.clone();
+        std::thread::spawn(move || {
+            let _ = open::that(url);
+        });
+    }
     axum::serve(listener, app).await.context("serving")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tolerant of both environments: with a real `web/dist` build the
+    /// embedded UI serves index.html; on a clean checkout (only .gitkeep)
+    /// it reports the UI isn't built. Either way, no panic and the SPA
+    /// fallback path is exercised.
+    #[tokio::test]
+    async fn embedded_ui_serves_index_or_reports_unbuilt() {
+        let root = serve_embedded(Uri::from_static("/")).await;
+        let spa_route = serve_embedded(Uri::from_static("/some/client/route")).await;
+        if has_embedded_ui() {
+            assert_eq!(root.status(), StatusCode::OK);
+            // Unknown paths fall back to index.html, not 404.
+            assert_eq!(spa_route.status(), StatusCode::OK);
+        } else {
+            assert_eq!(root.status(), StatusCode::NOT_FOUND);
+        }
+    }
 }
