@@ -561,6 +561,10 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
         println!("vault \"{name}\": {report}");
     }
 
+    // Best-effort update check off the hot path: never blocks startup or fails
+    // if offline / no release yet.
+    std::thread::spawn(crate::update::notify_if_outdated);
+
     let state = AppState::new();
     spawn_watcher(Arc::clone(&state), vaults)?;
 

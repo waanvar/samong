@@ -10,5 +10,6 @@ pub mod registry;
 pub mod search;
 pub mod server;
 pub mod thai;
+pub mod update;
 pub mod vault;
 pub mod watch;

@@ -76,6 +76,12 @@ enum Command {
         #[command(subcommand)]
         action: VaultAction,
     },
+    /// Update banyan to the latest GitHub release
+    Update {
+        /// Only report whether an update is available; don't install it
+        #[arg(long)]
+        check: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -414,6 +420,7 @@ pub fn run() -> Result<()> {
         }
         Command::Watch => watch::run(&vault)?,
         Command::Vault { action } => cmd_vault(action)?,
+        Command::Update { check } => crate::update::run(check)?,
     }
 
     Ok(())
