@@ -88,6 +88,19 @@ with `--no-open` (the old `banyan-server --port 8080` form still works).
 | `banyan reindex [--full]` | Sync the index (changed files only / everything) |
 | `banyan watch` | Watch the vault, keep the index fresh |
 | `banyan vault add/list/remove` | Manage the central registry |
+| `banyan update [--check]` | Update to the latest GitHub release (--check only reports) |
+
+### Updating
+
+`banyan update` downloads the latest GitHub release and replaces all three
+binaries (banyan / banyan-server / banyan-mcp) in place — including the embedded
+web UI. `banyan update --check` reports whether a newer version exists without
+installing, and `banyan-server start` prints a one-line notice when an update is
+available (best-effort; never blocks, never fails offline).
+
+> A published GitHub release is required first
+> (`git tag v0.1.0 && git push origin v0.1.0` triggers the workflow that builds
+> binaries for all three OSes) before `banyan update` can find anything.
 
 ## Web UI
 

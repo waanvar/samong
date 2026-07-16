@@ -83,6 +83,17 @@ banyan-server start               # เปิดเบราว์เซอร�
 | `banyan reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
 | `banyan watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
 | `banyan vault add/list/remove` | จัดการ registry กลาง |
+| `banyan update [--check]` | อัปเดตเป็นเวอร์ชันล่าสุดจาก GitHub release (--check = เช็คเฉยๆ) |
+
+### อัปเดตเวอร์ชัน
+
+`banyan update` ดาวน์โหลด release ล่าสุดจาก GitHub แล้วแทนที่ไบนารีทั้งสาม
+(banyan / banyan-server / banyan-mcp) ให้อัตโนมัติ — รวมหน้าเว็บที่ฝังในตัวด้วย
+`banyan update --check` เช็คว่ามีเวอร์ชันใหม่ไหมโดยไม่ติดตั้ง และ `banyan-server start`
+จะแจ้งบรรทัดเดียวถ้ามีเวอร์ชันใหม่ (best-effort ไม่บล็อก ไม่ล้มถ้าออฟไลน์)
+
+> ต้องมี release เผยแพร่บน GitHub ก่อน (`git tag v0.1.0 && git push origin v0.1.0`
+> ให้ workflow build binary ทั้ง 3 OS) `banyan update` ถึงจะหา release เจอ
 
 ## Web UI
 
