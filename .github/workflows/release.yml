@@ -53,7 +53,8 @@ jobs:
           mkdir -p "stage/$name/web"
           cp target/release/banyan* "stage/$name/" 2>/dev/null || true
           rm -f "stage/$name/"*.d "stage/$name/"*.pdb
-          cp -r web/dist "stage/$name/web/dist"
+          # The web UI is embedded into banyan-server, so the archive is just
+          # the binaries + docs.
           cp README.md README.en.md LICENSE "stage/$name/"
           cd stage
           if [ "${{ matrix.archive }}" = "zip" ]; then

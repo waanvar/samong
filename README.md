@@ -39,14 +39,17 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 ```sh
 git clone https://github.com/waanvar/banyan.git
 cd banyan
-cargo build --release              # ได้ banyan + banyan-server ใน target/release/
-cd web && npm install && npm run build   # (ทางเลือก) build Web UI
+cd web && npm install && npm run build   # build Web UI ก่อน (จะถูกฝังในไบนารี)
+cd .. && cargo build --release           # ได้ banyan / banyan-server / banyan-mcp
 ```
 
-หรือติดตั้ง CLI ตรงจาก git:
+> **ลำดับสำคัญ**: build Web UI ก่อน `cargo build` เสมอ เพราะ `banyan-server`
+> จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ ไม่ต้องมีโฟลเดอร์ UI ข้างๆ
+
+หรือติดตั้งลงเครื่องให้เรียกได้จากทุกที่:
 
 ```sh
-cargo install --git https://github.com/waanvar/banyan banyan
+cargo install --path .
 ```
 
 ## เริ่มใช้งาน
@@ -55,8 +58,12 @@ cargo install --git https://github.com/waanvar/banyan banyan
 mkdir my-vault && cd my-vault
 banyan new "โน้ตแรกของฉัน"        # สร้างโน้ต + index อัตโนมัติ
 banyan vault add my-vault .        # ลงทะเบียนเข้า registry (~/.config/banyan)
-banyan-server                      # เปิด Web UI ที่ http://127.0.0.1:3000
+banyan-server start               # เปิดเบราว์เซอร์ที่ http://127.0.0.1:3000 ให้อัตโนมัติ
 ```
+
+`banyan-server start` เสิร์ฟหน้าเว็บที่ฝังในตัว แล้วเปิดเบราว์เซอร์ให้เอง —
+ไม่ต้องมีไฟล์ UI ข้างๆ ปรับพอร์ตด้วย `--port 8080`, ไม่ให้เปิดเบราว์เซอร์ด้วย
+`--no-open` (รูปแบบเดิม `banyan-server --port 8080` ยังใช้ได้)
 
 ![Graph view](docs/graph-dark.png)
 
@@ -80,7 +87,8 @@ banyan-server                      # เปิด Web UI ที่ http://127.0.
 ## Web UI
 
 ดีไซน์ต้นฉบับธีม "ต้นไทร" (ไม่ลอก Obsidian) — typography ไทยด้วย
-IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้
+IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้ และหน้าเว็บทั้งชุดถูก**ฝังในไบนารี**
+`banyan-server` (rust-embed) แจกไฟล์เดียวเปิดใช้ได้ทันที
 
 - Layout 3 ส่วน: รายชื่อโน้ต / editor (เขียน–คู่กัน–อ่าน) / backlinks + โครงร่าง
 - พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ตรวมข้าม vault — คลิก wikilink เพื่อกระโดด

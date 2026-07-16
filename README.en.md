@@ -43,14 +43,18 @@ Requires [Rust](https://rustup.rs) (stable) and [Node.js](https://nodejs.org)
 ```sh
 git clone https://github.com/waanvar/banyan.git
 cd banyan
-cargo build --release              # banyan + banyan-server in target/release/
-cd web && npm install && npm run build   # (optional) build the web UI
+cd web && npm install && npm run build   # build the web UI first (it gets embedded)
+cd .. && cargo build --release           # banyan / banyan-server / banyan-mcp
 ```
 
-Or install the CLI straight from git:
+> **Order matters**: build the web UI before `cargo build` — `banyan-server`
+> **embeds the web UI into the binary**, so it ships as a single file with no
+> UI folder to place alongside it.
+
+Or install it onto your PATH:
 
 ```sh
-cargo install --git https://github.com/waanvar/banyan banyan
+cargo install --path .
 ```
 
 ## Quickstart
@@ -59,8 +63,12 @@ cargo install --git https://github.com/waanvar/banyan banyan
 mkdir my-vault && cd my-vault
 banyan new "My First Note"         # create + index
 banyan vault add my-vault .        # register in ~/.config/banyan
-banyan-server                      # web UI at http://127.0.0.1:3000
+banyan-server start               # opens http://127.0.0.1:3000 in your browser
 ```
+
+`banyan-server start` serves the embedded web UI and opens your browser — no UI
+files needed alongside it. Change the port with `--port 8080`, skip the browser
+with `--no-open` (the old `banyan-server --port 8080` form still works).
 
 ![Graph view](docs/graph-dark.png)
 
@@ -84,7 +92,9 @@ banyan-server                      # web UI at http://127.0.0.1:3000
 ## Web UI
 
 An original design — banyan-tree identity, not an Obsidian clone — with
-first-class Thai typography (IBM Plex Sans Thai, bundled, works offline).
+first-class Thai typography (IBM Plex Sans Thai, bundled, works offline). The
+whole UI is **embedded into the `banyan-server` binary** (rust-embed) — ships
+as one file, runs instantly.
 
 - Three-pane layout: notes / editor (write–split–read) / backlinks + outline
 - Type `[[` for note autocomplete across vaults; click wikilinks to follow
