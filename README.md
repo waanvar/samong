@@ -33,24 +33,35 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 
 ## ติดตั้ง
 
-ต้องมี [Rust](https://rustup.rs) (stable) และ [Node.js](https://nodejs.org) 20+
-(เฉพาะถ้าจะใช้ Web UI)
+### ความต้องการของระบบ
+
+ตอนนี้ Banyan ติดตั้งด้วยการ **build จาก source** (ยังไม่ได้เปิด public / ยังไม่มี
+release binary สำเร็จรูป) จึงต้องมีเครื่องมือของนักพัฒนา:
+
+- [**Rust**](https://rustup.rs) (stable) — **จำเป็น** ใช้ build ตัวโปรแกรม
+- [**Node.js**](https://nodejs.org) 20+ — **จำเป็นถ้าต้องการหน้าเว็บ** เพราะ UI ถูก
+  ฝังลงในไบนารีตอน build ถ้าไม่ลง Node จะได้เฉพาะ CLI + API
+  (`banyan-server` จะเสิร์ฟ API อย่างเดียว)
+
+> **ในอนาคตเมื่อเปิด public**: จะมี release binary ให้โหลด — end user แค่แตกไฟล์แล้ว
+> รัน `banyan-server start` ได้เลย **ไม่ต้องลง Rust หรือ Node** (release.yml build
+> ไบนารีทั้ง 3 OS ให้อัตโนมัติเมื่อ tag เวอร์ชัน)
+
+### build จาก source
 
 ```sh
 git clone https://github.com/waanvar/banyan.git
 cd banyan
 cd web && npm install && npm run build   # build Web UI ก่อน (จะถูกฝังในไบนารี)
-cd .. && cargo build --release           # ได้ banyan / banyan-server / banyan-mcp
+cd .. && cargo install --path .          # ติดตั้ง banyan / banyan-server / banyan-mcp ลงเครื่อง
 ```
 
-> **ลำดับสำคัญ**: build Web UI ก่อน `cargo build` เสมอ เพราะ `banyan-server`
-> จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ ไม่ต้องมีโฟลเดอร์ UI ข้างๆ
+> **ลำดับสำคัญ**: build Web UI ก่อน `cargo build`/`cargo install` เสมอ เพราะ
+> `banyan-server` จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ
+> ไม่ต้องมีโฟลเดอร์ UI ข้างๆ (ถ้าอยากลอง build เฉยๆ ไม่ติดตั้ง ใช้ `cargo build --release`
+> ได้ไบนารีใน `target/release/`)
 
-หรือติดตั้งลงเครื่องให้เรียกได้จากทุกที่:
-
-```sh
-cargo install --path .
-```
+อัปเดตเป็นเวอร์ชันล่าสุดภายหลังด้วย `banyan update` (ดูหัวข้อ *อัปเดตเวอร์ชัน* ด้านล่าง)
 
 ## เริ่มใช้งาน
 
@@ -156,16 +167,20 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 ## Development
 
 ```sh
-cargo test                              # 57 tests (unit + integration)
+cargo test                              # unit + integration tests
 cargo clippy --all --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
+> หมายเหตุ: ต้อง `cd web && npm run build` ก่อน `cargo test` ครั้งแรก เพื่อให้
+> เทสต์ที่เกี่ยวกับ UI ที่ฝังในไบนารีทำงานครบ (ถ้าไม่ build เทสต์จะข้ามส่วน UI ให้เอง)
+
 ## แผนต่อไป
 
+- เปิด public + เผยแพร่ release binary (โหลดไปรันได้โดยไม่ต้องมี Rust/Node)
 - พจนานุกรมคำศัพท์ผู้ใช้ (คำทับศัพท์ใหม่ๆ ที่ newmm ไม่รู้จัก)
-- Desktop app ด้วย Tauri
-- Sync ข้ามเครื่อง / AI features — เป็น open-core layer ภายหลัง
+- ปุ่มเพิ่ม vault ในหน้าเว็บ (ไม่ต้องใช้ terminal), แพ็กเป็น desktop app ด้วย Tauri
+- Sync ข้ามเครื่อง / AI features (สรุปโน้ต, ถามตอบกับ vault) — เป็น open-core layer ภายหลัง
 
 ## License
 

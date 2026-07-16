@@ -37,25 +37,35 @@ the single source of truth.
 
 ## Install
 
-Requires [Rust](https://rustup.rs) (stable) and [Node.js](https://nodejs.org)
-20+ (only for the web UI).
+### Requirements
+
+Banyan currently installs by **building from source** (not public yet, no
+prebuilt release binaries), so you need the developer toolchain:
+
+- [**Rust**](https://rustup.rs) (stable) — **required**, builds the program
+- [**Node.js**](https://nodejs.org) 20+ — **required if you want the web UI**,
+  which is embedded into the binary at build time. Without Node you still get
+  the CLI + API (`banyan-server` serves API only)
+
+> **Once it goes public**: prebuilt release binaries will be available — end
+> users just extract and run `banyan-server start`, **no Rust or Node needed**
+> (release.yml builds binaries for all three OSes automatically on a version tag).
+
+### Build from source
 
 ```sh
 git clone https://github.com/waanvar/banyan.git
 cd banyan
 cd web && npm install && npm run build   # build the web UI first (it gets embedded)
-cd .. && cargo build --release           # banyan / banyan-server / banyan-mcp
+cd .. && cargo install --path .          # installs banyan / banyan-server / banyan-mcp
 ```
 
-> **Order matters**: build the web UI before `cargo build` — `banyan-server`
-> **embeds the web UI into the binary**, so it ships as a single file with no
-> UI folder to place alongside it.
+> **Order matters**: build the web UI before `cargo build`/`cargo install` —
+> `banyan-server` **embeds the web UI into the binary**, so it ships as a single
+> file with no UI folder alongside it. (To build without installing, use
+> `cargo build --release`; binaries land in `target/release/`.)
 
-Or install it onto your PATH:
-
-```sh
-cargo install --path .
-```
+Update to the latest version later with `banyan update` (see *Updating* below).
 
 ## Quickstart
 
@@ -168,16 +178,20 @@ rebuilt automatically.
 ## Development
 
 ```sh
-cargo test                              # 57 tests (unit + integration)
+cargo test                              # unit + integration tests
 cargo clippy --all --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
+> Note: run `cd web && npm run build` before the first `cargo test` so the
+> embedded-UI tests exercise a real build (they self-skip the UI part otherwise).
+
 ## Roadmap
 
+- Go public + publish release binaries (download and run, no Rust/Node needed)
 - User dictionary for newer Thai loanwords newmm doesn't know yet
-- Desktop app via Tauri
-- Cross-device sync / AI features — later, as an open-core layer
+- "Add vault" button in the web UI (no terminal); package as a desktop app via Tauri
+- Cross-device sync / AI features (note summaries, ask-your-vault) — later, as an open-core layer
 
 ## License
 
