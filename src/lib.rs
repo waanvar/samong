@@ -7,6 +7,7 @@ pub mod indexer;
 pub mod mcp;
 pub mod ops;
 pub mod registry;
+pub mod scope;
 pub mod search;
 pub mod server;
 pub mod thai;

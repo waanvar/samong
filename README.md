@@ -94,7 +94,54 @@ banyan-server start               # เปิดเบราว์เซอร�
 | `banyan reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
 | `banyan watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
 | `banyan vault add/list/remove` | จัดการ registry กลาง |
+| `banyan doctor` | สรุปว่า vault นับไฟล์ไหนเป็นโน้ต ข้ามอะไรไป และ title ไหนกำกวม |
 | `banyan update [--check]` | อัปเดตเป็นเวอร์ชันล่าสุดจาก GitHub release (--check = เช็คเฉยๆ) |
+
+### ไฟล์ไหนนับเป็นโน้ต (vault scope)
+
+กฎเดียวที่ต้องจำ: **โน้ต = ไฟล์ `.md` ที่คุณจะ commit** ชี้ `banyan vault add` ที่
+root ของโปรเจกต์ได้เลย ไม่ต้องตั้งค่าอะไร — Banyan จะ:
+
+- เคารพ `.gitignore` (จึงไม่ดูด `node_modules/`, `dist/`, `target/` เข้ามา)
+- ข้ามโฟลเดอร์ dependency ที่ไม่มีทางเป็นโน้ตเสมอ แม้ไม่ได้ gitignore
+  (`node_modules`, `vendor`, `site-packages`, `__pycache__`, `Pods`, `bower_components`)
+- ข้ามโฟลเดอร์ที่ขึ้นต้นด้วยจุดทั้งหมด (`.git`, `.obsidian`, `.brain`)
+
+`banyan doctor` บอกว่าตอนนี้นับได้กี่โน้ตและข้ามไปกี่ไฟล์:
+
+```sh
+banyan doctor
+# vault: /home/me/myproject
+# gitignore: respected
+# 4 note(s) in scope
+# skipped 90 .md file(s) not tracked as notes (web 90)
+```
+
+อยากปรับ สร้าง `banyan.toml` ที่ root ของ vault (**commit ไปกับ repo** เพื่อให้
+ทุกเครื่องและ server เห็นกฎเดียวกัน — ทุกฟิลด์ optional):
+
+```toml
+[vault]
+name = "myproject"        # ชื่อที่ใช้ใน [[myproject/โน้ต]] (ไม่ใส่ = ใช้จาก registry)
+
+[scope]
+notes_dir = "docs"        # จำกัดให้ scan แค่โฟลเดอร์นี้ (default = ".")
+exclude = ["archive/**"]  # กฎเพิ่ม (gitignore syntax)
+follow_gitignore = true   # ปิดได้ถ้าอยาก index ไฟล์ที่ gitignore ไว้
+max_depth = 0             # 0 = ไม่จำกัดความลึก
+```
+
+ถ้า repo ของคุณ gitignore โน้ตของตัวเองไว้ (เช่นโน้ต local ใน `notes/`) ใช้
+`.banyanignore` ดึงกลับมาได้ — ไฟล์นี้ใช้ syntax เดียวกับ gitignore และ negate ได้:
+
+```
+!notes/
+drafts/
+```
+
+> ตั้งใจไม่อ่าน global gitignore (`~/.config/git/ignore`), `.git/info/exclude`
+> และ `.gitignore` ของโฟลเดอร์เหนือ vault — ของพวกนี้เป็นของเฉพาะเครื่อง ถ้าเอามา
+> ใช้ repo เดียวกันจะ index ไม่เหมือนกันบนสองเครื่อง
 
 ### อัปเดตเวอร์ชัน
 
@@ -132,7 +179,7 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 | `GET /api/vaults/{vault}/notes` | รายชื่อโน้ตใน vault |
 | `GET/PUT/DELETE /api/notes/{vault}/{title}` | อ่าน / เขียน / ลบ markdown |
 | `GET /api/notes/{vault}/{title}/links` | forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ทุก vault) |
+| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ทุก vault) — ผลลัพธ์มี `path` ของไฟล์ |
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
 | `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
 

@@ -1,8 +1,10 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use regex::Regex;
+
+use crate::scope::Scope;
 
 /// Directory (relative to a vault root) where all generated indexes live.
 /// Must always be reconstructible from the .md files alone.
@@ -10,8 +12,34 @@ pub const BRAIN_DIR: &str = ".brain";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Note {
+    /// Display name: the filename without `.md`. Not unique within a vault.
     pub title: String,
     pub path: PathBuf,
+    /// Stable identity: see [`relative_key`].
+    pub key: String,
+}
+
+/// A note's identity inside a vault: its path relative to the vault root,
+/// always slash-separated so a Windows and a Linux machine indexing the same
+/// commit produce the same key.
+///
+/// Titles are *not* identities — one repo can hold twenty files named
+/// `README.md` — so everything persisted (link graph, search index) keys off
+/// this instead. It is also exactly how git names the same file, which is what
+/// lets a central server ingest a vault straight from a commit.
+pub fn relative_key(vault: &Path, path: &Path) -> Option<String> {
+    let mut parts = Vec::new();
+    for component in path.strip_prefix(vault).ok()?.components() {
+        match component {
+            Component::Normal(name) => parts.push(name.to_str()?),
+            // `.` / `..` / a drive prefix cannot be part of an identity.
+            _ => return None,
+        }
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts.join("/"))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,31 +75,26 @@ pub fn title_from_path(path: &Path) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-/// List every note (`*.md` file, skipping the `.brain` index directory) in the vault,
-/// recursively.
+/// Every note in the vault, according to its scope rules (see [`crate::scope`]).
+///
+/// Loads the vault's config on each call. Callers that already hold a [`Scope`]
+/// — the indexer, the watcher — should use [`list_notes_in`] instead.
 pub fn list_notes(vault: &Path) -> Result<Vec<Note>> {
+    list_notes_in(&Scope::load(vault)?)
+}
+
+/// Every note in scope, sorted by title then key so that duplicate titles keep
+/// a stable, reproducible order.
+pub fn list_notes_in(scope: &Scope) -> Result<Vec<Note>> {
+    let root = scope.root();
     let mut notes = Vec::new();
-    for entry in walkdir::WalkDir::new(vault)
-        .into_iter()
-        .filter_entry(|e| e.file_name() != BRAIN_DIR)
-    {
-        let entry = entry.with_context(|| format!("walking vault {}", vault.display()))?;
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("md") {
-            continue;
-        }
-        let Some(title) = title_from_path(path) else {
-            continue;
+    for path in scope.notes()? {
+        let (Some(title), Some(key)) = (title_from_path(&path), relative_key(root, &path)) else {
+            continue; // non-UTF-8 name: not addressable as a note
         };
-        notes.push(Note {
-            title,
-            path: path.to_path_buf(),
-        });
+        notes.push(Note { title, path, key });
     }
-    notes.sort_by(|a, b| a.title.cmp(&b.title));
+    notes.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.key.cmp(&b.key)));
     Ok(notes)
 }
 
@@ -86,9 +109,22 @@ pub fn split_cross_vault(target: &str) -> Option<(&str, &str)> {
     Some((vault_name, title))
 }
 
+/// Every note in the vault carrying this title, in stable key order.
+///
+/// More than one is normal and legal — `README.md` and `docs/README.md` are
+/// different notes that share a title.
+pub fn find_notes(vault: &Path, title: &str) -> Result<Vec<Note>> {
+    Ok(list_notes(vault)?
+        .into_iter()
+        .filter(|n| n.title == title)
+        .collect())
+}
+
 /// Locate a note by title anywhere in the vault (including subdirectories).
+/// When several share the title, the first in key order wins — deterministic,
+/// though `banyan doctor` will report the ambiguity.
 pub fn find_note(vault: &Path, title: &str) -> Result<Option<Note>> {
-    Ok(list_notes(vault)?.into_iter().find(|n| n.title == title))
+    Ok(find_notes(vault, title)?.into_iter().next())
 }
 
 /// Rewrite every `[[old]]` / `[[old|alias]]` in `content` to point at `new`,
@@ -240,6 +276,56 @@ mod tests {
         assert_eq!(split_cross_vault("plain"), None);
         assert_eq!(split_cross_vault("/Note"), None);
         assert_eq!(split_cross_vault("work/"), None);
+    }
+
+    #[test]
+    fn relative_key_is_slash_separated_on_every_platform() {
+        let vault = Path::new("/vault");
+        assert_eq!(
+            relative_key(vault, &Path::new("/vault").join("docs").join("API.md")).as_deref(),
+            Some("docs/API.md")
+        );
+        assert_eq!(
+            relative_key(vault, Path::new("/vault/Root.md")).as_deref(),
+            Some("Root.md")
+        );
+        // The vault root itself is not a note, and nothing outside it has a key.
+        assert_eq!(relative_key(vault, vault), None);
+        assert_eq!(relative_key(vault, Path::new("/elsewhere/A.md")), None);
+    }
+
+    #[test]
+    fn duplicate_titles_are_distinct_notes_with_distinct_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("docs")).unwrap();
+        fs::write(dir.path().join("README.md"), "# root readme").unwrap();
+        fs::write(dir.path().join("docs/README.md"), "# docs readme").unwrap();
+
+        let notes = list_notes(dir.path()).unwrap();
+        assert_eq!(notes.len(), 2, "both files are notes");
+        let keys: Vec<&str> = notes.iter().map(|n| n.key.as_str()).collect();
+        assert_eq!(keys, vec!["README.md", "docs/README.md"]);
+        assert!(notes.iter().all(|n| n.title == "README"));
+
+        // Both are findable by title; find_note picks the first key deterministically.
+        assert_eq!(find_notes(dir.path(), "README").unwrap().len(), 2);
+        assert_eq!(
+            find_note(dir.path(), "README").unwrap().unwrap().key,
+            "README.md"
+        );
+    }
+
+    #[test]
+    fn list_notes_applies_vault_scope() {
+        let dir = tempfile::tempdir().unwrap();
+        create_note(dir.path(), "Real").unwrap();
+        let dep = dir.path().join("node_modules").join("left-pad");
+        fs::create_dir_all(&dep).unwrap();
+        fs::write(dep.join("README.md"), "# left-pad").unwrap();
+
+        let notes = list_notes(dir.path()).unwrap();
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].title, "Real");
     }
 
     #[test]

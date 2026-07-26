@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand};
 use crate::graph::Graph;
 use crate::indexer;
 use crate::registry::Registry;
+use crate::scope::Scope;
 use crate::vault;
 use crate::watch;
 
@@ -76,6 +77,9 @@ enum Command {
         #[command(subcommand)]
         action: VaultAction,
     },
+    /// Report on the vault: what is in scope, what was skipped, and any
+    /// ambiguous note titles
+    Doctor,
     /// Update banyan to the latest GitHub release
     Update {
         /// Only report whether an update is available; don't install it
@@ -148,11 +152,12 @@ fn cmd_delete(vault: &Path, title: &str) -> Result<()> {
     // Scoped so the db handle is released before the reindex below reopens it.
     let dangling: Vec<String> = {
         let graph = Graph::open(vault)?;
-        graph
+        let sources = graph
             .backlinks(title)?
             .into_iter()
-            .filter(|source| source != title)
-            .collect()
+            .filter(|source_key| *source_key != note.key) // a self-link is not dangling
+            .collect();
+        crate::ops::keys_to_titles(sources)
     };
 
     fs::remove_file(&note.path).with_context(|| format!("deleting {}", note.path.display()))?;
@@ -177,22 +182,25 @@ fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
 
     // Rewrite [[old]] in every note that links here (including self-links).
     // Scoped so the db handle is released before the reindex below reopens it.
-    let sources: BTreeSet<String> = {
+    let source_keys: BTreeSet<String> = {
         let graph = Graph::open(vault)?;
         graph.backlinks(old)?.into_iter().collect()
     };
     let mut rewritten_links = 0;
     let mut rewritten_notes = 0;
-    for source in &sources {
-        let Some(source_note) = vault::find_note(vault, source)? else {
+    for source_key in &source_keys {
+        // Keys are vault-relative paths, so the file is addressed directly —
+        // no title lookup, and no ambiguity when several notes share a title.
+        let source_path = vault.join(source_key);
+        if !source_path.is_file() {
             continue; // dangling backlink from an already-deleted note
-        };
-        let content = fs::read_to_string(&source_note.path)
-            .with_context(|| format!("reading {}", source_note.path.display()))?;
+        }
+        let content = fs::read_to_string(&source_path)
+            .with_context(|| format!("reading {}", source_path.display()))?;
         let (updated, count) = vault::rewrite_wikilinks(&content, old, new);
         if count > 0 {
-            fs::write(&source_note.path, updated)
-                .with_context(|| format!("writing {}", source_note.path.display()))?;
+            fs::write(&source_path, updated)
+                .with_context(|| format!("writing {}", source_path.display()))?;
             rewritten_links += count;
             rewritten_notes += 1;
         }
@@ -248,10 +256,11 @@ fn cmd_broken(vault: &Path) -> Result<()> {
         let graph = Graph::open(vault)?;
         graph.all_edges()?
     };
-    for (from, to) in edges {
+    for (from_key, to) in edges {
         if titles.contains(&to) || resolves_cross_vault(&registry, &to)? {
             continue;
         }
+        let from = crate::graph::title_from_key(&from_key).unwrap_or(from_key);
         println!("{from} -> [[{to}]]");
         found = true;
     }
@@ -264,8 +273,25 @@ fn cmd_broken(vault: &Path) -> Result<()> {
 fn cmd_links(vault: &Path, title: &str, all_vaults: bool) -> Result<()> {
     let (forward, back) = {
         let graph = Graph::open(vault)?;
-        (graph.forward_links(title)?, graph.backlinks(title)?)
+        (
+            // A title can name more than one file; show the links of all of them.
+            graph.forward_links_for_title(title)?,
+            crate::ops::keys_to_titles(graph.backlinks(title)?),
+        )
     };
+
+    let sharing = vault::find_notes(vault, title)?;
+    if sharing.len() > 1 {
+        println!(
+            "note: {} files share the title \"{title}\" ({}) — their links are merged below",
+            sharing.len(),
+            sharing
+                .iter()
+                .map(|n| n.key.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
 
     println!("forward links ({}):", forward.len());
     for target in &forward {
@@ -292,11 +318,17 @@ fn cmd_links(vault: &Path, title: &str, all_vaults: bool) -> Result<()> {
     Ok(())
 }
 
+/// Edges are stored as `(note key, raw target)`; the target names a title, so
+/// the source is shown as a title too and the dump stays in one namespace.
+fn edge_source_title(key: String) -> String {
+    crate::graph::title_from_key(&key).unwrap_or(key)
+}
+
 fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
     if !all_vaults {
         let graph = Graph::open(vault)?;
         for (from, to) in graph.all_edges()? {
-            println!("{from} -> {to}");
+            println!("{} -> {to}", edge_source_title(from));
         }
         return Ok(());
     }
@@ -314,18 +346,21 @@ fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
                 Some((prefix, _)) if names.contains(prefix) => to.clone(),
                 _ => format!("{name}/{to}"),
             };
-            println!("{name}/{from} -> {to}");
+            println!("{name}/{} -> {to}", edge_source_title(from));
         }
     }
     Ok(())
 }
 
+/// Results are labelled with the note's path, not its bare title: search is
+/// exactly where two files called `README` have to be told apart, and the path
+/// contains the title anyway.
 fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool {
     let found = !hits.is_empty();
     for hit in hits {
         match prefix {
-            Some(name) => println!("{name}/{}: {}", hit.title, hit.snippet),
-            None => println!("{}: {}", hit.title, hit.snippet),
+            Some(name) => println!("{name}/{}: {}", hit.key, hit.snippet),
+            None => println!("{}: {}", hit.key, hit.snippet),
         }
     }
     found
@@ -356,14 +391,90 @@ fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: b
     Ok(())
 }
 
+/// Print what the scope rules let in and kept out.
+///
+/// Registering a vault is the moment a wrong scope gets baked in, so the
+/// numbers are shown then and there rather than waiting for someone to wonder
+/// why search returns a dependency's README. This never asks a question:
+/// pointing `vault add` at a repo root is a perfectly good thing to do, and the
+/// default rules already handle it.
+fn print_scope_summary(scope: &Scope) -> Result<()> {
+    let audit = scope.audit()?;
+    let about = if audit.truncated { "at least " } else { "" };
+
+    println!("{} note(s) in scope", audit.included);
+    if audit.skipped > 0 {
+        let breakdown = audit
+            .skipped_by_dir
+            .iter()
+            .take(3)
+            .map(|(dir, count)| format!("{dir} {count}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "skipped {about}{} .md file(s) not tracked as notes ({breakdown})",
+            audit.skipped
+        );
+    }
+    if audit.included == 0 {
+        println!(
+            "warning: no notes found — check scope.notes_dir in {}, or whether .gitignore excludes them",
+            crate::scope::CONFIG_FILE
+        );
+    }
+    Ok(())
+}
+
+fn cmd_doctor(vault: &Path) -> Result<()> {
+    let scope = Scope::load(vault)?;
+    println!("vault: {}", display_path(scope.root()));
+    if let Some(name) = &scope.config().vault.name {
+        println!("name (from {}): {name}", crate::scope::CONFIG_FILE);
+    }
+    if scope.notes_root() != scope.root() {
+        println!("notes dir: {}", display_path(scope.notes_root()));
+    }
+    println!(
+        "gitignore: {}",
+        if scope.config().scope.follow_gitignore {
+            "respected"
+        } else {
+            "disabled in config"
+        }
+    );
+    print_scope_summary(&scope)?;
+
+    let report = indexer::reindex_in(&scope, false)?;
+    println!("{report}");
+
+    // A title shared by several files is legal, but every [[link]] and
+    // title-addressed API call to it is ambiguous, so name them explicitly.
+    let duplicates = {
+        let graph = Graph::open(vault)?;
+        graph.duplicate_titles()?
+    };
+    if duplicates.is_empty() {
+        println!("no ambiguous note titles");
+    } else {
+        println!("{} ambiguous note title(s):", duplicates.len());
+        for (title, keys) in duplicates {
+            println!("  {title} -> {}", keys.join(", "));
+        }
+        println!("  (each file is indexed separately; [[links]] to these titles are ambiguous)");
+    }
+    Ok(())
+}
+
 fn cmd_vault(action: VaultAction) -> Result<()> {
     let registry = Registry::open()?;
     match action {
         VaultAction::Add { name, path } => {
             let canonical = registry.add(&name, &path)?;
+            let scope = Scope::load(&canonical)?;
             // Index it right away so cross-vault lookups work immediately.
-            let report = indexer::reindex(&canonical, false)?;
+            let report = indexer::reindex_in(&scope, false)?;
             println!("registered \"{name}\" at {}", display_path(&canonical));
+            print_scope_summary(&scope)?;
             println!("{report}");
         }
         VaultAction::List => {
@@ -419,6 +530,7 @@ pub fn run() -> Result<()> {
             }
         }
         Command::Watch => watch::run(&vault)?,
+        Command::Doctor => cmd_doctor(&vault)?,
         Command::Vault { action } => cmd_vault(action)?,
         Command::Update { check } => crate::update::run(check)?,
     }

@@ -262,7 +262,10 @@ fn tool_get_links(args: &Value) -> Result<String> {
 
     let (forward, backlinks) = {
         let graph = Graph::open(&root)?;
-        (graph.forward_links(title)?, graph.backlinks(title)?)
+        (
+            graph.forward_links_for_title(title)?,
+            ops::keys_to_titles(graph.backlinks(title)?),
+        )
     };
     let cross = ops::cross_vault_backlinks(&registry, vault_name, title)?;
 

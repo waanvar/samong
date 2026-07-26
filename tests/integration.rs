@@ -46,13 +46,13 @@ fn full_lifecycle_new_links_search_graph_list() {
         .success()
         .stdout(predicate::str::contains("<- B"));
 
-    // search: content unique to A should be found
+    // search: content unique to A should be found, labelled with its path
     banyan()
         .current_dir(vault.path())
         .args(["search", "superposition"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("A:"));
+        .stdout(predicate::str::contains("A.md:"));
 
     // graph: the B -> A edge should be listed
     banyan()

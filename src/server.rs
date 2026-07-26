@@ -237,11 +237,12 @@ async fn delete_note(
         indexer::reindex(&root, false)?;
         let dangling: Vec<String> = {
             let graph = Graph::open(&root)?;
-            graph
+            let sources = graph
                 .backlinks(&title)?
                 .into_iter()
-                .filter(|s| *s != title)
-                .collect()
+                .filter(|source_key| *source_key != note.key) // a self-link is not dangling
+                .collect();
+            crate::ops::keys_to_titles(sources)
         };
         fs::remove_file(&note.path).with_context(|| format!("deleting {}", note.path.display()))?;
         indexer::reindex(&root, false)?;
@@ -271,7 +272,10 @@ async fn get_links(
         indexer::reindex(&root, false)?;
         let (forward, backlinks) = {
             let graph = Graph::open(&root)?;
-            (graph.forward_links(&title)?, graph.backlinks(&title)?)
+            (
+                graph.forward_links_for_title(&title)?,
+                crate::ops::keys_to_titles(graph.backlinks(&title)?),
+            )
         };
 
         // Same query-time federation as `banyan links --all-vaults`.
@@ -297,6 +301,9 @@ struct SearchParams {
 struct SearchResult {
     vault: String,
     title: String,
+    /// Vault-relative path of the hit. Titles repeat across directories, so
+    /// this is what tells two same-named results apart.
+    path: String,
     snippet: String,
 }
 
@@ -317,6 +324,7 @@ async fn search_notes(
                 out.push(SearchResult {
                     vault: name.clone(),
                     title: hit.title,
+                    path: hit.key,
                     snippet: hit.snippet,
                 });
             }
@@ -372,6 +380,10 @@ async fn get_graph(
                 graph.all_edges()?
             };
             for (from, to) in vault_edges {
+                // Nodes are titles (that is what a wikilink target names), so an
+                // edge source has to be collapsed from its key or it would point
+                // at a node that does not exist in the set above.
+                let from = crate::graph::title_from_key(&from).unwrap_or(from);
                 let (from, to) = if qualify {
                     let to = match vault::split_cross_vault(&to) {
                         Some((prefix, _)) if names.contains(prefix) => to.clone(),

@@ -98,7 +98,55 @@ with `--no-open` (the old `banyan-server --port 8080` form still works).
 | `banyan reindex [--full]` | Sync the index (changed files only / everything) |
 | `banyan watch` | Watch the vault, keep the index fresh |
 | `banyan vault add/list/remove` | Manage the central registry |
+| `banyan doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
 | `banyan update [--check]` | Update to the latest GitHub release (--check only reports) |
+
+### What counts as a note (vault scope)
+
+One rule: **a note is a `.md` file you would commit.** Point `banyan vault add`
+straight at a project root — no configuration needed. Banyan will:
+
+- respect `.gitignore`, so `node_modules/`, `dist/` and `target/` never get indexed
+- always skip dependency directories even when they are not gitignored
+  (`node_modules`, `vendor`, `site-packages`, `__pycache__`, `Pods`, `bower_components`)
+- skip every dot-directory (`.git`, `.obsidian`, `.brain`)
+
+`banyan doctor` shows what that adds up to:
+
+```sh
+banyan doctor
+# vault: /home/me/myproject
+# gitignore: respected
+# 4 note(s) in scope
+# skipped 90 .md file(s) not tracked as notes (web 90)
+```
+
+To adjust it, add `banyan.toml` at the vault root — **commit it**, so every
+machine and any central server reads the same rules. Every field is optional:
+
+```toml
+[vault]
+name = "myproject"        # the name used in [[myproject/note]] links
+
+[scope]
+notes_dir = "docs"        # only scan this subtree (default ".")
+exclude = ["archive/**"]  # extra rules, gitignore syntax
+follow_gitignore = true   # turn off to index gitignored files too
+max_depth = 0             # 0 = unlimited
+```
+
+If your repo gitignores its own notes, `.banyanignore` brings them back. Same
+syntax as gitignore, negation included:
+
+```
+!notes/
+drafts/
+```
+
+> Deliberately ignored: the global gitignore (`~/.config/git/ignore`),
+> `.git/info/exclude`, and `.gitignore` files above the vault. Those are
+> per-machine, and honoring them would make one repo index differently on two
+> laptops.
 
 ### Updating
 
@@ -141,7 +189,7 @@ Binds to `127.0.0.1` only (local-first, no auth).
 | `GET /api/vaults/{vault}/notes` | Note titles in a vault |
 | `GET/PUT/DELETE /api/notes/{vault}/{title}` | Read / write / delete markdown |
 | `GET /api/notes/{vault}/{title}/links` | Forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=` | Search (omit `vault` for all vaults) |
+| `GET /api/search?q=&vault=` | Search (omit `vault` for all vaults) — results include the file `path` |
 | `GET /api/graph?vault=` | Nodes + edges as JSON |
 | `WS /ws` | Events when .md files change |
 

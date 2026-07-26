@@ -29,14 +29,38 @@ fn register_tokenizers(index: &Index) {
     );
 }
 
+/// A note as handed to the index: identity, display name, and content.
+pub struct IndexedNote {
+    /// Vault-relative path — the document's identity in the index.
+    pub key: String,
+    pub title: String,
+    pub body: String,
+}
+
 pub struct SearchHit {
+    /// Vault-relative path of the matching note.
+    pub key: String,
     pub title: String,
     pub snippet: String,
 }
 
 fn build_schema() -> Schema {
     let mut builder = Schema::builder();
-    builder.add_text_field("title", STRING | STORED);
+    // Raw-indexed identity: `delete_term` on it replaces exactly one document.
+    // Titles cannot serve here — a repo can hold many `README.md` files, and
+    // keying on the title made them overwrite each other on incremental runs
+    // while piling up as duplicates on a full rebuild.
+    builder.add_text_field("path", STRING | STORED);
+    // Titles are worth searching, and tokenized the same way bodies are so a
+    // Thai title matches mid-word too.
+    let title_options = TextOptions::default()
+        .set_indexing_options(
+            TextFieldIndexing::default()
+                .set_tokenizer(THAI_TOKENIZER_NAME)
+                .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+        )
+        .set_stored();
+    builder.add_text_field("title", title_options);
     let body_options = TextOptions::default()
         .set_indexing_options(
             TextFieldIndexing::default()
@@ -66,12 +90,13 @@ fn open_or_create(vault: &Path) -> Result<Index> {
     Ok(index)
 }
 
-/// Apply an incremental batch: upsert changed notes and drop removed ones,
-/// in a single commit. The title field is raw-indexed, so `delete_term` on it
-/// removes exactly one note's previous document.
-pub fn apply(vault: &Path, upserts: &[(String, String)], removals: &[String]) -> Result<()> {
+/// Apply an incremental batch: upsert changed notes and drop removed ones
+/// (by key), in a single commit. The path field is raw-indexed, so
+/// `delete_term` on it removes exactly one note's previous document.
+pub fn apply(vault: &Path, upserts: &[IndexedNote], removals: &[String]) -> Result<()> {
     let index = open_or_create(vault)?;
     let schema = index.schema();
+    let path_field = schema.get_field("path")?;
     let title_field = schema.get_field("title")?;
     let body_field = schema.get_field("body")?;
 
@@ -79,22 +104,23 @@ pub fn apply(vault: &Path, upserts: &[(String, String)], removals: &[String]) ->
         .writer(INDEX_HEAP_BYTES)
         .context("creating index writer")?;
 
-    for title in removals {
-        writer.delete_term(Term::from_field_text(title_field, title));
+    for key in removals {
+        writer.delete_term(Term::from_field_text(path_field, key));
     }
-    for (title, body) in upserts {
-        writer.delete_term(Term::from_field_text(title_field, title));
+    for note in upserts {
+        writer.delete_term(Term::from_field_text(path_field, &note.key));
         writer.add_document(doc!(
-            title_field => title.as_str(),
-            body_field => body.as_str(),
+            path_field => note.key.as_str(),
+            title_field => note.title.as_str(),
+            body_field => note.body.as_str(),
         ))?;
     }
     writer.commit().context("committing index")?;
     Ok(())
 }
 
-/// Rebuild the full-text index from scratch for the given `(title, body)` notes.
-pub fn rebuild(vault: &Path, notes: &[(String, String)]) -> Result<()> {
+/// Rebuild the full-text index from scratch for the given notes.
+pub fn rebuild(vault: &Path, notes: &[IndexedNote]) -> Result<()> {
     let dir = index_dir(vault);
     if dir.exists() {
         fs::remove_dir_all(&dir)
@@ -112,6 +138,9 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
     let index = Index::open_in_dir(&dir).context("opening tantivy index")?;
     register_tokenizers(&index);
     let schema = index.schema();
+    let path_field = schema
+        .get_field("path")
+        .context("schema missing path field")?;
     let title_field = schema
         .get_field("title")
         .context("schema missing title field")?;
@@ -134,11 +163,15 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
     let mut hits = Vec::new();
     for (_score, doc_address) in top_docs {
         let retrieved: TantivyDocument = searcher.doc(doc_address)?;
-        let title = retrieved
-            .get_first(title_field)
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
+        let stored = |field| {
+            retrieved
+                .get_first(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string()
+        };
+        let key = stored(path_field);
+        let title = stored(title_field);
         let snippet = snippet_generator.snippet_from_doc(&retrieved);
         let snippet_text = if snippet.is_empty() {
             retrieved
@@ -150,6 +183,7 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
             snippet.to_html()
         };
         hits.push(SearchHit {
+            key,
             title,
             snippet: snippet_text,
         });
@@ -161,20 +195,31 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
 mod tests {
     use super::*;
 
+    /// A note whose key is `<title>.md` at the vault root.
+    fn note(title: &str, body: &str) -> IndexedNote {
+        IndexedNote {
+            key: format!("{title}.md"),
+            title: title.to_string(),
+            body: body.to_string(),
+        }
+    }
+
+    fn at(key: &str, title: &str, body: &str) -> IndexedNote {
+        IndexedNote {
+            key: key.to_string(),
+            title: title.to_string(),
+            body: body.to_string(),
+        }
+    }
+
     #[test]
     fn rebuild_then_query_finds_match() {
         let dir = tempfile::tempdir().unwrap();
         rebuild(
             dir.path(),
             &[
-                (
-                    "Rust".to_string(),
-                    "Rust is a systems programming language".to_string(),
-                ),
-                (
-                    "Cooking".to_string(),
-                    "How to bake bread at home".to_string(),
-                ),
+                note("Rust", "Rust is a systems programming language"),
+                note("Cooking", "How to bake bread at home"),
             ],
         )
         .unwrap();
@@ -182,6 +227,7 @@ mod tests {
         let hits = query(dir.path(), "systems programming").unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Rust");
+        assert_eq!(hits[0].key, "Rust.md");
     }
 
     #[test]
@@ -192,16 +238,19 @@ mod tests {
     }
 
     #[test]
+    fn titles_are_searchable() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(dir.path(), &[note("Deployment Runbook", "body text")]).unwrap();
+        assert_eq!(query(dir.path(), "runbook").unwrap().len(), 1);
+    }
+
+    #[test]
     fn rebuild_replaces_previous_documents() {
         let dir = tempfile::tempdir().unwrap();
-        rebuild(
-            dir.path(),
-            &[("A".to_string(), "alpha content".to_string())],
-        )
-        .unwrap();
+        rebuild(dir.path(), &[note("A", "alpha content")]).unwrap();
         assert_eq!(query(dir.path(), "alpha").unwrap().len(), 1);
 
-        rebuild(dir.path(), &[("B".to_string(), "beta content".to_string())]).unwrap();
+        rebuild(dir.path(), &[note("B", "beta content")]).unwrap();
         assert!(query(dir.path(), "alpha").unwrap().is_empty());
         assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
     }
@@ -211,19 +260,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         rebuild(
             dir.path(),
-            &[
-                ("A".to_string(), "alpha content".to_string()),
-                ("B".to_string(), "beta content".to_string()),
-            ],
+            &[note("A", "alpha content"), note("B", "beta content")],
         )
         .unwrap();
 
-        apply(
-            dir.path(),
-            &[("A".to_string(), "gamma content".to_string())],
-            &[],
-        )
-        .unwrap();
+        apply(dir.path(), &[note("A", "gamma content")], &[]).unwrap();
 
         assert!(query(dir.path(), "alpha").unwrap().is_empty());
         assert_eq!(query(dir.path(), "gamma").unwrap().len(), 1);
@@ -235,16 +276,50 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         rebuild(
             dir.path(),
+            &[note("A", "alpha content"), note("B", "beta content")],
+        )
+        .unwrap();
+
+        apply(dir.path(), &[], &["A.md".to_string()]).unwrap();
+
+        assert!(query(dir.path(), "alpha").unwrap().is_empty());
+        assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
+    }
+
+    /// Notes sharing a title are separate documents: updating one must not
+    /// silently delete the others, which is what keying on title used to do.
+    #[test]
+    fn same_title_in_different_directories_are_separate_documents() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
             &[
-                ("A".to_string(), "alpha content".to_string()),
-                ("B".to_string(), "beta content".to_string()),
+                at("README.md", "README", "root readme alpha"),
+                at("docs/README.md", "README", "docs readme beta"),
             ],
         )
         .unwrap();
 
-        apply(dir.path(), &[], &["A".to_string()]).unwrap();
+        assert_eq!(query(dir.path(), "readme").unwrap().len(), 2);
 
-        assert!(query(dir.path(), "alpha").unwrap().is_empty());
-        assert_eq!(query(dir.path(), "beta").unwrap().len(), 1);
+        // Rewriting one leaves the other intact.
+        apply(
+            dir.path(),
+            &[at("docs/README.md", "README", "docs readme gamma")],
+            &[],
+        )
+        .unwrap();
+
+        assert_eq!(query(dir.path(), "alpha").unwrap().len(), 1);
+        assert!(query(dir.path(), "beta").unwrap().is_empty());
+        let gamma = query(dir.path(), "gamma").unwrap();
+        assert_eq!(gamma.len(), 1);
+        assert_eq!(gamma[0].key, "docs/README.md");
+
+        // And removing one by key leaves the other.
+        apply(dir.path(), &[], &["docs/README.md".to_string()]).unwrap();
+        let left = query(dir.path(), "readme").unwrap();
+        assert_eq!(left.len(), 1);
+        assert_eq!(left[0].key, "README.md");
     }
 }

@@ -3,8 +3,25 @@
 
 use anyhow::Result;
 
-use crate::graph::Graph;
+use crate::graph::{self, Graph};
 use crate::registry::Registry;
+
+/// Collapse note keys into display titles: sorted and de-duplicated.
+///
+/// The indexes identify notes by path, because titles are not unique. Every
+/// front-end still *addresses* notes by title — that is what `[[wikilinks]]`
+/// contain — so anything user-facing converts back here. The split is
+/// deliberate: paths keep the stored data correct, titles keep the interface
+/// the one people and agents already use.
+pub fn keys_to_titles(keys: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = keys
+        .iter()
+        .filter_map(|key| graph::title_from_key(key))
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
 
 /// Backlinks pointing at `vault_name/title` from every *other* registered
 /// vault, formatted as `vault/note`. Query-time federation: each vault's own
@@ -25,7 +42,11 @@ pub fn cross_vault_backlinks(
             let graph = Graph::open(&other_path)?;
             graph.backlinks(&qualified)?
         };
-        out.extend(sources.into_iter().map(|s| format!("{other_name}/{s}")));
+        out.extend(
+            keys_to_titles(sources)
+                .into_iter()
+                .map(|title| format!("{other_name}/{title}")),
+        );
     }
     Ok(out)
 }
