@@ -92,7 +92,7 @@ with `--no-open` (the old `banyan-server --port 8080` form still works).
 | `banyan delete <title>` | Delete + warn about dangling backlinks |
 | `banyan links <title> [--all-vaults]` | Forward links + backlinks (incl. cross-vault) |
 | `banyan orphans` / `banyan broken` | Unlinked notes / links to missing notes |
-| `banyan search <q> [--vault <name>\|--all-vaults]` | Full-text search (Thai/English) |
+| `banyan search <q> [--vault <name>\|--all-vaults] [--limit N]` | Full-text search (Thai/English) |
 | `banyan graph [--all-vaults]` | Link-graph edges |
 | `banyan list` | List every note |
 | `banyan reindex [--full]` | Sync the index (changed files only / everything) |
@@ -189,7 +189,7 @@ Binds to `127.0.0.1` only (local-first, no auth).
 | `GET /api/vaults/{vault}/notes` | Note titles in a vault |
 | `GET/PUT/DELETE /api/notes/{vault}/{title}` | Read / write / delete markdown |
 | `GET /api/notes/{vault}/{title}/links` | Forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=` | Search (omit `vault` for all vaults) — results include the file `path` |
+| `GET /api/search?q=&vault=&limit=` | Search (omit `vault` for all vaults) — results include the file `path` |
 | `GET /api/graph?vault=` | Nodes + edges as JSON |
 | `WS /ws` | Events when .md files change |
 

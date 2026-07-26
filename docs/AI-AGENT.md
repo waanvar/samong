@@ -39,7 +39,7 @@ claude mcp add --scope user banyan -- banyan-mcp
 | `list_notes` | รายชื่อโน้ตใน vault |
 | `read_note` | อ่านเนื้อหา markdown |
 | `save_note` | สร้าง/แก้โน้ต (ใส่ `[[ลิงก์]]` เชื่อมความรู้ได้) |
-| `search_notes` | ค้น full-text — ภาษาไทยตัดคำให้ ค้นกลางประโยคเจอ |
+| `search_notes` | ค้น full-text — ภาษาไทยตัดคำให้ ค้นกลางประโยคเจอ; `limit` คุมจำนวนผล (default 8 = ประหยัด token, **นับรวมทุก vault** ไม่ใช่ต่อ vault) |
 | `get_links` | ดูความเชื่อมโยงของโน้ต (forward/backlinks/ข้าม vault) |
 
 **ตั้งใจไม่มี tool ลบโน้ต** — มันสมองของ agent ควรสะสมความรู้ ไม่ควรลบเองได้

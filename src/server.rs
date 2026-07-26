@@ -295,6 +295,8 @@ async fn get_links(
 struct SearchParams {
     q: String,
     vault: Option<String>,
+    /// Maximum hits per vault. Clamped to `search::MAX_LIMIT`.
+    limit: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -317,10 +319,14 @@ async fn search_notes(
             Some(name) => vec![(name.clone(), resolve_vault(&registry, name)?)],
             None => registry.list()?,
         };
+        let options = match params.limit {
+            Some(limit) => search::SearchOptions::with_limit(limit),
+            None => search::SearchOptions::default(),
+        };
         let mut out = Vec::new();
         for (name, root) in targets {
             indexer::reindex(&root, false)?;
-            for hit in search::query(&root, &params.q)? {
+            for hit in search::query_with(&root, &params.q, &options)? {
                 out.push(SearchResult {
                     vault: name.clone(),
                     title: hit.title,

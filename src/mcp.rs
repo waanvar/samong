@@ -23,6 +23,13 @@ use crate::registry::Registry;
 use crate::search;
 use crate::vault;
 
+/// Results `search_notes` returns when the caller does not say otherwise.
+///
+/// Lower than [`search::DEFAULT_LIMIT`] on purpose: an agent pays for every hit
+/// as context on every subsequent turn, and usually wants the one note that
+/// answers its question rather than a browsable list. It can still ask for more.
+const DEFAULT_LIMIT: usize = 8;
+
 /// Handle one raw JSON-RPC line. Returns the response line, or None for
 /// notifications and unparseable input (per JSON-RPC, notifications get no
 /// response; garbage on a line-oriented pipe is best skipped).
@@ -114,7 +121,16 @@ fn tool_definitions() -> Value {
                 "type": "object",
                 "properties": {
                     "query": { "type": "string", "description": "Search query (Thai or English)" },
-                    "vault": vault_arg
+                    "vault": vault_arg,
+                    "limit": {
+                        "type": "integer",
+                        "description": format!(
+                            "Maximum results in total, not per vault (default {DEFAULT_LIMIT}, max {}). \
+                             Ask for fewer when you only need the best match.",
+                            search::MAX_LIMIT
+                        ),
+                        "minimum": 1
+                    }
                 },
                 "required": ["query"]
             }
@@ -229,27 +245,51 @@ fn tool_save_note(args: &Value) -> Result<String> {
 
 fn tool_search_notes(args: &Value) -> Result<String> {
     let query = str_arg(args, "query")?;
+    let limit = args
+        .get("limit")
+        .and_then(Value::as_u64)
+        .map(|n| n as usize)
+        .unwrap_or(DEFAULT_LIMIT);
+    let options = search::SearchOptions::with_limit(limit);
+
     let registry = Registry::open()?;
     let targets: Vec<(String, PathBuf)> = match args.get("vault").and_then(Value::as_str) {
         Some(name) if !name.is_empty() => vec![(name.to_string(), resolve_vault(&registry, name)?)],
         _ => registry.list()?,
     };
 
-    let mut lines = Vec::new();
+    // Each vault returns up to `limit` hits, so searching every vault could
+    // otherwise hand back limit × vaults results — thousands of tokens the
+    // caller pays for on every later turn. Rank them together and keep the
+    // requested number in total.
+    let mut hits = Vec::new();
     for (name, root) in targets {
         indexer::reindex(&root, false)?;
-        for hit in search::query(&root, query)? {
+        for hit in search::query_with(&root, query, &options)? {
+            hits.push((name.clone(), hit));
+        }
+    }
+    hits.sort_by(|(_, a), (_, b)| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    hits.truncate(options.limit.clamp(1, search::MAX_LIMIT));
+
+    if hits.is_empty() {
+        return Ok("no results".into());
+    }
+    let lines: Vec<String> = hits
+        .into_iter()
+        .map(|(name, hit)| {
             let snippet = hit
                 .snippet
                 .replace("<b>", "**")
                 .replace("</b>", "**")
                 .replace('\n', " ");
-            lines.push(format!("{name}/{}: {snippet}", hit.title));
-        }
-    }
-    if lines.is_empty() {
-        return Ok("no results".into());
-    }
+            format!("{name}/{}: {snippet}", hit.title)
+        })
+        .collect();
     Ok(lines.join("\n"))
 }
 

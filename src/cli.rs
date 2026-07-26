@@ -61,6 +61,9 @@ enum Command {
         /// Search every registered vault
         #[arg(long)]
         all_vaults: bool,
+        /// Maximum results to show
+        #[arg(long, default_value_t = crate::search::DEFAULT_LIMIT)]
+        limit: usize,
     },
     /// Print every link-graph edge as "from -> to"
     Graph {
@@ -366,13 +369,23 @@ fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool
     found
 }
 
-fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: bool) -> Result<()> {
+fn cmd_search(
+    vault: &Path,
+    query: &str,
+    vault_name: Option<&str>,
+    all_vaults: bool,
+    limit: usize,
+) -> Result<()> {
+    let options = crate::search::SearchOptions::with_limit(limit);
     let mut found = false;
     if all_vaults {
         let registry = Registry::open()?;
         for (name, path) in registry.list()? {
             indexer::reindex(&path, false)?;
-            found |= print_hits(crate::search::query(&path, query)?, Some(&name));
+            found |= print_hits(
+                crate::search::query_with(&path, query, &options)?,
+                Some(&name),
+            );
         }
     } else if let Some(name) = vault_name {
         let registry = Registry::open()?;
@@ -380,10 +393,10 @@ fn cmd_search(vault: &Path, query: &str, vault_name: Option<&str>, all_vaults: b
             .get(name)?
             .with_context(|| format!("vault \"{name}\" is not registered"))?;
         indexer::reindex(&path, false)?;
-        found = print_hits(crate::search::query(&path, query)?, None);
+        found = print_hits(crate::search::query_with(&path, query, &options)?, None);
     } else {
         indexer::reindex(vault, false)?;
-        found = print_hits(crate::search::query(vault, query)?, None);
+        found = print_hits(crate::search::query_with(vault, query, &options)?, None);
     }
     if !found {
         println!("no results");
@@ -522,7 +535,8 @@ pub fn run() -> Result<()> {
             query,
             vault: vault_name,
             all_vaults,
-        } => cmd_search(&vault, &query, vault_name.as_deref(), all_vaults)?,
+            limit,
+        } => cmd_search(&vault, &query, vault_name.as_deref(), all_vaults, limit)?,
         Command::Graph { all_vaults } => cmd_graph(&vault, all_vaults)?,
         Command::List => {
             for note in vault::list_notes(&vault)? {

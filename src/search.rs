@@ -19,6 +19,54 @@ const INDEX_HEAP_BYTES: usize = 50_000_000;
 /// Mixed Thai/non-Thai tokenizer; must be registered on every opened index.
 const THAI_TOKENIZER_NAME: &str = "thai_mixed";
 
+/// Hits returned when the caller does not ask for a specific number.
+pub const DEFAULT_LIMIT: usize = 20;
+/// Ceiling on what any caller may request, so a single query cannot return the
+/// whole vault.
+pub const MAX_LIMIT: usize = 100;
+/// Characters of surrounding context shown per hit.
+pub const DEFAULT_SNIPPET_CHARS: usize = 150;
+
+/// How much a search should return.
+///
+/// Worth controlling because the caller is often an AI agent, where every hit
+/// is context it pays for on every subsequent turn: 20 hits of Thai text is a
+/// few thousand tokens, and Thai costs noticeably more tokens per character
+/// than English. A human scanning a terminal wants a long list; an agent
+/// looking for one note does not.
+#[derive(Debug, Clone)]
+pub struct SearchOptions {
+    pub limit: usize,
+    pub snippet_chars: usize,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            limit: DEFAULT_LIMIT,
+            snippet_chars: DEFAULT_SNIPPET_CHARS,
+        }
+    }
+}
+
+impl SearchOptions {
+    /// Return at most `limit` hits, clamped into `1..=MAX_LIMIT`.
+    pub fn with_limit(limit: usize) -> Self {
+        Self {
+            limit: limit.clamp(1, MAX_LIMIT),
+            ..Self::default()
+        }
+    }
+
+    fn limit(&self) -> usize {
+        self.limit.clamp(1, MAX_LIMIT)
+    }
+
+    fn snippet_chars(&self) -> usize {
+        self.snippet_chars.max(20)
+    }
+}
+
 fn register_tokenizers(index: &Index) {
     index.tokenizers().register(
         THAI_TOKENIZER_NAME,
@@ -42,6 +90,9 @@ pub struct SearchHit {
     pub key: String,
     pub title: String,
     pub snippet: String,
+    /// Relevance score. Kept so callers merging hits from several vaults can
+    /// rank them together instead of just concatenating per-vault lists.
+    pub score: f32,
 }
 
 fn build_schema() -> Schema {
@@ -129,8 +180,13 @@ pub fn rebuild(vault: &Path, notes: &[IndexedNote]) -> Result<()> {
     apply(vault, notes, &[])
 }
 
-/// Run a full-text query against the vault's index, returning matches with a highlighted snippet.
+/// Run a full-text query against the vault's index with default limits.
 pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
+    query_with(vault, text, &SearchOptions::default())
+}
+
+/// Run a full-text query, returning matches with a highlighted snippet.
+pub fn query_with(vault: &Path, text: &str, options: &SearchOptions) -> Result<Vec<SearchHit>> {
     let dir = index_dir(vault);
     if !dir.exists() {
         return Ok(Vec::new());
@@ -156,12 +212,16 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
         .parse_query(text)
         .context("parsing search query")?;
 
-    let snippet_generator = SnippetGenerator::create(&searcher, &*parsed_query, body_field)
+    let mut snippet_generator = SnippetGenerator::create(&searcher, &*parsed_query, body_field)
         .context("creating snippet generator")?;
+    snippet_generator.set_max_num_chars(options.snippet_chars());
 
-    let top_docs = searcher.search(&*parsed_query, &TopDocs::with_limit(20).order_by_score())?;
+    let top_docs = searcher.search(
+        &*parsed_query,
+        &TopDocs::with_limit(options.limit()).order_by_score(),
+    )?;
     let mut hits = Vec::new();
-    for (_score, doc_address) in top_docs {
+    for (score, doc_address) in top_docs {
         let retrieved: TantivyDocument = searcher.doc(doc_address)?;
         let stored = |field| {
             retrieved
@@ -174,10 +234,12 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
         let title = stored(title_field);
         let snippet = snippet_generator.snippet_from_doc(&retrieved);
         let snippet_text = if snippet.is_empty() {
+            // No term matched the body (a title-only hit): show the opening
+            // instead, trimmed to the same budget.
             retrieved
                 .get_first(body_field)
                 .and_then(|v| v.as_str())
-                .map(|s| s.chars().take(120).collect::<String>())
+                .map(|s| s.chars().take(options.snippet_chars()).collect::<String>())
                 .unwrap_or_default()
         } else {
             snippet.to_html()
@@ -186,6 +248,7 @@ pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
             key,
             title,
             snippet: snippet_text,
+            score,
         });
     }
     Ok(hits)
@@ -228,6 +291,98 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Rust");
         assert_eq!(hits[0].key, "Rust.md");
+    }
+
+    #[test]
+    fn limit_caps_the_number_of_hits() {
+        let dir = tempfile::tempdir().unwrap();
+        let notes: Vec<IndexedNote> = (0..30)
+            .map(|i| note(&format!("Note {i}"), "shared keyword in every note"))
+            .collect();
+        rebuild(dir.path(), &notes).unwrap();
+
+        // Default: the browsable list a human wants.
+        assert_eq!(query(dir.path(), "keyword").unwrap().len(), DEFAULT_LIMIT);
+        // An agent asking for the best few gets exactly that.
+        let few = query_with(dir.path(), "keyword", &SearchOptions::with_limit(3)).unwrap();
+        assert_eq!(few.len(), 3);
+    }
+
+    #[test]
+    fn limit_is_clamped_into_range() {
+        let dir = tempfile::tempdir().unwrap();
+        let notes: Vec<IndexedNote> = (0..5)
+            .map(|i| note(&format!("Note {i}"), "shared keyword"))
+            .collect();
+        rebuild(dir.path(), &notes).unwrap();
+
+        // Zero would mean "no results at all", which no caller can want.
+        assert_eq!(
+            query_with(dir.path(), "keyword", &SearchOptions::with_limit(0))
+                .unwrap()
+                .len(),
+            1
+        );
+        // Asking for the moon returns what exists, not an error.
+        let huge = SearchOptions::with_limit(usize::MAX);
+        assert_eq!(huge.limit, MAX_LIMIT);
+        assert_eq!(query_with(dir.path(), "keyword", &huge).unwrap().len(), 5);
+    }
+
+    #[test]
+    fn snippet_chars_bounds_the_context_per_hit() {
+        let dir = tempfile::tempdir().unwrap();
+        let long_body = format!(
+            "{} keyword {}",
+            "filler ".repeat(80),
+            "trailing ".repeat(80)
+        );
+        rebuild(dir.path(), &[note("Long", &long_body)]).unwrap();
+
+        let tight = SearchOptions {
+            limit: 5,
+            snippet_chars: 40,
+        };
+        let wide = SearchOptions {
+            limit: 5,
+            snippet_chars: 300,
+        };
+        let tight_len = query_with(dir.path(), "keyword", &tight).unwrap()[0]
+            .snippet
+            .chars()
+            .count();
+        let wide_len = query_with(dir.path(), "keyword", &wide).unwrap()[0]
+            .snippet
+            .chars()
+            .count();
+        assert!(
+            tight_len < wide_len,
+            "a smaller budget must produce a shorter snippet: {tight_len} vs {wide_len}"
+        );
+    }
+
+    #[test]
+    fn hits_carry_a_score_for_cross_vault_ranking() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
+            &[
+                note("Strong", "keyword keyword keyword"),
+                note(
+                    "Weak",
+                    "keyword buried among many other unrelated words here",
+                ),
+            ],
+        )
+        .unwrap();
+
+        let hits = query(dir.path(), "keyword").unwrap();
+        assert_eq!(hits.len(), 2);
+        assert!(hits[0].score > 0.0, "score must be populated");
+        assert!(
+            hits[0].score >= hits[1].score,
+            "results already arrive ranked"
+        );
     }
 
     #[test]

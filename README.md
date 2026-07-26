@@ -88,7 +88,7 @@ banyan-server start               # เปิดเบราว์เซอร�
 | `banyan delete <ชื่อ>` | ลบโน้ต + เตือน backlinks ที่จะค้าง |
 | `banyan links <ชื่อ> [--all-vaults]` | forward links + backlinks (รวมข้าม vault) |
 | `banyan orphans` / `banyan broken` | โน้ตที่ไม่มีใครลิงก์ / ลิงก์ที่ชี้ไปโน้ตที่ไม่มี |
-| `banyan search <คำ> [--vault <ชื่อ>\|--all-vaults]` | ค้นหา full-text (ไทย/อังกฤษ) |
+| `banyan search <คำ> [--vault <ชื่อ>\|--all-vaults] [--limit N]` | ค้นหา full-text (ไทย/อังกฤษ) |
 | `banyan graph [--all-vaults]` | edges ของ link graph |
 | `banyan list` | รายชื่อโน้ตทั้งหมด |
 | `banyan reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
@@ -179,7 +179,7 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 | `GET /api/vaults/{vault}/notes` | รายชื่อโน้ตใน vault |
 | `GET/PUT/DELETE /api/notes/{vault}/{title}` | อ่าน / เขียน / ลบ markdown |
 | `GET /api/notes/{vault}/{title}/links` | forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=` | ค้นหา (ละ `vault` = ทุก vault) — ผลลัพธ์มี `path` ของไฟล์ |
+| `GET /api/search?q=&vault=&limit=` | ค้นหา (ละ `vault` = ทุก vault) — ผลลัพธ์มี `path` ของไฟล์ |
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
 | `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
 
