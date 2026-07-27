@@ -92,6 +92,23 @@ pub struct ScopeConfig {
     /// Extra exclusions in gitignore syntax, relative to `notes_dir`.
     #[serde(default)]
     pub exclude: Vec<String>,
+    /// Directories to index *in addition* to the main scan, even when
+    /// `.gitignore` or the dependency deny-list would exclude them. Paths are
+    /// relative to the vault root.
+    ///
+    /// This is what makes vendored documentation reachable — the docs shipped
+    /// inside `node_modules/next/dist/docs`, for instance. `.gitignore` answers
+    /// "what do I distribute?"; a knowledge base has to answer "what do I learn
+    /// from?", and those are not the same question.
+    ///
+    /// Notes found this way are *reference notes*: read-only, and machine-local
+    /// by nature, because the directories they come from are not committed.
+    /// See [`Scope::is_reference`].
+    ///
+    /// `exclude` applies to the main scan only. To leave part of an include root
+    /// out, point the include at a narrower directory.
+    #[serde(default)]
+    pub include: Vec<String>,
     /// Whether `.gitignore` decides what is a note. On by default.
     #[serde(default = "default_true")]
     pub follow_gitignore: bool,
@@ -105,6 +122,7 @@ impl Default for ScopeConfig {
         Self {
             notes_dir: default_notes_dir(),
             exclude: Vec::new(),
+            include: Vec::new(),
             follow_gitignore: true,
             max_depth: 0,
         }
@@ -139,12 +157,32 @@ impl Config {
 pub struct ScopeAudit {
     /// `.md` files that are notes.
     pub included: usize,
+    /// How many of `included` came from a `scope.include` root.
+    pub reference: usize,
     /// `.md` files that exist but are not notes.
     pub skipped: usize,
+    /// Of `skipped`, those inside a dependency directory. Split out because the
+    /// two causes need different fixes — `scope.include` for this one,
+    /// `.banyanignore` or `follow_gitignore` for the other — and a reader who
+    /// assumes "gitignored" reaches for the wrong lever.
+    pub skipped_dependency: usize,
     /// Top-level directories the skipped files came from, largest first.
     pub skipped_by_dir: Vec<(String, usize)>,
     /// The audit hit [`AUDIT_LIMIT`] and stopped early; counts are lower bounds.
     pub truncated: bool,
+}
+
+/// One resolved `scope.include` entry.
+#[derive(Debug, Clone)]
+pub struct IncludeRoot {
+    /// Exactly as written in the config, for error messages.
+    pub declared: String,
+    pub path: PathBuf,
+    /// Slash-separated, vault-relative prefix that note keys under this root
+    /// start with.
+    pub prefix: String,
+    /// Whether the directory is present on this machine right now.
+    pub present: bool,
 }
 
 /// The compiled scope rules for one vault.
@@ -153,6 +191,7 @@ pub struct Scope {
     notes_root: PathBuf,
     config: Config,
     overrides: Override,
+    include_roots: Vec<IncludeRoot>,
 }
 
 impl Scope {
@@ -183,11 +222,24 @@ impl Scope {
             .build()
             .context("compiling scope.exclude patterns")?;
 
+        let mut include_roots = Vec::new();
+        for declared in &config.scope.include {
+            let relative = relative_inside_vault(declared, "scope.include")?;
+            let path = vault.join(&relative);
+            include_roots.push(IncludeRoot {
+                declared: declared.clone(),
+                prefix: relative.to_string_lossy().replace('\\', "/"),
+                present: path.is_dir(),
+                path,
+            });
+        }
+
         Ok(Self {
             root: vault.to_path_buf(),
             notes_root,
             config,
             overrides,
+            include_roots,
         })
     }
 
@@ -207,10 +259,60 @@ impl Scope {
         &self.notes_root
     }
 
+    pub fn include_roots(&self) -> &[IncludeRoot] {
+        &self.include_roots
+    }
+
+    /// Declared include roots that are not on this machine.
+    ///
+    /// Never an error: `banyan.toml` is committed but the directories it points
+    /// at are usually not, so "missing" is the normal state before
+    /// `npm install`, after a version bump, or on a server that only has the
+    /// git history. It has to be *reported* though — silently losing a few
+    /// hundred notes is how someone concludes that search is broken.
+    pub fn missing_include_roots(&self) -> Vec<String> {
+        self.include_roots
+            .iter()
+            .filter(|root| !root.present)
+            .map(|root| root.declared.clone())
+            .collect()
+    }
+
+    /// Is this note key a *reference note* — something pulled in by
+    /// `scope.include` rather than part of the vault's own committed notes?
+    ///
+    /// Reference notes are read-only (they belong to a dependency, and any edit
+    /// would be erased by the next install) and do not travel with the repo.
+    pub fn is_reference(&self, key: &str) -> bool {
+        self.include_roots.iter().any(|root| {
+            key == root.prefix
+                || (key.starts_with(&root.prefix)
+                    && key.as_bytes().get(root.prefix.len()) == Some(&b'/'))
+        })
+    }
+
     /// Every note file in the vault, sorted, absolute paths.
+    ///
+    /// The main scan plus one extra scan per present include root. Keeping them
+    /// as separate walks — instead of trying to punch a hole through the ignore
+    /// rules — is deliberate: `filter_entry` prunes a directory before the
+    /// walker ever looks inside it, and gitignore semantics cannot re-include a
+    /// path whose parent is excluded. Fighting either one produces rules that
+    /// look like they work and do not.
     pub fn notes(&self) -> Result<Vec<PathBuf>> {
         let mut out = Vec::new();
-        for entry in self.walker().build() {
+        self.collect(self.walker().build(), &mut out)?;
+        for root in self.include_roots.iter().filter(|root| root.present) {
+            self.collect(self.include_walker(&root.path).build(), &mut out)?;
+        }
+        out.sort();
+        // An include root inside the main scan would otherwise appear twice.
+        out.dedup();
+        Ok(out)
+    }
+
+    fn collect(&self, walk: ignore::Walk, out: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in walk {
             let entry = entry.with_context(|| format!("scanning {}", self.root.display()))?;
             if !entry.file_type().is_some_and(|t| t.is_file()) {
                 continue;
@@ -220,8 +322,7 @@ impl Scope {
             }
             out.push(entry.into_path());
         }
-        out.sort();
-        Ok(out)
+        Ok(())
     }
 
     /// Directories worth handing to a filesystem watcher: the notes root plus
@@ -238,6 +339,13 @@ impl Scope {
             }
             out.push(entry.into_path());
         }
+        // Include roots sit outside the pruned tree, so they need their own watch.
+        out.extend(
+            self.include_roots
+                .iter()
+                .filter(|root| root.present)
+                .map(|root| root.path.clone()),
+        );
         out.sort();
         out.dedup();
         Ok(out)
@@ -254,6 +362,15 @@ impl Scope {
     pub fn may_include(&self, path: &Path) -> bool {
         if !is_markdown(path) {
             return false;
+        }
+        // Reference notes live under directories the main rules prune, so they
+        // have to be checked first or every rule below would reject them.
+        if self
+            .include_roots
+            .iter()
+            .any(|root| root.present && path.starts_with(&root.path))
+        {
+            return true;
         }
         let Ok(rel) = path.strip_prefix(&self.notes_root) else {
             return false;
@@ -288,7 +405,16 @@ impl Scope {
         let included_set: std::collections::HashSet<&Path> =
             included.iter().map(|p| p.as_path()).collect();
 
+        let reference = included
+            .iter()
+            .filter(|path| {
+                crate::vault::relative_key(&self.root, path)
+                    .is_some_and(|key| self.is_reference(&key))
+            })
+            .count();
+
         let mut skipped = 0;
+        let mut skipped_dependency = 0;
         let mut per_dir: HashMap<String, usize> = HashMap::new();
         let mut scanned = 0;
         let mut truncated = false;
@@ -320,6 +446,9 @@ impl Scope {
                 continue;
             }
             skipped += 1;
+            if in_dependency_dir(&self.root, entry.path()) {
+                skipped_dependency += 1;
+            }
             *per_dir.entry(self.top_level_of(entry.path())).or_default() += 1;
         }
 
@@ -328,7 +457,9 @@ impl Scope {
 
         Ok(ScopeAudit {
             included: included.len(),
+            reference,
             skipped,
+            skipped_dependency,
             skipped_by_dir,
             truncated,
         })
@@ -344,6 +475,23 @@ impl Scope {
                 _ => None,
             })
             .unwrap_or_else(|| ".".to_string())
+    }
+
+    /// Walker for one include root: the user has explicitly asked for this
+    /// directory, so neither `.gitignore` nor the dependency deny-list applies
+    /// inside it. Hidden directories and our own index stay excluded.
+    fn include_walker(&self, root: &Path) -> WalkBuilder {
+        let mut builder = WalkBuilder::new(root);
+        builder
+            .git_ignore(false)
+            .git_global(false)
+            .git_exclude(false)
+            .parents(false)
+            .ignore(false)
+            .hidden(true)
+            .follow_links(false)
+            .filter_entry(|entry| !is_brain_dir(entry));
+        builder
     }
 
     /// The one place walker settings are defined, so every scan — notes, watch
@@ -379,6 +527,20 @@ fn is_markdown(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()) == Some("md")
 }
 
+/// Does any directory between the vault root and this path carry a name from
+/// [`ALWAYS_EXCLUDE`]? Used only to explain *why* a file was skipped.
+fn in_dependency_dir(vault: &Path, path: &Path) -> bool {
+    let Ok(rel) = path.strip_prefix(vault) else {
+        return false;
+    };
+    rel.components().any(|component| match component {
+        Component::Normal(name) => name
+            .to_str()
+            .is_some_and(|name| ALWAYS_EXCLUDE.contains(&name)),
+        _ => false,
+    })
+}
+
 fn is_brain_dir(entry: &ignore::DirEntry) -> bool {
     entry.depth() > 0
         && entry.file_type().is_some_and(|t| t.is_dir())
@@ -397,25 +559,32 @@ fn is_always_excluded(entry: &ignore::DirEntry) -> bool {
     name == BRAIN_DIR || ALWAYS_EXCLUDE.contains(&name)
 }
 
-/// Resolve `scope.notes_dir` against the vault root, refusing anything that
-/// would point outside the vault.
-fn resolve_notes_dir(vault: &Path, notes_dir: &str) -> Result<PathBuf> {
-    let trimmed = notes_dir.trim().trim_start_matches("./");
-    if trimmed.is_empty() || trimmed == "." {
-        return Ok(vault.to_path_buf());
-    }
-    let candidate = Path::new(trimmed);
-    if candidate.is_absolute()
+/// Validate a configured path as relative and contained: a vault must never be
+/// talked into indexing something outside itself.
+fn relative_inside_vault(raw: &str, field: &str) -> Result<PathBuf> {
+    let trimmed = raw.trim().trim_start_matches("./").replace('\\', "/");
+    let candidate = Path::new(&trimmed);
+    if trimmed.is_empty()
+        || candidate.is_absolute()
         || candidate
             .components()
             .any(|c| !matches!(c, Component::Normal(_)))
     {
         bail!(
-            "scope.notes_dir {notes_dir:?} must be a relative path inside the vault \
+            "{field} {raw:?} must be a relative path inside the vault \
              (no \"..\", no absolute paths)"
         );
     }
-    Ok(vault.join(candidate))
+    Ok(candidate.to_path_buf())
+}
+
+/// Resolve `scope.notes_dir` against the vault root.
+fn resolve_notes_dir(vault: &Path, notes_dir: &str) -> Result<PathBuf> {
+    let trimmed = notes_dir.trim().trim_start_matches("./");
+    if trimmed.is_empty() || trimmed == "." {
+        return Ok(vault.to_path_buf());
+    }
+    Ok(vault.join(relative_inside_vault(notes_dir, "scope.notes_dir")?))
 }
 
 #[cfg(test)]
@@ -671,6 +840,203 @@ mod tests {
             .collect();
 
         assert_eq!(targets, vec!["", "docs"]);
+    }
+
+    /// The lever that makes vendored documentation reachable: `.gitignore` says
+    /// what to distribute, `scope.include` says what to learn from.
+    #[test]
+    fn include_reaches_into_a_gitignored_dependency_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), ".gitignore", "node_modules/\n");
+        write(dir.path(), "PROJECT_OVERVIEW.md", "# overview");
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
+        );
+        write(
+            dir.path(),
+            "node_modules/next/dist/docs/01-app/installation.md",
+            "# installation",
+        );
+        write(
+            dir.path(),
+            "node_modules/next/dist/docs/routing.md",
+            "# routing",
+        );
+        // Not under the include root: still excluded.
+        write(dir.path(), "node_modules/next/README.md", "# next readme");
+        write(dir.path(), "node_modules/left-pad/README.md", "# left-pad");
+
+        assert_eq!(
+            scoped(dir.path()),
+            vec![
+                "PROJECT_OVERVIEW.md",
+                "node_modules/next/dist/docs/01-app/installation.md",
+                "node_modules/next/dist/docs/routing.md",
+            ]
+        );
+    }
+
+    #[test]
+    fn included_notes_are_marked_as_reference_notes() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"vendor/docs\"]\n",
+        );
+        let scope = Scope::load(dir.path()).unwrap();
+
+        assert!(scope.is_reference("vendor/docs/guide.md"));
+        assert!(scope.is_reference("vendor/docs/deep/guide.md"));
+        // Sibling paths that merely share a prefix are not inside the root.
+        assert!(!scope.is_reference("vendor/docs-extra/guide.md"));
+        assert!(!scope.is_reference("vendor/other/guide.md"));
+        assert!(!scope.is_reference("Own Note.md"));
+    }
+
+    /// `banyan.toml` is committed; the directories it points at usually are not.
+    /// A missing root is the normal state, not a failure.
+    #[test]
+    fn a_missing_include_root_is_tolerated_and_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), "Own.md", "# own");
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"node_modules/next/dist/docs\", \"vendor/docs\"]\n",
+        );
+
+        // Scanning still works and still finds the vault's own notes.
+        assert_eq!(scoped(dir.path()), vec!["Own.md"]);
+
+        let scope = Scope::load(dir.path()).unwrap();
+        assert_eq!(
+            scope.missing_include_roots(),
+            vec![
+                "node_modules/next/dist/docs".to_string(),
+                "vendor/docs".to_string()
+            ]
+        );
+        assert!(scope.include_roots().iter().all(|root| !root.present));
+    }
+
+    #[test]
+    fn include_root_present_and_missing_are_distinguished() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), "vendor/here/doc.md", "# doc");
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"vendor/here\", \"vendor/gone\"]\n",
+        );
+
+        let scope = Scope::load(dir.path()).unwrap();
+        assert_eq!(
+            scope.missing_include_roots(),
+            vec!["vendor/gone".to_string()]
+        );
+        assert_eq!(scoped(dir.path()), vec!["vendor/here/doc.md"]);
+    }
+
+    #[test]
+    fn an_include_root_inside_the_normal_scan_is_not_listed_twice() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), "docs/Guide.md", "# guide");
+        write(dir.path(), CONFIG_FILE, "[scope]\ninclude = [\"docs\"]\n");
+
+        assert_eq!(scoped(dir.path()), vec!["docs/Guide.md"]);
+    }
+
+    #[test]
+    fn include_cannot_escape_the_vault() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"../elsewhere\"]\n",
+        );
+        assert!(Scope::load(dir.path()).is_err());
+
+        write(dir.path(), CONFIG_FILE, "[scope]\ninclude = [\"/etc\"]\n");
+        assert!(Scope::load(dir.path()).is_err());
+    }
+
+    #[test]
+    fn watch_covers_include_roots_and_may_include_accepts_them() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), ".gitignore", "node_modules/\n");
+        write(dir.path(), "node_modules/next/dist/docs/a.md", "# a");
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
+        );
+        let scope = Scope::load(dir.path()).unwrap();
+
+        // The watcher must accept edits inside the include root...
+        assert!(scope.may_include(&dir.path().join("node_modules/next/dist/docs/a.md")));
+        // ...without reopening the rest of the dependency tree.
+        assert!(!scope.may_include(&dir.path().join("node_modules/left-pad/README.md")));
+
+        let targets: Vec<String> = scope
+            .watch_targets()
+            .unwrap()
+            .iter()
+            .map(|p| {
+                p.strip_prefix(dir.path())
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
+            .collect();
+        assert!(
+            targets.contains(&"node_modules/next/dist/docs".to_string()),
+            "include roots need their own watch: {targets:?}"
+        );
+    }
+
+    /// A vault may be rooted *inside* a dependency directory, because the deny
+    /// list never applies at depth 0 — the user pointed us here on purpose.
+    ///
+    /// This pins that behaviour deliberately: it reads like an accident of
+    /// `is_always_excluded`, so a future "tidy-up" that checked the whole path
+    /// instead of the entry name would silently empty such a vault.
+    #[test]
+    fn a_vault_rooted_inside_a_dependency_directory_still_works() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("node_modules/next/dist/docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("installation.md"), "# installation").unwrap();
+        fs::write(docs.join("routing.md"), "# routing").unwrap();
+
+        assert_eq!(scoped(&docs), vec!["installation.md", "routing.md"]);
+    }
+
+    #[test]
+    fn audit_separates_reference_notes_and_dependency_skips() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), ".gitignore", "node_modules/\nsecret.md\n");
+        write(dir.path(), "Own.md", "# own");
+        write(dir.path(), "secret.md", "# gitignored, not a dependency");
+        write(
+            dir.path(),
+            CONFIG_FILE,
+            "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
+        );
+        write(dir.path(), "node_modules/next/dist/docs/a.md", "# a");
+        write(dir.path(), "node_modules/next/dist/docs/b.md", "# b");
+        write(dir.path(), "node_modules/left-pad/README.md", "# dep");
+
+        let audit = Scope::load(dir.path()).unwrap().audit().unwrap();
+        assert_eq!(audit.included, 3, "own note + two reference notes");
+        assert_eq!(audit.reference, 2);
+        assert_eq!(audit.skipped, 2, "left-pad readme + the gitignored note");
+        assert_eq!(
+            audit.skipped_dependency, 1,
+            "only the left-pad readme is inside a dependency dir"
+        );
     }
 
     #[test]

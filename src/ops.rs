@@ -51,6 +51,25 @@ pub fn cross_vault_backlinks(
     Ok(out)
 }
 
+/// Refuse to modify a reference note, explaining what to do instead.
+///
+/// Reference notes come from `scope.include` — vendored documentation and the
+/// like. Writing there is worse than useless: the file belongs to a dependency,
+/// so the next install silently erases the change. That matters most for agents,
+/// whose `save_note` resolves a title to an existing file: a note titled
+/// `installation` can easily be a framework's own docs page.
+pub fn reject_reference_write(note: &crate::vault::Note, action: &str) -> Result<()> {
+    if !note.reference {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "cannot {action} \"{}\": {} is a read-only reference note from a scope.include \
+         directory (it belongs to a dependency and would be erased on reinstall)",
+        note.title,
+        note.key
+    )
+}
+
 /// Note titles arrive from untrusted callers (URL segments, MCP tool
 /// arguments); never let one escape the vault directory.
 pub fn validate_title(title: &str) -> std::result::Result<(), String> {

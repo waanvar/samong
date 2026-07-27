@@ -233,7 +233,13 @@ fn tool_save_note(args: &Value) -> Result<String> {
     // Update in place when the note lives in a subfolder; create at the root
     // otherwise (same rule as the HTTP API).
     let path = match vault::find_note(&root, title)? {
-        Some(existing) => existing.path,
+        Some(existing) => {
+            // Without this, saving a note titled like a vendored docs page
+            // (`installation`, `getting-started`) would overwrite a dependency's
+            // file, and the next install would erase what was just learned.
+            ops::reject_reference_write(&existing, "save")?;
+            existing.path
+        }
         None => vault::note_path(&root, title),
     };
     fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;

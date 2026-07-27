@@ -25,6 +25,11 @@ pub struct ReindexReport {
     /// Files whose mtime moved but whose bytes did not, so no reindexing was
     /// needed. A `git checkout` or a fresh clone produces a pile of these.
     pub untouched: usize,
+    /// `scope.include` roots that are declared but absent on this machine.
+    /// Surfaced on every report because the alternative — quietly indexing a few
+    /// hundred notes fewer than the config asks for — reads as "search is
+    /// broken" to whoever forgot to install dependencies.
+    pub missing_includes: Vec<String>,
 }
 
 impl std::fmt::Display for ReindexReport {
@@ -43,6 +48,19 @@ impl std::fmt::Display for ReindexReport {
         }
         if self.upgraded {
             write!(f, " [index format changed; rebuilt automatically]")?;
+        }
+        if !self.missing_includes.is_empty() {
+            write!(
+                f,
+                "\nwarning: scope.include director{} not found on this machine: {} \
+                 (reference notes from there are missing; install dependencies?)",
+                if self.missing_includes.len() == 1 {
+                    "y"
+                } else {
+                    "ies"
+                },
+                self.missing_includes.join(", ")
+            )?;
         }
         Ok(())
     }
@@ -129,6 +147,7 @@ pub fn reindex_in(scope: &Scope, full: bool) -> Result<ReindexReport> {
             full: true,
             upgraded,
             untouched: 0,
+            missing_includes: scope.missing_include_roots(),
         });
     }
 
@@ -164,6 +183,7 @@ pub fn reindex_in(scope: &Scope, full: bool) -> Result<ReindexReport> {
         full: false,
         upgraded: false,
         untouched,
+        missing_includes: scope.missing_include_roots(),
     };
     if !updates.is_empty() || !removals.is_empty() {
         graph.apply(&updates, &removals)?;

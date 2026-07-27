@@ -127,6 +127,7 @@ name = "myproject"        # ชื่อที่ใช้ใน [[myproject/โ
 [scope]
 notes_dir = "docs"        # จำกัดให้ scan แค่โฟลเดอร์นี้ (default = ".")
 exclude = ["archive/**"]  # กฎเพิ่ม (gitignore syntax)
+include = []              # โฟลเดอร์ที่ให้ index เพิ่ม แม้ gitignore กันไว้ (ดูหัวข้อถัดไป)
 follow_gitignore = true   # ปิดได้ถ้าอยาก index ไฟล์ที่ gitignore ไว้
 max_depth = 0             # 0 = ไม่จำกัดความลึก
 ```
@@ -138,6 +139,37 @@ max_depth = 0             # 0 = ไม่จำกัดความลึก
 !notes/
 drafts/
 ```
+
+### เรียนรู้จากเอกสารที่ไม่ได้ commit (`scope.include`)
+
+`.gitignore` ตอบคำถามว่า **"จะแจกจ่ายอะไร"** แต่ฐานความรู้ต้องตอบว่า
+**"จะเรียนรู้จากอะไร"** — สองอย่างนี้ไม่ใช่คำถามเดียวกัน ตัวอย่างชัดสุดคือเอกสารที่มา
+พร้อม dependency เช่น Next.js ที่ ship ไฟล์ Markdown 400+ ไฟล์ไว้ใน `node_modules`
+
+```toml
+[scope]
+include = ["node_modules/next/dist/docs"]
+```
+
+โน้ตที่ได้มาทางนี้เรียกว่า **reference notes** อยู่ใน vault เดียวกัน index เดียวกัน
+ลิงก์ `[[installation]]` จากโน้ตของคุณถึงกันได้ — **หนึ่งโปรเจกต์ หนึ่งสมอง** ไม่ต้องแยก vault
+
+> `.banyanignore` กับ `!node_modules/...` **ใช้แทนกันไม่ได้** เพราะโฟลเดอร์ dependency
+> ถูกตัดกิ่งทิ้งก่อน walker เดินเข้าไป จึงไม่มีรายการให้ negate และกฎ gitignore เองก็
+> re-include ไฟล์ใต้ parent ที่ถูก exclude ไม่ได้ — `scope.include` คือคานงัดที่ถูก
+
+**สองข้อที่ต้องรู้:**
+
+1. **reference notes เป็นของเฉพาะเครื่อง** — `banyan.toml` เดินทางไปกับ git แต่
+   `node_modules` ไม่ ฉะนั้นเครื่องที่ยังไม่ `npm install` หรือ server ที่มีแต่ git
+   history จะหาไม่เจอ ซึ่ง**ไม่ใช่ error** — Banyan ข้ามแล้วเตือน 1 บรรทัด และ
+   `banyan doctor` บอกว่า root ไหนมี root ไหนไม่มี
+2. **reference notes เป็น read-only** — `save_note` / `PUT` / `delete` / `rename` จะ
+   ปฏิเสธ เพราะไฟล์เป็นของ dependency ถ้าเขียนลงไปจะหายตอน install ครั้งถัดไป
+   (สำคัญกับ agent มาก: `save_note("installation")` ไม่ควรไปทับหน้าเอกสารของ framework)
+
+`exclude` มีผลกับการ scan หลักเท่านั้น — ถ้าต้องการตัดบางส่วนของ include root
+ให้ชี้ `include` ให้แคบลง
 
 > ตั้งใจไม่อ่าน global gitignore (`~/.config/git/ignore`), `.git/info/exclude`
 > และ `.gitignore` ของโฟลเดอร์เหนือ vault — ของพวกนี้เป็นของเฉพาะเครื่อง ถ้าเอามา

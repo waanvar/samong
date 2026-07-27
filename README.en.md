@@ -131,6 +131,7 @@ name = "myproject"        # the name used in [[myproject/note]] links
 [scope]
 notes_dir = "docs"        # only scan this subtree (default ".")
 exclude = ["archive/**"]  # extra rules, gitignore syntax
+include = []              # directories to index anyway (see below)
 follow_gitignore = true   # turn off to index gitignored files too
 max_depth = 0             # 0 = unlimited
 ```
@@ -142,6 +143,41 @@ syntax as gitignore, negation included:
 !notes/
 drafts/
 ```
+
+### Learning from documentation you never commit (`scope.include`)
+
+`.gitignore` answers **"what do I distribute?"**. A knowledge base has to answer
+**"what do I learn from?"** — not the same question. The clearest case is
+documentation shipped inside a dependency: Next.js puts 400-odd Markdown files
+in `node_modules`.
+
+```toml
+[scope]
+include = ["node_modules/next/dist/docs"]
+```
+
+Those become **reference notes** — same vault, same index, so `[[installation]]`
+from your own note resolves. One project, one brain; no second vault.
+
+> `.banyanignore` with `!node_modules/...` cannot do this. Dependency
+> directories are pruned before the walker looks inside them, so there is nothing
+> for a negation to match, and gitignore itself cannot re-include a path whose
+> parent is excluded. `scope.include` is the right lever.
+
+**Two things to know:**
+
+1. **Reference notes are machine-local.** `banyan.toml` travels with git;
+   `node_modules` does not. A machine that has not installed dependencies — or a
+   server holding only git history — will not find them. That is *not* an error:
+   Banyan skips them and prints one warning line, and `banyan doctor` reports
+   which roots are present.
+2. **Reference notes are read-only.** `save_note` / `PUT` / `delete` / `rename`
+   refuse them: the file belongs to a dependency and any edit would be erased on
+   the next install. This matters most for agents — `save_note("installation")`
+   must not overwrite a framework's own docs page.
+
+`exclude` applies to the main scan only. To leave part of an include root out,
+point `include` at a narrower directory.
 
 > Deliberately ignored: the global gitignore (`~/.config/git/ignore`),
 > `.git/info/exclude`, and `.gitignore` files above the vault. Those are

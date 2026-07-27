@@ -17,6 +17,10 @@ pub struct Note {
     pub path: PathBuf,
     /// Stable identity: see [`relative_key`].
     pub key: String,
+    /// Came from a `scope.include` root rather than the vault's own notes, so
+    /// it is read-only: the directory belongs to a dependency, and an edit there
+    /// would be erased by the next install. See [`Scope::is_reference`].
+    pub reference: bool,
 }
 
 /// A note's identity inside a vault: its path relative to the vault root,
@@ -92,7 +96,13 @@ pub fn list_notes_in(scope: &Scope) -> Result<Vec<Note>> {
         let (Some(title), Some(key)) = (title_from_path(&path), relative_key(root, &path)) else {
             continue; // non-UTF-8 name: not addressable as a note
         };
-        notes.push(Note { title, path, key });
+        let reference = scope.is_reference(&key);
+        notes.push(Note {
+            title,
+            path,
+            key,
+            reference,
+        });
     }
     notes.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.key.cmp(&b.key)));
     Ok(notes)

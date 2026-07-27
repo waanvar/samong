@@ -105,7 +105,9 @@ fn doctor_reports_scope_and_what_it_skipped() {
             predicate::str::contains("3 note(s) in scope")
                 .and(predicate::str::contains("node_modules"))
                 .and(predicate::str::contains("gitignore: respected"))
-                .and(predicate::str::contains("no ambiguous note titles")),
+                .and(predicate::str::contains(
+                    "no ambiguous titles among project notes",
+                )),
         );
 }
 
@@ -184,7 +186,7 @@ fn notes_sharing_a_title_stay_separate_and_are_reported() {
         .assert()
         .success()
         .stdout(
-            predicate::str::contains("1 ambiguous note title(s):")
+            predicate::str::contains("1 ambiguous title(s) involving project notes")
                 .and(predicate::str::contains("README.md"))
                 .and(predicate::str::contains("docs/README.md")),
         );

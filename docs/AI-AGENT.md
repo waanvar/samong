@@ -38,7 +38,7 @@ claude mcp add --scope user banyan -- banyan-mcp
 | `list_vaults` | รายชื่อ vault ทั้งหมด |
 | `list_notes` | รายชื่อโน้ตใน vault |
 | `read_note` | อ่านเนื้อหา markdown |
-| `save_note` | สร้าง/แก้โน้ต (ใส่ `[[ลิงก์]]` เชื่อมความรู้ได้) |
+| `save_note` | สร้าง/แก้โน้ต (ใส่ `[[ลิงก์]]` เชื่อมความรู้ได้); ปฏิเสธถ้าเป็น reference note จาก `scope.include` เพราะไฟล์เป็นของ dependency เขียนไปก็หายตอน install ใหม่ |
 | `search_notes` | ค้น full-text — ภาษาไทยตัดคำให้ ค้นกลางประโยคเจอ; `limit` คุมจำนวนผล (default 8 = ประหยัด token, **นับรวมทุก vault** ไม่ใช่ต่อ vault) |
 | `get_links` | ดูความเชื่อมโยงของโน้ต (forward/backlinks/ข้าม vault) |
 

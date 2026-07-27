@@ -150,6 +150,7 @@ fn cmd_edit(vault: &Path, title: &str) -> Result<()> {
 
 fn cmd_delete(vault: &Path, title: &str) -> Result<()> {
     let note = require_note(vault, title)?;
+    crate::ops::reject_reference_write(&note, "delete")?;
     indexer::reindex(vault, false)?;
 
     // Scoped so the db handle is released before the reindex below reopens it.
@@ -178,6 +179,7 @@ fn cmd_delete(vault: &Path, title: &str) -> Result<()> {
 
 fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
     let note = require_note(vault, old)?;
+    crate::ops::reject_reference_write(&note, "rename")?;
     if vault::find_note(vault, new)?.is_some() {
         bail!("note \"{new}\" already exists");
     }
@@ -189,14 +191,22 @@ fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
         let graph = Graph::open(vault)?;
         graph.backlinks(old)?.into_iter().collect()
     };
+    let scope = Scope::load(vault)?;
     let mut rewritten_links = 0;
     let mut rewritten_notes = 0;
+    let mut skipped_reference = 0;
     for source_key in &source_keys {
         // Keys are vault-relative paths, so the file is addressed directly —
         // no title lookup, and no ambiguity when several notes share a title.
         let source_path = vault.join(source_key);
         if !source_path.is_file() {
             continue; // dangling backlink from an already-deleted note
+        }
+        if scope.is_reference(source_key) {
+            // A dependency's own docs may well mention this title; rewriting
+            // them would edit someone else's package and be lost on reinstall.
+            skipped_reference += 1;
+            continue;
         }
         let content = fs::read_to_string(&source_path)
             .with_context(|| format!("reading {}", source_path.display()))?;
@@ -217,6 +227,9 @@ fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
 
     println!("renamed \"{old}\" -> \"{new}\"");
     println!("updated {rewritten_links} link(s) in {rewritten_notes} note(s)");
+    if skipped_reference > 0 {
+        println!("left {skipped_reference} read-only reference note(s) untouched (scope.include)");
+    }
     Ok(())
 }
 
@@ -269,6 +282,17 @@ fn cmd_broken(vault: &Path) -> Result<()> {
     }
     if !found {
         println!("no broken links");
+    }
+    // Some of those targets may well exist inside a reference source that is
+    // simply not installed here, so don't let the report imply the vault is rotten.
+    let missing = Scope::load(vault)?.missing_include_roots();
+    if found && !missing.is_empty() {
+        println!(
+            "note: scope.include director{} not present here ({}) — some targets above \
+             may resolve once they are installed",
+            if missing.len() == 1 { "y" } else { "ies" },
+            missing.join(", ")
+        );
     }
     Ok(())
 }
@@ -415,7 +439,17 @@ fn print_scope_summary(scope: &Scope) -> Result<()> {
     let audit = scope.audit()?;
     let about = if audit.truncated { "at least " } else { "" };
 
-    println!("{} note(s) in scope", audit.included);
+    let own = audit.included - audit.reference;
+    if audit.reference > 0 {
+        println!(
+            "{own} project note(s) + {} reference note(s) from scope.include \
+             (read-only, machine-local)",
+            audit.reference
+        );
+    } else {
+        println!("{} note(s) in scope", audit.included);
+    }
+
     if audit.skipped > 0 {
         let breakdown = audit
             .skipped_by_dir
@@ -428,6 +462,16 @@ fn print_scope_summary(scope: &Scope) -> Result<()> {
             "skipped {about}{} .md file(s) not tracked as notes ({breakdown})",
             audit.skipped
         );
+        // Naming the cause matters: someone who assumes "gitignored" reaches for
+        // .banyanignore, which cannot reopen a pruned dependency directory.
+        if audit.skipped_dependency > 0 {
+            println!(
+                "  of those, {} are inside dependency directories — add the ones you want \
+                 to learn from to scope.include in {}",
+                audit.skipped_dependency,
+                crate::scope::CONFIG_FILE
+            );
+        }
     }
     if audit.included == 0 {
         println!(
@@ -455,6 +499,20 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
             "disabled in config"
         }
     );
+    for root in scope.include_roots() {
+        // A declared-but-absent root is the normal state on a machine that has
+        // not installed dependencies, and on any server that only has the git
+        // history — so say so rather than failing.
+        println!(
+            "include: {} — {}",
+            root.declared,
+            if root.present {
+                "present"
+            } else {
+                "NOT on this machine (reference notes unavailable)"
+            }
+        );
+    }
     print_scope_summary(&scope)?;
 
     let report = indexer::reindex_in(&scope, false)?;
@@ -466,16 +524,45 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
         let graph = Graph::open(vault)?;
         graph.duplicate_titles()?
     };
-    if duplicates.is_empty() {
-        println!("no ambiguous note titles");
+    // Vendored documentation collides with itself constantly and there is
+    // nothing to do about it — Next's docs alone mirror ~100 page names across
+    // its two routers. Those are noise. A collision that touches one of *your*
+    // notes is the one that can send a [[link]] somewhere you did not mean.
+    let (own, reference_only): (Vec<_>, Vec<_>) = duplicates
+        .into_iter()
+        .partition(|(_, keys)| keys.iter().any(|key| !scope.is_reference(key)));
+
+    if own.is_empty() {
+        println!("no ambiguous titles among project notes");
     } else {
-        println!("{} ambiguous note title(s):", duplicates.len());
-        for (title, keys) in duplicates {
-            println!("  {title} -> {}", keys.join(", "));
+        println!("{} ambiguous title(s) involving project notes:", own.len());
+        for (title, keys) in &own {
+            println!("  {title} -> {}", summarize_keys(keys));
         }
         println!("  (each file is indexed separately; [[links]] to these titles are ambiguous)");
     }
+    if !reference_only.is_empty() {
+        println!(
+            "{} more title(s) collide only among reference notes — normal for vendored docs, \
+             nothing to fix",
+            reference_only.len()
+        );
+    }
     Ok(())
+}
+
+/// Keys for one ambiguous title, kept to a readable length: a single vendored
+/// title can name dozens of files, and printing all of them buries the report.
+fn summarize_keys(keys: &[String]) -> String {
+    const SHOWN: usize = 4;
+    if keys.len() <= SHOWN {
+        return keys.join(", ");
+    }
+    format!(
+        "{}, ... (+{} more)",
+        keys[..SHOWN].join(", "),
+        keys.len() - SHOWN
+    )
 }
 
 fn cmd_vault(action: VaultAction) -> Result<()> {

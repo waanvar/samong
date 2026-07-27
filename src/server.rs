@@ -212,7 +212,10 @@ async fn put_note(
         // Update in place if the note lives in a subfolder; create at the
         // vault root otherwise.
         let path = match vault::find_note(&root, &title)? {
-            Some(existing) => existing.path,
+            Some(existing) => {
+                crate::ops::reject_reference_write(&existing, "save")?;
+                existing.path
+            }
             None => vault::note_path(&root, &title),
         };
         fs::write(&path, &body).with_context(|| format!("writing {}", path.display()))?;
@@ -234,6 +237,7 @@ async fn delete_note(
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
         let note = vault::find_note(&root, &title)?
             .ok_or_else(|| ApiError::NotFound(format!("note \"{title}\" does not exist")))?;
+        crate::ops::reject_reference_write(&note, "delete")?;
         indexer::reindex(&root, false)?;
         let dangling: Vec<String> = {
             let graph = Graph::open(&root)?;
