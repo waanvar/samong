@@ -150,7 +150,7 @@ fn cmd_edit(vault: &Path, title: &str) -> Result<()> {
 
 fn cmd_delete(vault: &Path, title: &str) -> Result<()> {
     let note = require_note(vault, title)?;
-    crate::ops::reject_reference_write(&note, "delete")?;
+    crate::ops::reject_reference_write(&Scope::load(vault)?, &note.key, "delete")?;
     indexer::reindex(vault, false)?;
 
     // Scoped so the db handle is released before the reindex below reopens it.
@@ -179,7 +179,8 @@ fn cmd_delete(vault: &Path, title: &str) -> Result<()> {
 
 fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
     let note = require_note(vault, old)?;
-    crate::ops::reject_reference_write(&note, "rename")?;
+    let scope = Scope::load(vault)?;
+    crate::ops::reject_reference_write(&scope, &note.key, "rename")?;
     if vault::find_note(vault, new)?.is_some() {
         bail!("note \"{new}\" already exists");
     }
@@ -191,7 +192,6 @@ fn cmd_rename(vault: &Path, old: &str, new: &str) -> Result<()> {
         let graph = Graph::open(vault)?;
         graph.backlinks(old)?.into_iter().collect()
     };
-    let scope = Scope::load(vault)?;
     let mut rewritten_links = 0;
     let mut rewritten_notes = 0;
     let mut skipped_reference = 0;

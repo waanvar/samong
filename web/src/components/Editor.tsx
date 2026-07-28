@@ -5,9 +5,14 @@ type Mode = "edit" | "split" | "preview";
 
 interface Props {
   title: string;
+  /** Note path — shown next to the title, since titles repeat. */
+  noteKey: string;
   content: string;
   vault: string;
-  allTitles: { vault: string; title: string }[];
+  /** A reference note from scope.include: editing it would be erased by the
+   *  next dependency install, so the server refuses to save. */
+  readOnly: boolean;
+  allTitles: { vault: string; key: string; title: string }[];
   onChange: (content: string) => void;
   onFollow: (target: string) => void;
   onDelete: () => void;
@@ -22,8 +27,10 @@ interface SuggestState {
 
 export function Editor({
   title,
+  noteKey,
   content,
   vault,
+  readOnly,
   allTitles,
   onChange,
   onFollow,
@@ -34,7 +41,7 @@ export function Editor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Close the suggestion box when switching notes.
-  useEffect(() => setSuggest(null), [title]);
+  useEffect(() => setSuggest(null), [noteKey]);
 
   const suggestions = useMemo(() => {
     if (!suggest) return [];
@@ -108,7 +115,14 @@ export function Editor({
   return (
     <section className="editor-col">
       <div className="editor-toolbar">
-        <span className="title">{title}</span>
+        <span className="title" title={noteKey}>
+          {title}
+        </span>
+        {readOnly && (
+          <span className="ref-badge" title="มาจาก scope.include — แก้ไม่ได้">
+            🔒 อ่านเท่านั้น
+          </span>
+        )}
         <span className="spacer" style={{ flex: 1 }} />
         <div className="mode-switch" role="tablist" aria-label="โหมดแก้ไข">
           {(["edit", "split", "preview"] as Mode[]).map((m) => (
@@ -123,7 +137,7 @@ export function Editor({
             </button>
           ))}
         </div>
-        <button className="btn danger" onClick={onDelete}>
+        <button className="btn danger" onClick={onDelete} disabled={readOnly}>
           ลบ
         </button>
       </div>
@@ -137,6 +151,8 @@ export function Editor({
               value={content}
               spellCheck={false}
               aria-label="เนื้อหาโน้ต"
+              // Better to block typing than to accept it and fail on save.
+              readOnly={readOnly}
               onChange={(e) => {
                 onChange(e.target.value);
                 detectSuggest(e.target.value, e.target.selectionStart);

@@ -208,9 +208,11 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 | Endpoint | หน้าที่ |
 |---|---|
 | `GET /api/vaults` | รายชื่อ vault ที่ลงทะเบียน |
-| `GET /api/vaults/{vault}/notes` | รายชื่อโน้ตใน vault |
-| `GET/PUT/DELETE /api/notes/{vault}/{title}` | อ่าน / เขียน / ลบ markdown |
-| `GET /api/notes/{vault}/{title}/links` | forward + backlinks + cross-vault |
+| `POST /api/vaults` | ลงทะเบียน vault ใหม่ (`{name, path}`) — เพิ่มจากหน้าเว็บได้ |
+| `GET /api/vaults/{vault}/notes` | โน้ตใน vault: `{key, title, reference}` |
+| `GET /api/vaults/{vault}/doctor` | รายงาน scope แบบเดียวกับ `samong doctor` |
+| `GET/PUT/DELETE /api/notes/{vault}/{path}` | อ่าน / เขียน / ลบ markdown (อ้างด้วย **path** ไม่ใช่ title) |
+| `GET /api/links/{vault}/{path}` | forward + backlinks + cross-vault |
 | `GET /api/search?q=&vault=&limit=` | ค้นหา (ละ `vault` = ทุก vault) — ผลลัพธ์มี `path` ของไฟล์ |
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
 | `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |

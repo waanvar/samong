@@ -222,9 +222,11 @@ Binds to `127.0.0.1` only (local-first, no auth).
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/vaults` | Registered vaults |
-| `GET /api/vaults/{vault}/notes` | Note titles in a vault |
-| `GET/PUT/DELETE /api/notes/{vault}/{title}` | Read / write / delete markdown |
-| `GET /api/notes/{vault}/{title}/links` | Forward + backlinks + cross-vault |
+| `POST /api/vaults` | Register a vault (`{name, path}`) — no terminal needed |
+| `GET /api/vaults/{vault}/notes` | Notes in a vault: `{key, title, reference}` |
+| `GET /api/vaults/{vault}/doctor` | The same scope report as `samong doctor` |
+| `GET/PUT/DELETE /api/notes/{vault}/{path}` | Read / write / delete markdown, addressed by **path** |
+| `GET /api/links/{vault}/{path}` | Forward + backlinks + cross-vault |
 | `GET /api/search?q=&vault=&limit=` | Search (omit `vault` for all vaults) — results include the file `path` |
 | `GET /api/graph?vault=` | Nodes + edges as JSON |
 | `WS /ws` | Events when .md files change |

@@ -4,10 +4,13 @@ import { outline } from "../markdown";
 interface Props {
   links: NoteLinks | null;
   content: string;
-  onOpen: (target: string) => void;
+  /** Open a note by its path — used for backlinks, which are exact. */
+  onOpenKey: (key: string) => void;
+  /** Follow a `[[target]]`, which names a title and may need resolving. */
+  onOpenTarget: (target: string) => void;
 }
 
-export function RightPanel({ links, content, onOpen }: Props) {
+export function RightPanel({ links, content, onOpenKey, onOpenTarget }: Props) {
   const headings = outline(content);
   const backlinks = links?.backlinks ?? [];
   const cross = links?.cross_vault_backlinks ?? [];
@@ -21,13 +24,16 @@ export function RightPanel({ links, content, onOpen }: Props) {
         ) : (
           <ul className="backlink-list">
             {backlinks.map((source) => (
-              <li key={source}>
-                <button onClick={() => onOpen(source)}>{source}</button>
+              <li key={source.key}>
+                {/* Backlinks carry a path, so this opens the exact file. */}
+                <button onClick={() => onOpenKey(source.key)} title={source.key}>
+                  {source.title}
+                </button>
               </li>
             ))}
             {cross.map((source) => (
               <li key={source} className="cross">
-                <button onClick={() => onOpen(source)}>{source}</button>
+                <button onClick={() => onOpenTarget(source)}>{source}</button>
               </li>
             ))}
           </ul>

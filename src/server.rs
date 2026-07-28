@@ -39,6 +39,7 @@ fn has_embedded_ui() -> bool {
 use crate::graph::Graph;
 use crate::indexer;
 use crate::registry::Registry;
+use crate::scope::Scope;
 use crate::search;
 use crate::vault;
 
@@ -129,9 +130,20 @@ fn resolve_vault(registry: &Registry, name: &str) -> std::result::Result<PathBuf
         .ok_or_else(|| ApiError::NotFound(format!("vault \"{name}\" is not registered")))
 }
 
-/// Note titles come from URL segments; never let them escape the vault.
-fn validate_title(title: &str) -> std::result::Result<(), ApiError> {
-    crate::ops::validate_title(title).map_err(ApiError::BadRequest)
+/// Resolve a note key from a URL wildcard segment.
+fn resolve_key(vault: &std::path::Path, key: &str) -> std::result::Result<PathBuf, ApiError> {
+    crate::ops::resolve_key(vault, key).map_err(ApiError::BadRequest)
+}
+
+/// One note as the API describes it. `key` is the address for every other call;
+/// `title` is for display only, and is not unique.
+#[derive(Serialize)]
+struct NoteInfo {
+    key: String,
+    title: String,
+    /// Came from `scope.include`: read-only, and absent on machines that do not
+    /// have the source directory.
+    reference: bool,
 }
 
 // ---------- REST handlers ----------
@@ -159,40 +171,80 @@ async fn list_vaults(State(state): State<Arc<AppState>>) -> ApiResult<Vec<VaultI
     ))
 }
 
+#[derive(Deserialize)]
+struct NewVault {
+    name: String,
+    path: String,
+}
+
+/// Register a vault without leaving the browser.
+///
+/// Without this, a first-time user who downloads a binary and runs the server
+/// lands on an empty page whose only remedy is a CLI command they have not read
+/// about yet.
+async fn add_vault(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<NewVault>,
+) -> ApiResult<VaultInfo> {
+    let info = run_op(state, move || {
+        let registry = Registry::open()?;
+        let canonical = registry
+            .add(&body.name, std::path::Path::new(&body.path))
+            .map_err(|err| ApiError::BadRequest(format!("{err:#}")))?;
+        // Index it immediately so the UI has something to show.
+        indexer::reindex(&canonical, false)?;
+        Ok(VaultInfo {
+            name: body.name,
+            path: canonical.display().to_string(),
+        })
+    })
+    .await?;
+    Ok(Json(info))
+}
+
 async fn list_notes(
     State(state): State<Arc<AppState>>,
     UrlPath(vault_name): UrlPath<String>,
-) -> ApiResult<Vec<String>> {
-    let titles = run_op(state, move || {
+) -> ApiResult<Vec<NoteInfo>> {
+    let notes = run_op(state, move || {
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
         Ok(vault::list_notes(&root)?
             .into_iter()
-            .map(|n| n.title)
+            .map(|n| NoteInfo {
+                key: n.key,
+                title: n.title,
+                reference: n.reference,
+            })
             .collect::<Vec<_>>())
     })
     .await?;
-    Ok(Json(titles))
+    Ok(Json(notes))
 }
 
 #[derive(Serialize)]
 struct NoteContent {
+    key: String,
     title: String,
     content: String,
+    reference: bool,
 }
 
 async fn get_note(
     State(state): State<Arc<AppState>>,
-    UrlPath((vault_name, title)): UrlPath<(String, String)>,
+    UrlPath((vault_name, key)): UrlPath<(String, String)>,
 ) -> ApiResult<NoteContent> {
     let note = run_op(state, move || {
-        validate_title(&title)?;
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
-        let note = vault::find_note(&root, &title)?
-            .ok_or_else(|| ApiError::NotFound(format!("note \"{title}\" does not exist")))?;
-        let content = fs::read_to_string(&note.path)
-            .with_context(|| format!("reading {}", note.path.display()))?;
+        let path = resolve_key(&root, &key)?;
+        if !path.is_file() {
+            return Err(ApiError::NotFound(format!("note \"{key}\" does not exist")));
+        }
+        let content =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
         Ok(NoteContent {
-            title: note.title,
+            title: vault::title_from_path(&path).unwrap_or_default(),
+            reference: Scope::load(&root)?.is_reference(&key),
+            key,
             content,
         })
     })
@@ -202,53 +254,68 @@ async fn get_note(
 
 async fn put_note(
     State(state): State<Arc<AppState>>,
-    UrlPath((vault_name, title)): UrlPath<(String, String)>,
+    UrlPath((vault_name, key)): UrlPath<(String, String)>,
     body: String,
 ) -> ApiResult<serde_json::Value> {
     let state2 = Arc::clone(&state);
     let result = run_op(state, move || {
-        validate_title(&title)?;
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
-        // Update in place if the note lives in a subfolder; create at the
-        // vault root otherwise.
-        let path = match vault::find_note(&root, &title)? {
-            Some(existing) => {
-                crate::ops::reject_reference_write(&existing, "save")?;
-                existing.path
-            }
-            None => vault::note_path(&root, &title),
-        };
+        let path = resolve_key(&root, &key)?;
+        let scope = Scope::load(&root)?;
+        if scope.is_reference(&key) {
+            return Err(ApiError::BadRequest(format!(
+                "cannot save \"{key}\": it is a read-only reference note from a \
+                 scope.include directory (it belongs to a dependency and would be \
+                 erased on reinstall)"
+            )));
+        }
+        // The path may name a folder that does not exist yet.
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+        }
         fs::write(&path, &body).with_context(|| format!("writing {}", path.display()))?;
         let report = indexer::reindex(&root, false)?;
-        Ok((vault_name, report.indexed, report.removed))
+        // A note written outside the vault's scope (gitignored, say) is saved but
+        // will never be searchable — say so rather than let it vanish quietly.
+        let indexed = vault::list_notes(&root)?.iter().any(|n| n.key == key);
+        Ok((vault_name, report.indexed, report.removed, indexed))
     })
     .await?;
     broadcast_change(&state2, &result.0, result.1, result.2);
-    Ok(Json(serde_json::json!({ "saved": true })))
+    Ok(Json(
+        serde_json::json!({ "saved": true, "indexed": result.3 }),
+    ))
 }
 
 async fn delete_note(
     State(state): State<Arc<AppState>>,
-    UrlPath((vault_name, title)): UrlPath<(String, String)>,
+    UrlPath((vault_name, key)): UrlPath<(String, String)>,
 ) -> ApiResult<serde_json::Value> {
     let state2 = Arc::clone(&state);
     let (vault_name, dangling) = run_op(state, move || {
-        validate_title(&title)?;
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
-        let note = vault::find_note(&root, &title)?
-            .ok_or_else(|| ApiError::NotFound(format!("note \"{title}\" does not exist")))?;
-        crate::ops::reject_reference_write(&note, "delete")?;
+        let path = resolve_key(&root, &key)?;
+        if !path.is_file() {
+            return Err(ApiError::NotFound(format!("note \"{key}\" does not exist")));
+        }
+        if Scope::load(&root)?.is_reference(&key) {
+            return Err(ApiError::BadRequest(format!(
+                "cannot delete \"{key}\": it is a read-only reference note from a \
+                 scope.include directory"
+            )));
+        }
         indexer::reindex(&root, false)?;
+        let title = vault::title_from_path(&path).unwrap_or_default();
         let dangling: Vec<String> = {
             let graph = Graph::open(&root)?;
             let sources = graph
                 .backlinks(&title)?
                 .into_iter()
-                .filter(|source_key| *source_key != note.key) // a self-link is not dangling
+                .filter(|source_key| *source_key != key) // a self-link is not dangling
                 .collect();
             crate::ops::keys_to_titles(sources)
         };
-        fs::remove_file(&note.path).with_context(|| format!("deleting {}", note.path.display()))?;
+        fs::remove_file(&path).with_context(|| format!("deleting {}", path.display()))?;
         indexer::reindex(&root, false)?;
         Ok((vault_name, dangling))
     })
@@ -259,27 +326,56 @@ async fn delete_note(
     ))
 }
 
+/// A `[[target]]` as written, plus where it actually resolves. An empty `keys`
+/// means the link dangles; more than one means the title is ambiguous.
+#[derive(Serialize)]
+struct ForwardLink {
+    target: String,
+    keys: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct NoteRef {
+    key: String,
+    title: String,
+}
+
 #[derive(Serialize)]
 struct LinksResponse {
-    forward: Vec<String>,
-    backlinks: Vec<String>,
+    forward: Vec<ForwardLink>,
+    backlinks: Vec<NoteRef>,
     cross_vault_backlinks: Vec<String>,
 }
 
 async fn get_links(
     State(state): State<Arc<AppState>>,
-    UrlPath((vault_name, title)): UrlPath<(String, String)>,
+    UrlPath((vault_name, key)): UrlPath<(String, String)>,
 ) -> ApiResult<LinksResponse> {
     let links = run_op(state, move || {
-        validate_title(&title)?;
         let root = resolve_vault(&Registry::open()?, &vault_name)?;
+        crate::ops::validate_key(&key).map_err(ApiError::BadRequest)?;
         indexer::reindex(&root, false)?;
+
+        let title = crate::graph::title_from_key(&key).unwrap_or_default();
         let (forward, backlinks) = {
             let graph = Graph::open(&root)?;
-            (
-                graph.forward_links_for_title(&title)?,
-                crate::ops::keys_to_titles(graph.backlinks(&title)?),
-            )
+            // Addressed by key, so this is *this* note's links — no union across
+            // namesakes, which is what a title-addressed lookup had to do.
+            let mut forward = Vec::new();
+            for target in graph.forward_links(&key)? {
+                let keys = graph.keys_for_title(&target)?;
+                forward.push(ForwardLink { target, keys });
+            }
+            let backlinks = graph
+                .backlinks(&title)?
+                .into_iter()
+                .filter(|source| *source != key)
+                .map(|source| NoteRef {
+                    title: crate::graph::title_from_key(&source).unwrap_or_default(),
+                    key: source,
+                })
+                .collect();
+            (forward, backlinks)
         };
 
         // Same query-time federation as `samong links --all-vaults`.
@@ -293,6 +389,88 @@ async fn get_links(
     })
     .await?;
     Ok(Json(links))
+}
+
+#[derive(Serialize)]
+struct IncludeRootStatus {
+    path: String,
+    present: bool,
+}
+
+/// Everything `samong doctor` prints, for a browser.
+///
+/// Without this the web UI can show a vault with four notes and no way to learn
+/// that ninety more were skipped, or that a `scope.include` directory is missing
+/// on this machine — the user would conclude search is broken.
+#[derive(Serialize)]
+struct DoctorResponse {
+    vault: String,
+    notes_dir: String,
+    follow_gitignore: bool,
+    include_roots: Vec<IncludeRootStatus>,
+    project_notes: usize,
+    reference_notes: usize,
+    skipped: usize,
+    skipped_dependency: usize,
+    skipped_by_dir: Vec<(String, usize)>,
+    truncated: bool,
+    /// Titles shared by several notes where at least one is a project note.
+    ambiguous_titles: Vec<AmbiguousTitle>,
+    /// Collisions confined to reference notes: normal for vendored docs.
+    reference_only_collisions: usize,
+}
+
+#[derive(Serialize)]
+struct AmbiguousTitle {
+    title: String,
+    keys: Vec<String>,
+}
+
+async fn get_doctor(
+    State(state): State<Arc<AppState>>,
+    UrlPath(vault_name): UrlPath<String>,
+) -> ApiResult<DoctorResponse> {
+    let report = run_op(state, move || {
+        let root = resolve_vault(&Registry::open()?, &vault_name)?;
+        let scope = Scope::load(&root)?;
+        let audit = scope.audit()?;
+        indexer::reindex_in(&scope, false)?;
+
+        let duplicates = {
+            let graph = Graph::open(&root)?;
+            graph.duplicate_titles()?
+        };
+        let (own, reference_only): (Vec<_>, Vec<_>) = duplicates
+            .into_iter()
+            .partition(|(_, keys)| keys.iter().any(|key| !scope.is_reference(key)));
+
+        Ok(DoctorResponse {
+            vault: root.display().to_string(),
+            notes_dir: scope.config().scope.notes_dir.clone(),
+            follow_gitignore: scope.config().scope.follow_gitignore,
+            include_roots: scope
+                .include_roots()
+                .iter()
+                .map(|r| IncludeRootStatus {
+                    path: r.declared.clone(),
+                    present: r.present,
+                })
+                .collect(),
+            project_notes: audit.included - audit.reference,
+            reference_notes: audit.reference,
+            skipped: audit.skipped,
+            skipped_dependency: audit.skipped_dependency,
+            skipped_by_dir: audit.skipped_by_dir,
+            truncated: audit.truncated,
+            ambiguous_titles: own
+                .into_iter()
+                .map(|(title, keys)| AmbiguousTitle { title, keys })
+                .collect(),
+            reference_only_collisions: reference_only.len(),
+        })
+    })
+    .await?;
+    Ok(Json(report))
 }
 
 #[derive(Deserialize)]
@@ -358,8 +536,23 @@ struct GraphEdge {
 
 #[derive(Serialize)]
 struct GraphResponse {
-    nodes: Vec<String>,
+    nodes: Vec<GraphNode>,
     edges: Vec<GraphEdge>,
+}
+
+/// A node is a *file*, addressed by `id` (the key, qualified with the vault name
+/// in all-vaults mode) and labelled with its title.
+///
+/// Nodes used to be titles, which silently merged every file sharing one — a
+/// vendored docs tree can hold forty pages called `index`, and they all became a
+/// single blob in the middle of the graph.
+#[derive(Serialize)]
+struct GraphNode {
+    id: String,
+    label: String,
+    /// A wikilink target that resolves to no note: drawn as a stub, not a file.
+    missing: bool,
+    reference: bool,
 }
 
 async fn get_graph(
@@ -374,43 +567,65 @@ async fn get_graph(
         };
         let names: HashSet<String> = registry.list()?.into_iter().map(|(n, _)| n).collect();
 
-        let mut nodes = HashSet::new();
+        let mut nodes: std::collections::HashMap<String, GraphNode> = Default::default();
         let mut edges = Vec::new();
         for (name, root) in &targets {
-            indexer::reindex(root, false)?;
-            for note in vault::list_notes(root)? {
-                nodes.insert(if qualify {
-                    format!("{name}/{}", note.title)
+            let qualified = |id: &str| {
+                if qualify {
+                    format!("{name}/{id}")
                 } else {
-                    note.title
-                });
-            }
-            let vault_edges = {
-                let graph = Graph::open(root)?;
-                graph.all_edges()?
+                    id.to_string()
+                }
             };
-            for (from, to) in vault_edges {
-                // Nodes are titles (that is what a wikilink target names), so an
-                // edge source has to be collapsed from its key or it would point
-                // at a node that does not exist in the set above.
-                let from = crate::graph::title_from_key(&from).unwrap_or(from);
-                let (from, to) = if qualify {
-                    let to = match vault::split_cross_vault(&to) {
-                        Some((prefix, _)) if names.contains(prefix) => to.clone(),
-                        _ => format!("{name}/{to}"),
+            let scope = Scope::load(root)?;
+            indexer::reindex_in(&scope, false)?;
+
+            for note in vault::list_notes_in(&scope)? {
+                let id = qualified(&note.key);
+                nodes.insert(
+                    id.clone(),
+                    GraphNode {
+                        id,
+                        label: note.title,
+                        missing: false,
+                        reference: note.reference,
+                    },
+                );
+            }
+
+            let graph = Graph::open(root)?;
+            for (from_key, target) in graph.all_edges()? {
+                let from = qualified(&from_key);
+                // Resolve the raw wikilink target to the file(s) it names, so an
+                // edge lands on a real node instead of a title.
+                let resolved = graph.keys_for_title(&target)?;
+                if resolved.is_empty() {
+                    // Either a cross-vault reference or a genuinely broken link.
+                    let to = match vault::split_cross_vault(&target) {
+                        Some((prefix, _)) if names.contains(prefix) => target.clone(),
+                        _ => qualified(&target),
                     };
-                    (format!("{name}/{from}"), to)
-                } else {
-                    (from, to)
-                };
-                nodes.insert(from.clone());
-                nodes.insert(to.clone());
-                edges.push(GraphEdge { from, to });
+                    nodes.entry(to.clone()).or_insert_with(|| GraphNode {
+                        id: to.clone(),
+                        label: crate::graph::title_from_key(&target).unwrap_or(target.clone()),
+                        missing: true,
+                        reference: false,
+                    });
+                    edges.push(GraphEdge { from, to });
+                    continue;
+                }
+                for key in resolved {
+                    edges.push(GraphEdge {
+                        from: from.clone(),
+                        to: qualified(&key),
+                    });
+                }
             }
         }
-        let mut nodes: Vec<String> = nodes.into_iter().collect();
-        nodes.sort();
+        let mut nodes: Vec<GraphNode> = nodes.into_values().collect();
+        nodes.sort_by(|a, b| a.id.cmp(&b.id));
         edges.sort_by(|a, b| (&a.from, &a.to).cmp(&(&b.from, &b.to)));
+        edges.dedup_by(|a, b| a.from == b.from && a.to == b.to);
         Ok(GraphResponse { nodes, edges })
     })
     .await?;
@@ -549,13 +764,17 @@ pub fn router_with_embedded_ui(state: Arc<AppState>) -> Router {
 
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
-        .route("/api/vaults", get(list_vaults))
+        .route("/api/vaults", get(list_vaults).post(add_vault))
         .route("/api/vaults/{vault}/notes", get(list_notes))
+        .route("/api/vaults/{vault}/doctor", get(get_doctor))
+        // Notes are addressed by their vault-relative path, so the last segment
+        // is a wildcard. Axum requires a wildcard to end the pattern, which is
+        // why links live under their own prefix rather than `.../{path}/links`.
         .route(
-            "/api/notes/{vault}/{title}",
+            "/api/notes/{vault}/{*path}",
             get(get_note).put(put_note).delete(delete_note),
         )
-        .route("/api/notes/{vault}/{title}/links", get(get_links))
+        .route("/api/links/{vault}/{*path}", get(get_links))
         .route("/api/search", get(search_notes))
         .route("/api/graph", get(get_graph))
         .route("/ws", get(ws_upgrade))

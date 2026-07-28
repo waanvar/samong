@@ -60,29 +60,30 @@ fn mcp_session_covers_every_tool() {
         request(2, "tools/list", json!({})),
         tool_call(3, "list_vaults", json!({})),
         tool_call(4, "search_notes", json!({ "query": "ตลาดหลักทรัพย์" })),
+        // Notes are addressed by path — a title could name several files.
         tool_call(
             5,
             "read_note",
-            json!({ "vault": "brain", "title": "การลงทุน" }),
+            json!({ "vault": "brain", "path": "การลงทุน.md" }),
         ),
         tool_call(
             6,
             "save_note",
             json!({
                 "vault": "brain",
-                "title": "บทเรียน Rust",
+                "path": "บทเรียน Rust.md",
                 "content": "# บทเรียน Rust\n\nredb เปิดได้ handle เดียวต่อโปรเซส ดู [[การลงทุน]]\n"
             }),
         ),
         tool_call(
             7,
             "get_links",
-            json!({ "vault": "brain", "title": "การลงทุน" }),
+            json!({ "vault": "brain", "path": "การลงทุน.md" }),
         ),
         tool_call(
             8,
             "read_note",
-            json!({ "vault": "brain", "title": "../evil" }),
+            json!({ "vault": "brain", "path": "../evil.md" }),
         ),
         request(9, "nonsense/method", json!({})),
     ]
@@ -123,9 +124,10 @@ fn mcp_session_covers_every_tool() {
         "{text}"
     );
 
-    // Thai mid-sentence search across vaults, highlight markers rewritten
+    // Thai mid-sentence search across vaults, highlight markers rewritten.
+    // Hits are labelled with the path, which is what read_note takes.
     let text = tool_text(&by_id[&4]);
-    assert!(text.contains("brain/การลงทุน"), "{text}");
+    assert!(text.contains("brain/การลงทุน.md"), "{text}");
     assert!(text.contains("**ตลาดหลักทรัพย์**"), "{text}");
 
     // read_note returns raw markdown

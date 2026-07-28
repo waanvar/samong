@@ -1,6 +1,10 @@
 //! Phase 4 acceptance: every REST endpoint answers correctly, and editing a
 //! .md file directly on disk produces a WebSocket event.
 //!
+//! Since Phase 14 the API addresses notes by their vault-relative *path*, not by
+//! title — a vault can hold many files called `README.md`, and a title-addressed
+//! API could only ever reach one of them.
+//!
 //! Everything runs in ONE test because the registry location comes from the
 //! SAMONG_CONFIG_DIR environment variable, which is process-global.
 
@@ -80,58 +84,107 @@ async fn rest_endpoints_and_websocket_events() {
         .collect();
     assert_eq!(names, vec!["ideas", "work"]);
 
-    // ---- GET /api/vaults/{vault}/notes ----
+    // ---- GET /api/vaults/{vault}/notes: keys, titles, reference flag ----
     let (status, body) = get_json(&client, &format!("{base}/api/vaults/work/notes")).await;
     assert!(status.is_success());
-    assert_eq!(body, serde_json::json!(["Local", "Source"]));
+    let listed: Vec<(&str, &str, bool)> = body
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| {
+            (
+                v["key"].as_str().unwrap(),
+                v["title"].as_str().unwrap(),
+                v["reference"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        listed,
+        vec![("Local.md", "Local", false), ("Source.md", "Source", false)]
+    );
     let (status, _) = get_json(&client, &format!("{base}/api/vaults/nope/notes")).await;
     assert_eq!(status, reqwest::StatusCode::NOT_FOUND);
 
-    // ---- GET /api/notes/{vault}/{title} ----
-    let (status, body) = get_json(&client, &format!("{base}/api/notes/work/Source")).await;
+    // ---- GET /api/notes/{vault}/{*path} ----
+    let (status, body) = get_json(&client, &format!("{base}/api/notes/work/Source.md")).await;
     assert!(status.is_success());
     assert!(body["content"].as_str().unwrap().contains("[[Local]]"));
-    let (status, _) = get_json(&client, &format!("{base}/api/notes/work/Missing")).await;
+    assert_eq!(body["key"], "Source.md");
+    assert_eq!(body["reference"], false);
+    let (status, _) = get_json(&client, &format!("{base}/api/notes/work/Missing.md")).await;
     assert_eq!(status, reqwest::StatusCode::NOT_FOUND);
 
-    // ---- PUT /api/notes/{vault}/{title} (create) then GET it back ----
+    // ---- PUT: a path addresses a subdirectory directly, parents are created ----
     let resp = client
-        .put(format!("{base}/api/notes/work/FromApi"))
+        .put(format!("{base}/api/notes/work/notes/FromApi.md"))
         .body("# FromApi\n\nsaved through the api with [[Local]]\n")
         .send()
         .await
         .unwrap();
     assert!(resp.status().is_success());
-    let (status, body) = get_json(&client, &format!("{base}/api/notes/work/FromApi")).await;
+    let saved: Value = resp.json().await.unwrap();
+    assert_eq!(saved["saved"], true);
+    assert_eq!(saved["indexed"], true, "a saved note must be searchable");
+    let (status, body) =
+        get_json(&client, &format!("{base}/api/notes/work/notes/FromApi.md")).await;
     assert!(status.is_success());
     assert!(body["content"].as_str().unwrap().contains("saved through"));
 
-    // path traversal is rejected
-    let resp = client
-        .put(format!("{base}/api/notes/work/..%5Cevil"))
-        .body("nope")
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST);
+    // Every way out of the vault is refused, and so is a non-.md path.
+    for bad in [
+        "..%2Fevil.md",
+        "..%5Cevil.md",
+        "docs%2F..%2F..%2Fevil.md",
+        "Plain",
+    ] {
+        let resp = client
+            .put(format!("{base}/api/notes/work/{bad}"))
+            .body("nope")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(
+            resp.status(),
+            reqwest::StatusCode::BAD_REQUEST,
+            "{bad} should be rejected"
+        );
+    }
 
-    // ---- GET /api/notes/{vault}/{title}/links (incl. cross-vault) ----
-    let (status, body) = get_json(&client, &format!("{base}/api/notes/work/Source/links")).await;
+    // ---- GET /api/links/{vault}/{*path} (incl. cross-vault) ----
+    let (status, body) = get_json(&client, &format!("{base}/api/links/work/Source.md")).await;
     assert!(status.is_success());
-    let forward: Vec<&str> = body["forward"]
-        .as_array()
-        .unwrap()
+    let forward = body["forward"].as_array().unwrap();
+    // Each target says where it resolves, so a client never has to guess.
+    let local = forward
         .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert!(forward.contains(&"Local") && forward.contains(&"ideas/Target"));
+        .find(|f| f["target"] == "Local")
+        .expect("forward link to Local");
+    assert_eq!(local["keys"], serde_json::json!(["Local.md"]));
+    let cross = forward
+        .iter()
+        .find(|f| f["target"] == "ideas/Target")
+        .expect("cross-vault forward link");
+    assert_eq!(
+        cross["keys"],
+        serde_json::json!([]),
+        "a cross-vault target resolves to no key in this vault"
+    );
 
-    let (status, body) = get_json(&client, &format!("{base}/api/notes/ideas/Target/links")).await;
+    let (status, body) = get_json(&client, &format!("{base}/api/links/ideas/Target.md")).await;
     assert!(status.is_success());
     assert_eq!(
         body["cross_vault_backlinks"],
         serde_json::json!(["work/Source"])
     );
+
+    // ---- GET /api/vaults/{vault}/doctor ----
+    let (status, body) = get_json(&client, &format!("{base}/api/vaults/work/doctor")).await;
+    assert!(status.is_success(), "doctor failed: {body}");
+    assert_eq!(body["project_notes"], 3, "Source, Local, notes/FromApi");
+    assert_eq!(body["reference_notes"], 0);
+    assert_eq!(body["follow_gitignore"], true);
+    assert_eq!(body["ambiguous_titles"], serde_json::json!([]));
 
     // ---- GET /api/search: Thai mid-sentence, per-vault and all-vaults ----
     let (status, body) = get_json(
@@ -141,6 +194,7 @@ async fn rest_endpoints_and_websocket_events() {
     .await;
     assert!(status.is_success(), "thai search failed: {body}");
     assert_eq!(body[0]["title"], "Target");
+    assert_eq!(body[0]["path"], "Target.md");
 
     let (status, body) = get_json(&client, &format!("{base}/api/search?q=plain")).await;
     assert!(status.is_success());
@@ -148,33 +202,75 @@ async fn rest_endpoints_and_websocket_events() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|v| (v["vault"].as_str().unwrap(), v["title"].as_str().unwrap()))
+        .map(|v| (v["vault"].as_str().unwrap(), v["path"].as_str().unwrap()))
         .collect();
-    assert!(hits.contains(&("work", "Local")));
+    assert!(hits.contains(&("work", "Local.md")));
 
-    // ---- GET /api/graph ----
+    // ---- GET /api/graph: nodes are files, not titles ----
     let (status, body) = get_json(&client, &format!("{base}/api/graph?vault=work")).await;
     assert!(status.is_success());
     let edges = body["edges"].as_array().unwrap();
-    assert!(edges
+    assert!(
+        edges
+            .iter()
+            .any(|e| e["from"] == "Source.md" && e["to"] == "Local.md"),
+        "edges join files, not titles: {edges:?}"
+    );
+    let nodes = body["nodes"].as_array().unwrap();
+    let source = nodes
         .iter()
-        .any(|e| e["from"] == "Source" && e["to"] == "Local"));
+        .find(|n| n["id"] == "Source.md")
+        .expect("Source.md node");
+    assert_eq!(source["label"], "Source");
+    assert_eq!(source["missing"], false);
 
     let (status, body) = get_json(&client, &format!("{base}/api/graph")).await;
     assert!(status.is_success());
     let edges = body["edges"].as_array().unwrap();
-    assert!(edges
-        .iter()
-        .any(|e| e["from"] == "work/Source" && e["to"] == "ideas/Target"));
+    assert!(
+        edges
+            .iter()
+            .any(|e| e["from"] == "work/Source.md" && e["to"] == "ideas/Target"),
+        "cross-vault edge keeps the vault-qualified target: {edges:?}"
+    );
     assert!(body["nodes"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|n| n == "ideas/Target"));
+        .any(|n| n["id"] == "ideas/Target.md"));
 
-    // ---- DELETE /api/notes/{vault}/{title} reports dangling backlinks ----
+    // ---- POST /api/vaults: register a vault without touching a terminal ----
+    let fresh = root.path().join("fresh");
+    fs::create_dir_all(&fresh).unwrap();
+    fs::write(fresh.join("Hello.md"), "# Hello\n\nbrand new vault\n").unwrap();
     let resp = client
-        .delete(format!("{base}/api/notes/work/Local"))
+        .post(format!("{base}/api/vaults"))
+        .json(&serde_json::json!({ "name": "fresh", "path": fresh.to_string_lossy() }))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "POST /api/vaults failed");
+    let (status, body) = get_json(&client, &format!("{base}/api/vaults/fresh/notes")).await;
+    assert!(status.is_success());
+    assert_eq!(body[0]["key"], "Hello.md", "the new vault was indexed too");
+
+    // A duplicate name, or a path that does not exist, is a client error.
+    for bad in [
+        serde_json::json!({ "name": "fresh", "path": fresh.to_string_lossy() }),
+        serde_json::json!({ "name": "nowhere", "path": "/definitely/not/here" }),
+    ] {
+        let resp = client
+            .post(format!("{base}/api/vaults"))
+            .json(&bad)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST, "{bad}");
+    }
+
+    // ---- DELETE /api/notes/{vault}/{*path} reports dangling backlinks ----
+    let resp = client
+        .delete(format!("{base}/api/notes/work/Local.md"))
         .send()
         .await
         .unwrap();
@@ -214,5 +310,5 @@ async fn rest_endpoints_and_websocket_events() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|v| v["title"] == "Fresh"));
+        .any(|v| v["path"] == "Fresh.md"));
 }

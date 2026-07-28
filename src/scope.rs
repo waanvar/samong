@@ -73,6 +73,13 @@ pub struct Config {
     pub scope: ScopeConfig,
 }
 
+/// Who this vault is, as declared by the vault itself.
+///
+/// Every field is optional and nothing reads most of them yet. They exist now
+/// because `deny_unknown_fields` is deliberately strict: adding a field later
+/// means older binaries reject a `banyan.toml` that a newer one wrote, and these
+/// are the fields a shareable knowledge pack will need — a name, a version to
+/// update against, a license for content that is not ours, and where it came from.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VaultConfig {
@@ -80,6 +87,19 @@ pub struct VaultConfig {
     /// identify itself instead of relying on each machine's local registry.
     #[serde(default)]
     pub name: Option<String>,
+    /// One line on what knowledge this vault holds.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Version of the *content*, not of Samong. Semver by convention.
+    #[serde(default)]
+    pub version: Option<String>,
+    /// License of the notes themselves — needed whenever a vault is shared, and
+    /// especially when it contains someone else's documentation.
+    #[serde(default)]
+    pub license: Option<String>,
+    /// Where this vault can be fetched or updated from (a git URL, usually).
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

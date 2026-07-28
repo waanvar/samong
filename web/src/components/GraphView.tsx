@@ -11,9 +11,14 @@ import {
 import { api } from "../api";
 
 interface Node extends SimulationNodeDatum {
+  /** Note path, vault-prefixed in the combined view. */
   id: string;
   vault: string;
+  /** Path inside its vault — what opening the note needs. */
+  key: string;
   label: string;
+  /** A wikilink target with no note behind it. */
+  missing: boolean;
 }
 
 type Edge = SimulationLinkDatum<Node>;
@@ -23,7 +28,7 @@ const VAULT_COLORS = ["--v1", "--v2", "--v3", "--v4", "--v5", "--v6"];
 interface Props {
   vault: string;
   vaults: string[];
-  onOpen: (vault: string, title: string) => void;
+  onOpen: (vault: string, key: string) => void;
 }
 
 export function GraphView({ vault, vaults, onOpen }: Props) {
@@ -51,21 +56,26 @@ export function GraphView({ vault, vaults, onOpen }: Props) {
       const data = await api.graph(allVaults ? undefined : vault);
       if (cancelled) return;
 
-      const parse = (id: string): { vault: string; label: string } => {
+      // In the combined view ids are "vault/path"; the vault prefix has to be
+      // peeled off to get a key, and only a registered name counts as a prefix
+      // (a plain path like "docs/API.md" has a slash too).
+      const parse = (id: string): { vault: string; key: string } => {
         if (allVaults) {
           const slash = id.indexOf("/");
           if (slash > 0 && vaults.includes(id.slice(0, slash))) {
-            return { vault: id.slice(0, slash), label: id.slice(slash + 1) };
+            return { vault: id.slice(0, slash), key: id.slice(slash + 1) };
           }
         }
-        return { vault, label: id };
+        return { vault, key: id };
       };
 
       const width = containerRef.current?.clientWidth ?? 800;
       const height = containerRef.current?.clientHeight ?? 600;
-      const nodeList: Node[] = data.nodes.map((id) => ({
-        id,
-        ...parse(id),
+      const nodeList: Node[] = data.nodes.map((node) => ({
+        id: node.id,
+        label: node.label,
+        missing: node.missing,
+        ...parse(node.id),
         x: width / 2 + (Math.random() - 0.5) * 200,
         y: height / 2 + (Math.random() - 0.5) * 200,
       }));
@@ -152,16 +162,20 @@ export function GraphView({ vault, vaults, onOpen }: Props) {
             );
           })}
           {nodes.map((node) => (
-            <g key={node.id} className="graph-node">
+            <g
+              key={node.id}
+              className={`graph-node ${node.missing ? "missing" : ""}`}
+            >
               <circle
                 cx={node.x}
                 cy={node.y}
-                r={9}
-                fill={colorOf(node.vault)}
+                r={node.missing ? 6 : 9}
+                fill={node.missing ? "var(--ink-mute)" : colorOf(node.vault)}
                 onPointerDown={onPointerDown(node)}
-                onClick={() => onOpen(node.vault, node.label)}
+                // Missing nodes are link targets, not files: nothing to open.
+                onClick={() => !node.missing && onOpen(node.vault, node.key)}
               >
-                <title>{node.id}</title>
+                <title>{node.missing ? `${node.id} (ยังไม่มีโน้ตนี้)` : node.id}</title>
               </circle>
               <text x={(node.x ?? 0) + 13} y={(node.y ?? 0) + 4}>
                 {node.label}

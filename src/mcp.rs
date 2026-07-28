@@ -76,7 +76,14 @@ fn initialize_result(params: &Value) -> Value {
 
 fn tool_definitions() -> Value {
     let vault_arg = json!({ "type": "string", "description": "Registered vault name" });
-    let title_arg = json!({ "type": "string", "description": "Note title (filename without .md)" });
+    // Notes are addressed by path, never by title: one vault can hold many files
+    // called README.md, and a title-addressed read would silently pick one.
+    let path_arg = json!({
+        "type": "string",
+        "description": "Note path relative to the vault root, e.g. \"docs/API.md\". \
+                        Always use a path from list_notes or search_notes — titles are \
+                        not unique."
+    });
     json!([
         {
             "name": "list_vaults",
@@ -85,7 +92,7 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "list_notes",
-            "description": "List all note titles in a vault.",
+            "description": "List every note in a vault as \"path\" (plus a [reference] marker for read-only notes pulled in from dependencies).",
             "inputSchema": {
                 "type": "object",
                 "properties": { "vault": vault_arg },
@@ -94,24 +101,24 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "read_note",
-            "description": "Read the full markdown content of a note.",
+            "description": "Read the full markdown content of a note, addressed by its path.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "vault": vault_arg, "title": title_arg },
-                "required": ["vault", "title"]
+                "properties": { "vault": vault_arg, "path": path_arg },
+                "required": ["vault", "path"]
             }
         },
         {
             "name": "save_note",
-            "description": "Create or overwrite a note with markdown content. Use [[Note Title]] wikilinks to connect knowledge; use [[vault-name/Note Title]] to link across vaults.",
+            "description": "Create or overwrite a note at a path. Use [[Note Title]] wikilinks to connect knowledge; use [[vault-name/Note Title]] to link across vaults. Reference notes (from scope.include) are read-only and will be refused.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "vault": vault_arg,
-                    "title": title_arg,
+                    "path": path_arg,
                     "content": { "type": "string", "description": "Full markdown content" }
                 },
-                "required": ["vault", "title", "content"]
+                "required": ["vault", "path", "content"]
             }
         },
         {
@@ -140,8 +147,8 @@ fn tool_definitions() -> Value {
             "description": "Show a note's connections: forward links, backlinks, and backlinks from other vaults.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "vault": vault_arg, "title": title_arg },
-                "required": ["vault", "title"]
+                "properties": { "vault": vault_arg, "path": path_arg },
+                "required": ["vault", "path"]
             }
         }
     ])
@@ -177,10 +184,11 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Result<&'a str> {
         .with_context(|| format!("missing required argument \"{key}\""))
 }
 
-fn checked_title(args: &Value) -> Result<&str> {
-    let title = str_arg(args, "title")?;
-    ops::validate_title(title).map_err(|m| anyhow::anyhow!(m))?;
-    Ok(title)
+/// Tool arguments come from a model, so a path is untrusted input like any other.
+fn checked_path(args: &Value) -> Result<&str> {
+    let key = str_arg(args, "path")?;
+    ops::validate_key(key).map_err(|m| anyhow::anyhow!(m))?;
+    Ok(key)
 }
 
 fn resolve_vault(registry: &Registry, name: &str) -> Result<PathBuf> {
@@ -203,49 +211,61 @@ fn tool_list_vaults() -> Result<String> {
 
 fn tool_list_notes(args: &Value) -> Result<String> {
     let root = resolve_vault(&Registry::open()?, str_arg(args, "vault")?)?;
-    let titles: Vec<String> = vault::list_notes(&root)?
-        .into_iter()
-        .map(|n| n.title)
-        .collect();
-    if titles.is_empty() {
+    let notes = vault::list_notes(&root)?;
+    if notes.is_empty() {
         return Ok("(vault is empty)".into());
     }
-    Ok(titles.join("\n"))
+    // Paths, because that is what every other tool takes. Reference notes are
+    // marked so the agent knows they cannot be written to.
+    Ok(notes
+        .into_iter()
+        .map(|n| {
+            if n.reference {
+                format!("{} [reference]", n.key)
+            } else {
+                n.key
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n"))
 }
 
 fn tool_read_note(args: &Value) -> Result<String> {
-    let title = checked_title(args)?;
+    let key = checked_path(args)?;
     let root = resolve_vault(&Registry::open()?, str_arg(args, "vault")?)?;
-    let note = vault::find_note(&root, title)?
-        .with_context(|| format!("note \"{title}\" does not exist"))?;
-    fs::read_to_string(&note.path).with_context(|| format!("reading {}", note.path.display()))
+    let path = ops::resolve_key(&root, key).map_err(|m| anyhow::anyhow!(m))?;
+    if !path.is_file() {
+        anyhow::bail!("note \"{key}\" does not exist");
+    }
+    fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))
 }
 
 fn tool_save_note(args: &Value) -> Result<String> {
     let vault_name = str_arg(args, "vault")?;
-    let title = checked_title(args)?;
+    let key = checked_path(args)?;
     let content = args
         .get("content")
         .and_then(Value::as_str)
         .context("missing required argument \"content\"")?;
 
     let root = resolve_vault(&Registry::open()?, vault_name)?;
-    // Update in place when the note lives in a subfolder; create at the root
-    // otherwise (same rule as the HTTP API).
-    let path = match vault::find_note(&root, title)? {
-        Some(existing) => {
-            // Without this, saving a note titled like a vendored docs page
-            // (`installation`, `getting-started`) would overwrite a dependency's
-            // file, and the next install would erase what was just learned.
-            ops::reject_reference_write(&existing, "save")?;
-            existing.path
-        }
-        None => vault::note_path(&root, title),
-    };
+    let path = ops::resolve_key(&root, key).map_err(|m| anyhow::anyhow!(m))?;
+    let scope = crate::scope::Scope::load(&root)?;
+    // Without this, saving to a vendored docs path would overwrite a
+    // dependency's file, and the next install would erase what was just learned.
+    if scope.is_reference(key) {
+        anyhow::bail!(
+            "cannot save \"{key}\": it is a read-only reference note from a scope.include \
+             directory (it belongs to a dependency and would be erased on reinstall)"
+        );
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    }
     fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;
     let report = indexer::reindex(&root, false)?;
     Ok(format!(
-        "saved \"{title}\" in vault \"{vault_name}\" ({report})"
+        "saved \"{key}\" in vault \"{vault_name}\" ({report})"
     ))
 }
 
@@ -293,7 +313,9 @@ fn tool_search_notes(args: &Value) -> Result<String> {
                 .replace("<b>", "**")
                 .replace("</b>", "**")
                 .replace('\n', " ");
-            format!("{name}/{}: {snippet}", hit.title)
+            // The path, not the title: this is what read_note takes, and it is
+            // the only thing that tells two same-named notes apart.
+            format!("{name}/{}: {snippet}", hit.key)
         })
         .collect();
     Ok(lines.join("\n"))
@@ -301,19 +323,32 @@ fn tool_search_notes(args: &Value) -> Result<String> {
 
 fn tool_get_links(args: &Value) -> Result<String> {
     let vault_name = str_arg(args, "vault")?;
-    let title = checked_title(args)?;
+    let key = checked_path(args)?;
     let registry = Registry::open()?;
     let root = resolve_vault(&registry, vault_name)?;
     indexer::reindex(&root, false)?;
 
+    let title = crate::graph::title_from_key(key).unwrap_or_default();
     let (forward, backlinks) = {
         let graph = Graph::open(&root)?;
-        (
-            graph.forward_links_for_title(title)?,
-            ops::keys_to_titles(graph.backlinks(title)?),
-        )
+        // Forward links of *this* file. Each target is shown with the path it
+        // resolves to, so the agent can read it without guessing.
+        let mut forward = Vec::new();
+        for target in graph.forward_links(key)? {
+            let keys = graph.keys_for_title(&target)?;
+            forward.push(match keys.len() {
+                0 => format!("[[{target}]] -> (no such note)"),
+                _ => format!("[[{target}]] -> {}", keys.join(", ")),
+            });
+        }
+        let backlinks: Vec<String> = graph
+            .backlinks(&title)?
+            .into_iter()
+            .filter(|source| source != key)
+            .collect();
+        (forward, backlinks)
     };
-    let cross = ops::cross_vault_backlinks(&registry, vault_name, title)?;
+    let cross = ops::cross_vault_backlinks(&registry, vault_name, &title)?;
 
     let section = |label: &str, items: &[String]| {
         if items.is_empty() {

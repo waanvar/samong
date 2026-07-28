@@ -1,6 +1,6 @@
 /* ---------- Samong design tokens ----------
-   Identity: samong tree — canopy green accent, bark-amber wikilinks
-   ("roots" connecting notes), Thai-first typography. */
+   Identity: a second brain — calm green accent, amber wikilinks
+   (the threads connecting notes), Thai-first typography. */
 
 :root {
   --bg: #f6f5f1;
@@ -686,4 +686,28 @@ kbd {
 .welcome svg {
   color: var(--accent);
   opacity: 0.9;
+}
+
+/* A note pulled in from scope.include: read-only, and machine-local. */
+.ref-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-mute);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+/* Graph nodes for wikilink targets that name no note yet. */
+.graph-node.missing circle {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.graph-node.missing text {
+  fill: var(--ink-mute);
+  font-style: italic;
 }

@@ -1,13 +1,15 @@
-import type { VaultInfo } from "../api";
+import type { NoteInfo, VaultInfo } from "../api";
 
 interface Props {
   vaults: VaultInfo[];
   vault: string;
-  notes: string[];
+  notes: NoteInfo[];
+  /** Key of the open note. */
   active: string;
   onSwitchVault: (vault: string) => void;
-  onOpen: (title: string) => void;
+  onOpen: (key: string) => void;
   onCreate: (title: string) => void;
+  onAddVault: (name: string, path: string) => void;
 }
 
 export function Sidebar({
@@ -18,11 +20,39 @@ export function Sidebar({
   onSwitchVault,
   onOpen,
   onCreate,
+  onAddVault,
 }: Props) {
   const create = () => {
     const title = window.prompt("ชื่อโน้ตใหม่");
     if (title?.trim()) onCreate(title.trim());
   };
+
+  const addVault = () => {
+    const path = window.prompt(
+      "โฟลเดอร์ของ vault (พาธเต็ม)\nชี้ที่ root ของโปรเจกต์ได้เลย — Samong ข้าม node_modules และไฟล์ที่ gitignore ให้เอง",
+    );
+    if (!path?.trim()) return;
+    const suggested = path.trim().replace(/[/\\]+$/, "").split(/[/\\]/).pop() ?? "";
+    const name = window.prompt("ชื่อ vault (ใช้ใน [[ชื่อ/โน้ต]])", suggested);
+    if (name?.trim()) onAddVault(name.trim(), path.trim());
+  };
+
+  // A first-time user has no vault yet, and until Phase 14 the only way to add
+  // one was a CLI command they had not read about — so offer it right here.
+  if (vaults.length === 0) {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          <button className="btn primary" onClick={addVault}>
+            + เพิ่ม vault
+          </button>
+        </div>
+        <p className="empty-hint">
+          ยังไม่มี vault — เพิ่มโฟลเดอร์โน้ตของคุณเพื่อเริ่มใช้งาน
+        </p>
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
@@ -30,7 +60,9 @@ export function Sidebar({
         <select
           className="vault-select"
           value={vault}
-          onChange={(e) => onSwitchVault(e.target.value)}
+          onChange={(e) =>
+            e.target.value === "__add" ? addVault() : onSwitchVault(e.target.value)
+          }
           aria-label="เลือก vault"
         >
           {vaults.map((v) => (
@@ -38,19 +70,24 @@ export function Sidebar({
               🗄 {v.name}
             </option>
           ))}
+          <option value="__add">+ เพิ่ม vault…</option>
         </select>
         <button className="btn primary" onClick={create}>
           + โน้ตใหม่
         </button>
       </div>
-      <div className="side-label">
-        โน้ต ({notes.length})
-      </div>
+      <div className="side-label">โน้ต ({notes.length})</div>
       <ul className="note-list">
-        {notes.map((t) => (
-          <li key={t}>
-            <button className={t === active ? "active" : ""} onClick={() => onOpen(t)}>
-              {t}
+        {notes.map((note) => (
+          <li key={note.key}>
+            <button
+              className={note.key === active ? "active" : ""}
+              onClick={() => onOpen(note.key)}
+              // Titles repeat across folders, so the path is what disambiguates.
+              title={note.key}
+            >
+              {note.title}
+              {note.reference && <span className="ref-badge">อ่านเท่านั้น</span>}
             </button>
           </li>
         ))}
