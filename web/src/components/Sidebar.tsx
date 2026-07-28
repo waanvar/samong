@@ -1,4 +1,5 @@
 import type { NoteInfo, VaultInfo } from "../api";
+import { NoteTree } from "./NoteTree";
 
 interface Props {
   vaults: VaultInfo[];
@@ -76,22 +77,7 @@ export function Sidebar({
           + โน้ตใหม่
         </button>
       </div>
-      <div className="side-label">โน้ต ({notes.length})</div>
-      <ul className="note-list">
-        {notes.map((note) => (
-          <li key={note.key}>
-            <button
-              className={note.key === active ? "active" : ""}
-              onClick={() => onOpen(note.key)}
-              // Titles repeat across folders, so the path is what disambiguates.
-              title={note.key}
-            >
-              {note.title}
-              {note.reference && <span className="ref-badge">อ่านเท่านั้น</span>}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <NoteTree notes={notes} active={active} onOpen={onOpen} />
     </aside>
   );
 }

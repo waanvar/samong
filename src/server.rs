@@ -130,6 +130,17 @@ fn resolve_vault(registry: &Registry, name: &str) -> std::result::Result<PathBuf
         .ok_or_else(|| ApiError::NotFound(format!("vault \"{name}\" is not registered")))
 }
 
+/// Path for human eyes: hide the `\\?\` verbatim prefix that canonicalize adds
+/// on Windows. The CLI does the same — a path shown in the UI should look like
+/// the one the user typed.
+fn display_path(path: &std::path::Path) -> String {
+    let shown = path.display().to_string();
+    shown
+        .strip_prefix(r"\\?\")
+        .map(str::to_string)
+        .unwrap_or(shown)
+}
+
 /// Resolve a note key from a URL wildcard segment.
 fn resolve_key(vault: &std::path::Path, key: &str) -> std::result::Result<PathBuf, ApiError> {
     crate::ops::resolve_key(vault, key).map_err(ApiError::BadRequest)
@@ -165,7 +176,7 @@ async fn list_vaults(State(state): State<Arc<AppState>>) -> ApiResult<Vec<VaultI
             .into_iter()
             .map(|(name, path)| VaultInfo {
                 name,
-                path: path.display().to_string(),
+                path: display_path(&path),
             })
             .collect(),
     ))
@@ -195,7 +206,7 @@ async fn add_vault(
         indexer::reindex(&canonical, false)?;
         Ok(VaultInfo {
             name: body.name,
-            path: canonical.display().to_string(),
+            path: display_path(&canonical),
         })
     })
     .await?;
@@ -445,7 +456,7 @@ async fn get_doctor(
             .partition(|(_, keys)| keys.iter().any(|key| !scope.is_reference(key)));
 
         Ok(DoctorResponse {
-            vault: root.display().to_string(),
+            vault: display_path(&root),
             notes_dir: scope.config().scope.notes_dir.clone(),
             follow_gitignore: scope.config().scope.follow_gitignore,
             include_roots: scope

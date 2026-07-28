@@ -13,6 +13,7 @@ import { Editor } from "./components/Editor";
 import { RightPanel } from "./components/RightPanel";
 import { GraphView } from "./components/GraphView";
 import { CommandPalette } from "./components/CommandPalette";
+import { VaultHealth } from "./components/VaultHealth";
 import { SamongMark } from "./components/SamongMark";
 
 export function App() {
@@ -30,6 +31,7 @@ export function App() {
     new URLSearchParams(location.search).get("view") === "graph" ? "graph" : "editor",
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [theme, setTheme] = useState(
     () => document.documentElement.dataset.theme ?? "light",
@@ -328,6 +330,9 @@ export function App() {
         >
           กราฟ
         </button>
+        <button className="btn" onClick={() => setHealthOpen(true)} disabled={!vault}>
+          สภาพ vault
+        </button>
         <button className="btn" onClick={toggleTheme} aria-label="สลับธีม">
           {theme === "dark" ? "☀️" : "🌙"}
         </button>
@@ -381,6 +386,17 @@ export function App() {
           />
         )}
       </div>
+
+      {healthOpen && vault && (
+        <VaultHealth
+          vault={vault}
+          onClose={() => setHealthOpen(false)}
+          onOpen={(key) => {
+            setHealthOpen(false);
+            void openNote(vault, key);
+          }}
+        />
+      )}
 
       {paletteOpen && (
         <CommandPalette

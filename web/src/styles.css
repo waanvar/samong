@@ -1,53 +1,104 @@
-/* ---------- Samong design tokens ----------
-   Identity: a second brain — calm green accent, amber wikilinks
-   (the threads connecting notes), Thai-first typography. */
+/* ============================================================================
+   Samong — "graphite & highlighter"
+
+   The product's whole thesis is that Thai has no spaces between words and Samong
+   finds the boundaries anyway. So the interface treats a *match* as the precious
+   thing: the highlighter colour appears nowhere except on matched text and on
+   what is active right now, and every match shows the word edges the segmenter
+   found as hairline ticks. Everything else stays graphite and quiet.
+
+   Ground is a cool blue-grey, not warm paper. Indigo carries interaction and
+   links (a connection between notes is a kind of citation). Paths are set in
+   mono, because a path is an identifier, not prose.
+   ========================================================================== */
 
 :root {
-  --bg: #f6f5f1;
-  --surface: #fdfdfb;
-  --surface-2: #eeede6;
-  --ink: #212b22;
-  --ink-mute: #64715f;
-  --line: #dedcd0;
-  --accent: #257a5f;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(37, 122, 95, 0.12);
-  --wikilink: #a1661c;
-  --wikilink-soft: rgba(161, 102, 28, 0.12);
-  --danger: #b3402f;
-  --shadow: 0 8px 28px rgba(33, 43, 34, 0.14);
-  --v1: #2e8b6a;
-  --v2: #b97f2a;
-  --v3: #5f7ab8;
-  --v4: #a35d92;
-  --v5: #b3554a;
-  --v6: #4b9aa8;
+  color-scheme: light;
 
-  --font-ui: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai", system-ui,
-    sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --paper: #eef0f4;
+  --surface: #fbfcfd;
+  --surface-2: #e3e6ed;
+  --surface-3: #d7dbe5;
+  --ink: #161922;
+  --ink-2: #3c4353;
+  --ink-mute: #6b7385;
+  --line: #d3d7e1;
+  --line-strong: #b9bfcd;
+
+  /* Reserved: matches and "now". Never used for body text. */
+  --mark: #d8f24a;
+  --mark-edge: #8a9c14;
+  --mark-wash: color-mix(in oklab, var(--mark) 55%, transparent);
+
+  /* Interaction + connections. */
+  --accent: #3f4ddb;
+  --accent-ink: #ffffff;
+  --accent-wash: color-mix(in oklab, var(--accent) 10%, transparent);
+  --link: #3a3fb0;
+  --link-wash: color-mix(in oklab, var(--link) 9%, transparent);
+
+  --danger: #b3352c;
+  --ok: #2c7a52;
+  --warn: #9a6410;
+
+  --v1: #3f4ddb;
+  --v2: #b06c12;
+  --v3: #2c7a72;
+  --v4: #8e3f9e;
+  --v5: #b3352c;
+  --v6: #4a6b2f;
+
+  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --font-ui: "IBM Plex Sans Thai", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --shadow-1: 0 1px 2px rgba(22, 25, 34, 0.06);
+  --shadow-2: 0 12px 40px -12px rgba(22, 25, 34, 0.28);
+
+  --radius: 7px;
+  --radius-sm: 4px;
+
+  /* Thai needs generous leading: sara sit above and below the base line. */
+  --leading-body: 1.75;
+  --leading-tight: 1.35;
 }
 
-[data-theme="dark"] {
-  --bg: #131c17;
-  --surface: #1a2620;
-  --surface-2: #223129;
-  --ink: #e4ece5;
-  --ink-mute: #92a595;
-  --line: #2c3b33;
-  --accent: #52c795;
-  --accent-ink: #0d1a13;
-  --accent-soft: rgba(82, 199, 149, 0.14);
-  --wikilink: #dfa45c;
-  --wikilink-soft: rgba(223, 164, 92, 0.14);
-  --danger: #e06b57;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  --v1: #58c495;
-  --v2: #e0aa5c;
-  --v3: #8ea8e8;
-  --v4: #d492c4;
-  --v5: #e28d80;
-  --v6: #74c4d4;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #12141a;
+  --surface: #191c24;
+  --surface-2: #22262f;
+  --surface-3: #2b303b;
+  --ink: #e7eaf1;
+  --ink-2: #bcc2d0;
+  --ink-mute: #8b93a5;
+  --line: #2c313c;
+  --line-strong: #3d4351;
+
+  --mark: #dcff5a;
+  --mark-edge: #b6e02a;
+  --mark-wash: color-mix(in oklab, var(--mark) 26%, transparent);
+
+  --accent: #8b95ff;
+  --accent-ink: #10121a;
+  --accent-wash: color-mix(in oklab, var(--accent) 16%, transparent);
+  --link: #9aa2ff;
+  --link-wash: color-mix(in oklab, var(--link) 14%, transparent);
+
+  --danger: #e88378;
+  --ok: #6fce9d;
+  --warn: #e0b063;
+
+  --v1: #8b95ff;
+  --v2: #e0b063;
+  --v3: #6fcec2;
+  --v4: #d38ee2;
+  --v5: #e88378;
+  --v6: #a8cf7a;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 * {
@@ -59,85 +110,71 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* A fixed three-pane shell: each pane scrolls itself, the document never does.
+     Without this the page can rubber-band on touch and drift under a scrollbar. */
+  overflow: hidden;
 }
 
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: 15px;
-  /* Thai vowels/tone marks stack above and below the line — keep it airy. */
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
 }
 
-button,
-input,
-textarea,
-select {
+:where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
 }
 
+/* Keyboard users must always be able to see where they are. */
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
+code,
+.path {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  letter-spacing: -0.01em;
 }
 
-/* ---------- app frame ---------- */
+/* ---------- app shell ---------- */
 
 .app {
   display: grid;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
-
-.workspace {
-  display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 280px;
-  min-height: 0;
-}
-
-@media (max-width: 1100px) {
-  .workspace {
-    grid-template-columns: 220px minmax(0, 1fr);
-  }
-  .right-panel {
-    display: none;
-  }
-}
-
-/* ---------- top bar ---------- */
 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 0 14px;
-  border-bottom: 1px solid var(--line);
+  block-size: 52px;
   background: var(--surface);
+  border-block-end: 1px solid var(--line);
 }
 
 .brand {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.brand svg {
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.015em;
 }
 
 .crumb {
   color: var(--ink-mute);
+  font-size: 13px;
+  min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -145,33 +182,44 @@ select {
 
 .crumb b {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.topbar .spacer {
+.spacer {
   flex: 1;
 }
 
 .status-flash {
-  color: var(--accent);
-  font-size: 13px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  white-space: nowrap;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--line);
+  padding: 6px 11px;
   background: var(--surface);
-  border-radius: 7px;
-  padding: 5px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font-size: 13px;
   cursor: pointer;
-  font-size: 13.5px;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
   color: var(--ink);
 }
 
-.btn:hover {
-  background: var(--surface-2);
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn.primary {
@@ -181,410 +229,529 @@ select {
   font-weight: 500;
 }
 
-.btn.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
+.btn.primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+  color: var(--accent-ink);
 }
 
-.btn.danger:hover {
+.btn.danger:hover:not(:disabled) {
   border-color: var(--danger);
   color: var(--danger);
 }
 
-kbd {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  border: 1px solid var(--line);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  padding: 0 5px;
-  color: var(--ink-mute);
-  background: var(--surface-2);
-}
-
-/* ---------- sidebar ---------- */
-
-.sidebar {
-  border-right: 1px solid var(--line);
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.sidebar-head {
-  padding: 12px 12px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vault-select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--bg);
-}
-
-.note-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 8px 16px;
-  margin: 0;
-  list-style: none;
-}
-
-.note-list li button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: none;
-  padding: 5px 9px;
-  border-radius: 6px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* "Active" is now, so it earns the highlighter. */
+.btn.active {
+  background: var(--mark-wash);
+  border-color: var(--mark-edge);
   color: var(--ink);
 }
 
-.note-list li button:hover {
+kbd {
+  padding: 1px 5px;
   background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  /* Small text on a tinted chip: --ink-mute would not clear AA here. */
+  color: var(--ink-2);
 }
 
-.note-list li button.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 500;
+.workspace {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 272px;
+  min-height: 0;
+}
+
+.workspace > * {
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Load in as one movement rather than three separate effects. */
+@media (prefers-reduced-motion: no-preference) {
+  .topbar,
+  .sidebar,
+  .editor-body,
+  .right-panel,
+  .welcome,
+  .graph-view {
+    animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .sidebar {
+    animation-delay: 40ms;
+  }
+  .editor-body,
+  .welcome,
+  .graph-view {
+    animation-delay: 70ms;
+  }
+  .right-panel {
+    animation-delay: 100ms;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------- sidebar + note tree ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px 20px;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--line);
+}
+
+.sidebar-head {
+  display: flex;
+  gap: 6px;
+  padding: 0 4px 10px;
+}
+
+.vault-select {
+  flex: 1;
+  min-inline-size: 0;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .side-label {
-  font-size: 11.5px;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 6px 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--ink-mute);
-  padding: 8px 12px 2px;
+}
+
+.side-label.ref {
+  margin-block-start: 6px;
+  border-block-start: 1px solid var(--line);
+}
+
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  inline-size: 100%;
+  padding: 4px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-align: start;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.tree-list button:hover {
+  background: var(--surface-2);
+}
+
+.tree-name {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-folder {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.tree-caret {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--ink-mute);
+  transition: transform 130ms ease;
+}
+
+.tree-caret.open {
+  transform: rotate(90deg);
+}
+
+/* Counts are data, so they are set in mono and never shout. */
+.tree-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-note {
+  color: var(--ink-2);
+}
+
+/* The open note is "now": highlighter, plus an edge tick like a match. */
+.tree-note.active {
+  position: relative;
+  background: var(--mark-wash);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.tree-note.active::before {
+  content: "";
+  position: absolute;
+  inset-block: 3px;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--mark-edge);
+  border-radius: 2px;
+}
+
+.tree-lock {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.ref-badge {
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+.empty-hint {
+  margin: 6px;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.65;
 }
 
 /* ---------- editor ---------- */
 
-.editor-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
 .editor-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-block-end: 1px solid var(--line);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
 }
 
 .editor-toolbar .title {
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 600;
-  font-size: 16px;
+  letter-spacing: -0.012em;
+  line-height: var(--leading-tight);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .mode-switch {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  display: flex;
+  margin-inline-start: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
 .mode-switch button {
-  border: 0;
+  padding: 5px 11px;
   background: var(--surface);
-  padding: 4px 11px;
-  cursor: pointer;
-  font-size: 13px;
+  border: 0;
   color: var(--ink-mute);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.mode-switch button + button {
+  border-inline-start: 1px solid var(--line);
 }
 
 .mode-switch button.on {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--mark-wash);
+  color: var(--ink);
   font-weight: 500;
 }
 
 .editor-body {
-  flex: 1;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
 
 .editor-body.split {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
-.editor-wrap {
-  position: relative;
-  display: flex;
-  min-height: 0;
+@media (max-width: 860px) {
+  .editor-body.split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.editor-wrap,
+.editor-col {
+  min-inline-size: 0;
+  overflow: auto;
+}
+
+.editor-body.split .editor-col {
+  border-inline-start: 1px solid var(--line);
 }
 
 .editor-textarea {
-  flex: 1;
-  resize: none;
+  display: block;
+  inline-size: 100%;
+  min-block-size: 100%;
+  padding: 24px 28px 40vh;
+  background: var(--paper);
   border: 0;
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: var(--leading-body);
+  tab-size: 2;
+}
+
+.editor-textarea:focus {
   outline: none;
-  background: var(--bg);
-  padding: 22px 26px 40vh;
-  font-family: var(--font-ui);
-  font-size: 15.5px;
-  line-height: 1.9;
-  caret-color: var(--accent);
 }
 
-.editor-body.split .editor-wrap {
-  border-right: 1px solid var(--line);
+.editor-textarea[readonly] {
+  background: var(--surface-2);
+  color: var(--ink-2);
 }
-
-/* ---------- preview / rendered markdown ---------- */
 
 .preview {
-  overflow-y: auto;
-  padding: 22px 30px 40vh;
-  max-width: 74ch;
+  padding: 24px 30px 40vh;
+  max-inline-size: 74ch;
 }
 
 .preview h1,
 .preview h2,
-.preview h3 {
-  line-height: 1.5;
-  text-wrap: balance;
+.preview h3,
+.preview h4 {
+  font-family: var(--font-display);
   font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: var(--leading-tight);
+  margin-block: 1.4em 0.5em;
 }
 
 .preview h1 {
-  font-size: 26px;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
+  font-size: 25px;
+  margin-block-start: 0;
 }
-
 .preview h2 {
   font-size: 20px;
 }
-
-.preview a {
-  color: var(--accent);
+.preview h3 {
+  font-size: 16.5px;
 }
 
-.preview a.wikilink {
-  color: var(--wikilink);
-  background: var(--wikilink-soft);
-  text-decoration: none;
-  border-radius: 4px;
-  padding: 0 4px;
-  cursor: pointer;
-}
-
-.preview a.wikilink:hover {
-  text-decoration: underline;
+.preview p,
+.preview li {
+  line-height: var(--leading-body);
 }
 
 .preview code {
-  font-family: var(--font-mono);
-  font-size: 0.88em;
-  background: var(--surface-2);
-  border-radius: 4px;
   padding: 1px 5px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
 }
 
 .preview pre {
+  padding: 14px 16px;
   background: var(--surface-2);
-  border-radius: 8px;
-  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   overflow-x: auto;
 }
 
 .preview pre code {
-  background: none;
   padding: 0;
+  background: none;
 }
 
 .preview blockquote {
-  margin: 0;
-  padding-left: 14px;
-  border-left: 3px solid var(--accent);
-  color: var(--ink-mute);
+  margin-inline: 0;
+  padding-inline-start: 14px;
+  border-inline-start: 2px solid var(--line-strong);
+  color: var(--ink-2);
 }
 
-/* ---------- [[ autocomplete ---------- */
+.preview table {
+  border-collapse: collapse;
+}
+
+.preview th,
+.preview td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: start;
+}
+
+.preview img {
+  max-inline-size: 100%;
+}
+
+/* A wikilink is a citation between notes: indigo, underlined on hover only. */
+.wikilink {
+  padding: 0 2px;
+  background: var(--link-wash);
+  border-radius: var(--radius-sm);
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.wikilink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 .wiki-suggest {
   position: absolute;
-  left: 26px;
-  bottom: 18px;
-  width: min(420px, 90%);
+  z-index: 5;
+  min-inline-size: 240px;
+  max-block-size: 240px;
+  overflow: auto;
+  padding: 4px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  z-index: 30;
-}
-
-.wiki-suggest header {
-  font-size: 12px;
-  color: var(--ink-mute);
-  padding: 7px 12px 3px;
-}
-
-.wiki-suggest ul {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
   list-style: none;
   margin: 0;
-  padding: 4px;
-  max-height: 220px;
-  overflow-y: auto;
 }
 
 .wiki-suggest li {
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  font-size: 13px;
 }
 
 .wiki-suggest li.sel {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--mark-wash);
 }
 
 .wiki-suggest .cross {
-  color: var(--wikilink);
+  color: var(--link);
+}
+
+.wiki-suggest .hint {
+  color: var(--ink-mute);
+  font-size: 11.5px;
 }
 
 /* ---------- right panel ---------- */
 
 .right-panel {
-  border-left: 1px solid var(--line);
+  padding: 12px 10px 24px;
   background: var(--surface);
-  overflow-y: auto;
-  padding-bottom: 24px;
+  border-inline-start: 1px solid var(--line);
 }
 
-.panel-section {
-  padding: 4px 0 8px;
+.panel-section + .panel-section {
+  margin-block-start: 8px;
 }
 
 .backlink-list,
-.outline-list {
+.outline-list,
+.plain-list {
   list-style: none;
   margin: 0;
-  padding: 0 10px;
+  padding: 0;
 }
 
-.backlink-list li button,
-.outline-list li button {
+.backlink-list button,
+.outline-list button {
   display: block;
-  width: 100%;
-  text-align: left;
+  inline-size: 100%;
+  padding: 4px 8px;
   background: none;
   border: 0;
-  padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  text-align: start;
+  color: var(--ink-2);
+  font-size: 13px;
   cursor: pointer;
-  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.backlink-list li button:hover,
-.outline-list li button:hover {
+.backlink-list button:hover,
+.outline-list button:hover {
   background: var(--surface-2);
+  color: var(--ink);
 }
 
 .backlink-list .cross button {
-  color: var(--wikilink);
+  color: var(--link);
 }
 
 .outline-list .lvl-2 button {
-  padding-left: 22px;
+  padding-inline-start: 22px;
 }
 
 .outline-list .lvl-3 button {
-  padding-left: 36px;
-  color: var(--ink-mute);
+  padding-inline-start: 34px;
 }
 
-.empty-hint {
-  color: var(--ink-mute);
-  font-size: 13px;
-  padding: 2px 20px;
-}
-
-/* ---------- graph view ---------- */
-
-.graph-view {
-  position: relative;
-  min-height: 0;
-}
-
-.graph-view svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-  cursor: grab;
-}
-
-.graph-node circle {
+.link-btn {
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--link);
   cursor: pointer;
-  stroke: var(--bg);
-  stroke-width: 1.5;
+  text-align: start;
 }
 
-.graph-node text {
-  font-size: 11.5px;
-  fill: var(--ink);
-  pointer-events: none;
-  paint-order: stroke;
-  stroke: var(--bg);
-  stroke-width: 3;
+.link-btn:hover {
+  background: var(--link-wash);
 }
 
-.graph-edge {
-  stroke: var(--ink-mute);
-  stroke-opacity: 0.35;
+/* ---------- welcome ---------- */
+
+.welcome {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+  color: var(--ink-mute);
 }
 
-.graph-legend {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-}
-
-.graph-legend .dot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  margin-right: 7px;
-}
-
-.graph-controls {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  display: flex;
-  gap: 8px;
+.welcome p {
+  max-inline-size: 34ch;
+  line-height: 1.7;
 }
 
 /* ---------- command palette ---------- */
@@ -592,122 +759,464 @@ kbd {
 .palette-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 16, 12, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 12vh;
-  z-index: 100;
+  z-index: 20;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding-block-start: 12vh;
+  background: color-mix(in oklab, var(--paper) 62%, transparent);
+  backdrop-filter: blur(3px);
 }
 
 .palette {
-  width: min(600px, 92vw);
+  inline-size: min(680px, 92vw);
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-2);
   overflow: hidden;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .palette {
+    animation: rise 180ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
 .palette input {
-  width: 100%;
-  border: 0;
-  outline: none;
-  background: none;
+  inline-size: 100%;
   padding: 15px 18px;
+  background: none;
+  border: 0;
+  border-block-end: 1px solid var(--line);
+  font-family: var(--font-display);
   font-size: 16px;
-  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+}
+
+.palette input:focus {
+  outline: none;
 }
 
 .palette ul {
   list-style: none;
   margin: 0;
   padding: 6px;
-  max-height: 46vh;
-  overflow-y: auto;
+  max-block-size: 54vh;
+  overflow: auto;
 }
 
 .palette li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
 }
 
 .palette li.sel {
-  background: var(--accent-soft);
+  background: var(--accent-wash);
 }
 
-.palette li .kind {
-  font-size: 11.5px;
+.palette .kind {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--ink-mute);
-  min-width: 52px;
 }
 
-.palette li .kind.create {
-  color: var(--accent);
-}
-
-.palette li .snippet {
-  color: var(--ink-mute);
-  font-size: 12.5px;
+.palette .title {
+  min-inline-size: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
-.palette li .snippet b {
-  color: var(--wikilink);
+.palette .create {
+  color: var(--accent);
 }
 
-.palette .hint {
-  padding: 8px 14px;
-  font-size: 12px;
-  color: var(--ink-mute);
-  border-top: 1px solid var(--line);
+.palette .snippet {
+  grid-column: 2;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------- the signature: a match, and the word edges around it ----------
+   Thai runs together with no spaces, so a Thai search hit is proof that
+   something found the boundary. The band marks what matched; the ticks mark
+   where the segmenter cut. This is the one place the highlighter appears in
+   prose, and the only decoration in the interface that carries information. */
+
+.snippet b {
+  position: relative;
+  padding: 0 1px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--mark-wash);
+  border-radius: 1px;
+}
+
+.snippet b::before,
+.snippet b::after {
+  content: "";
+  position: absolute;
+  inset-block: -2px;
+  inline-size: 1px;
+  background: var(--mark-edge);
+  opacity: 0.75;
+}
+
+.snippet b::before {
+  inset-inline-start: -1px;
+}
+
+.snippet b::after {
+  inset-inline-end: -1px;
+}
+
+/* Adjacent matched tokens are two cuts, not one: keep both ticks visible. */
+.snippet b + b {
+  margin-inline-start: 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .snippet b {
+    animation: mark-in 220ms ease-out both;
+  }
+}
+
+/* Both ends are spelled out on purpose: with only a `from` keyframe and
+   `fill-mode: both`, the forwards fill holds the 0% value and the band never
+   appears at all. */
+@keyframes mark-in {
+  from {
+    background-color: transparent;
+  }
+  to {
+    background-color: var(--mark-wash);
+  }
+}
+
+/* ---------- vault health sheet ---------- */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
   display: flex;
-  gap: 14px;
+  justify-content: flex-end;
+  background: color-mix(in oklab, var(--paper) 55%, transparent);
+  backdrop-filter: blur(2px);
 }
 
-/* ---------- welcome ---------- */
-
-.welcome {
+.sheet {
+  inline-size: min(460px, 100vw);
   display: flex;
   flex-direction: column;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-2);
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: slide-in 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(18px);
+    opacity: 0;
+  }
+}
+
+.sheet-head {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--ink-mute);
-  height: 100%;
+  gap: 10px;
+  padding: 14px 16px;
+  border-block-end: 1px solid var(--line);
+  position: sticky;
+  inset-block-start: 0;
+  background: var(--surface);
+  z-index: 1;
 }
 
-.welcome svg {
-  color: var(--accent);
-  opacity: 0.9;
+.sheet-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-/* A note pulled in from scope.include: read-only, and machine-local. */
-.ref-badge {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-mute);
-  background: var(--surface-2);
+.sheet-body {
+  padding: 4px 16px 28px;
+}
+
+.sheet-body section {
+  margin-block-start: 10px;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-block: 14px 6px;
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--paper);
   border: 1px solid var(--line);
-  white-space: nowrap;
+  border-radius: var(--radius);
 }
 
-/* Graph nodes for wikilink targets that name no note yet. */
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+.health-list {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.health-list dt {
+  color: var(--ink-mute);
+}
+
+.health-list dd {
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.plain-list li {
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.plain-list.nested {
+  padding-inline-start: 12px;
+}
+
+.tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.tag.ok {
+  color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 12%, transparent);
+}
+
+.tag.warn {
+  color: var(--warn);
+  background: color-mix(in oklab, var(--warn) 14%, transparent);
+}
+
+/* Skipped files, as a shape. The bar is the only chart here and it earns its
+   place: "which directory swallowed my notes" is the actual question. */
+.bar-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.bar-list li {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.bar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.bar {
+  block-size: 7px;
+  min-inline-size: 2px;
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+
+.bar-num {
+  text-align: end;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- graph ---------- */
+
+.graph-view {
+  position: relative;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.graph-view svg {
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+}
+
+.graph-edge {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.graph-node circle {
+  cursor: pointer;
+  transition: r 120ms ease;
+}
+
+.graph-node text {
+  fill: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.graph-node:hover circle {
+  stroke: var(--mark-edge);
+  stroke-width: 2;
+}
+
 .graph-node.missing circle {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: default;
 }
 
 .graph-node.missing text {
   fill: var(--ink-mute);
   font-style: italic;
+}
+
+.graph-legend,
+.graph-controls {
+  position: absolute;
+  inset-block-end: 12px;
+  display: flex;
+  gap: 10px;
+  padding: 6px 10px;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.graph-legend {
+  inset-inline-start: 12px;
+  flex-wrap: wrap;
+  max-inline-size: 60%;
+}
+
+.graph-controls {
+  inset-inline-end: 12px;
+  padding: 6px;
+}
+
+.graph-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+}
+
+.dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+}
+
+/* ============================================================================
+   Responsive — kept at the end of the file on purpose.
+
+   These are overrides, and CSS resolves ties by order: placed earlier, a rule
+   like `.sidebar { display: none }` loses to the `.sidebar { display: flex }`
+   that defines the component further down, and the phone layout silently breaks.
+   ========================================================================== */
+
+/* Backlinks and outline are context, not the work: first to go. */
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+
+  .right-panel {
+    display: none;
+  }
+}
+
+/* One column. The note is the screen; the tree becomes a trip to the palette. */
+@media (max-width: 760px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    gap: 6px;
+    padding-inline: 10px;
+  }
+
+  .crumb {
+    display: none;
+  }
+
+  .editor-textarea,
+  .preview {
+    padding-inline: 16px;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bar-list li {
+    grid-template-columns: 6rem minmax(0, 1fr) 2.5rem;
+  }
 }
