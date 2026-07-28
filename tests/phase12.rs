@@ -30,13 +30,13 @@ fn tool_text(response: &Value) -> String {
         .collect()
 }
 
-/// Run a session against a fresh `banyan-mcp` and return responses by id.
+/// Run a session against a fresh `samong-mcp` and return responses by id.
 fn run_session(
     config: &std::path::Path,
     lines: &[String],
 ) -> std::collections::HashMap<u64, Value> {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_banyan-mcp"))
-        .env("BANYAN_CONFIG_DIR", config)
+    let mut child = Command::new(env!("CARGO_BIN_EXE_samong-mcp"))
+        .env("SAMONG_CONFIG_DIR", config)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -64,8 +64,8 @@ fn search_limit_is_a_total_across_vaults_not_per_vault() {
     let config = root.path().join("config");
 
     // Three vaults, 12 matching notes each: 36 possible hits.
-    std::env::set_var("BANYAN_CONFIG_DIR", &config);
-    let registry = banyan::registry::Registry::open().unwrap();
+    std::env::set_var("SAMONG_CONFIG_DIR", &config);
+    let registry = samong::registry::Registry::open().unwrap();
     for name in ["alpha", "beta", "gamma"] {
         let vault = root.path().join(name);
         fs::create_dir_all(&vault).unwrap();
@@ -77,7 +77,7 @@ fn search_limit_is_a_total_across_vaults_not_per_vault() {
             .unwrap();
         }
         let vault_root = registry.add(name, &vault).unwrap();
-        banyan::indexer::reindex(&vault_root, false).unwrap();
+        samong::indexer::reindex(&vault_root, false).unwrap();
     }
     drop(registry); // one redb handle per process: release before the child runs
 
@@ -131,10 +131,10 @@ fn search_limit_is_clamped_and_survives_junk() {
         .unwrap();
     }
 
-    std::env::set_var("BANYAN_CONFIG_DIR", &config);
-    let registry = banyan::registry::Registry::open().unwrap();
+    std::env::set_var("SAMONG_CONFIG_DIR", &config);
+    let registry = samong::registry::Registry::open().unwrap();
     let vault_root = registry.add("solo", &vault).unwrap();
-    banyan::indexer::reindex(&vault_root, false).unwrap();
+    samong::indexer::reindex(&vault_root, false).unwrap();
     drop(registry);
 
     let by_id = run_session(

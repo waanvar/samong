@@ -14,8 +14,8 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-fn banyan() -> Command {
-    Command::cargo_bin("banyan").unwrap()
+fn samong() -> Command {
+    Command::cargo_bin("samong").unwrap()
 }
 
 fn write(root: &Path, rel: &str, body: &str) {
@@ -32,7 +32,7 @@ fn vault_with_vendored_docs() -> tempfile::TempDir {
     write(root, ".gitignore", "node_modules/\n");
     write(
         root,
-        "banyan.toml",
+        "samong.toml",
         "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
     );
     write(
@@ -70,7 +70,7 @@ fn vault_with_vendored_docs() -> tempfile::TempDir {
 fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
     let vault = vault_with_vendored_docs();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("list")
         .assert()
@@ -84,7 +84,7 @@ fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
         );
 
     // And they are searchable as part of the project's own brain.
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "create-next-app"])
         .assert()
@@ -94,7 +94,7 @@ fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
         ));
 
     // A project note linking to a reference note resolves — one brain, not two.
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["links", "installation"])
         .assert()
@@ -106,7 +106,7 @@ fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
 fn doctor_separates_project_notes_from_reference_notes() {
     let vault = vault_with_vendored_docs();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("doctor")
         .assert()
@@ -129,7 +129,7 @@ fn doctor_separates_collisions_that_matter_from_vendored_noise() {
     write(root, ".gitignore", "node_modules/\n");
     write(
         root,
-        "banyan.toml",
+        "samong.toml",
         "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
     );
     // A project note sharing a title with a docs page: worth knowing about.
@@ -151,7 +151,7 @@ fn doctor_separates_collisions_that_matter_from_vendored_noise() {
         "# index\n",
     );
 
-    banyan()
+    samong()
         .current_dir(root)
         .arg("doctor")
         .assert()
@@ -180,7 +180,7 @@ fn reference_notes_are_read_only() {
         (vec!["delete", "installation"], "delete"),
         (vec!["rename", "installation", "install-guide"], "rename"),
     ] {
-        banyan()
+        samong()
             .current_dir(vault.path())
             .args(&args)
             .assert()
@@ -203,7 +203,7 @@ fn renaming_a_project_note_leaves_reference_notes_alone() {
     write(root, ".gitignore", "node_modules/\n");
     write(
         root,
-        "banyan.toml",
+        "samong.toml",
         "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
     );
     write(root, "Target.md", "# Target\n");
@@ -216,7 +216,7 @@ fn renaming_a_project_note_leaves_reference_notes_alone() {
         "# mentions\n\nrefers to [[Target]] as well\n",
     );
 
-    banyan()
+    samong()
         .current_dir(root)
         .args(["rename", "Target", "Renamed"])
         .assert()
@@ -238,7 +238,7 @@ fn renaming_a_project_note_leaves_reference_notes_alone() {
     );
 }
 
-/// `banyan.toml` travels with the repo; `node_modules` does not. Every other
+/// `samong.toml` travels with the repo; `node_modules` does not. Every other
 /// machine — and any server that only has the git history — will find the
 /// include root missing, and that must not be fatal or silent.
 #[test]
@@ -247,13 +247,13 @@ fn a_missing_include_root_warns_but_never_fails() {
     let root = vault.path();
     write(
         root,
-        "banyan.toml",
+        "samong.toml",
         "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
     );
     write(root, "Own.md", "# Own\n\nthe project's own note\n");
 
     // Indexing succeeds, warns, and still finds the project's own notes.
-    banyan()
+    samong()
         .current_dir(root)
         .arg("reindex")
         .assert()
@@ -263,14 +263,14 @@ fn a_missing_include_root_warns_but_never_fails() {
                 .and(predicate::str::contains("node_modules/next/dist/docs")),
         );
 
-    banyan()
+    samong()
         .current_dir(root)
         .args(["search", "own note"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Own.md"));
 
-    banyan()
+    samong()
         .current_dir(root)
         .arg("doctor")
         .assert()
@@ -285,12 +285,12 @@ fn broken_explains_that_missing_reference_sources_may_resolve_later() {
     let root = vault.path();
     write(
         root,
-        "banyan.toml",
+        "samong.toml",
         "[scope]\ninclude = [\"node_modules/next/dist/docs\"]\n",
     );
     write(root, "Own.md", "# Own\n\nfollows [[installation]]\n");
 
-    banyan()
+    samong()
         .current_dir(root)
         .arg("broken")
         .assert()
@@ -312,8 +312,8 @@ fn doctor_points_at_include_when_dependency_docs_were_skipped() {
     write(root, "node_modules/next/dist/docs/b.md", "# b\n");
 
     // No include configured yet: doctor must name the right lever, since
-    // .banyanignore cannot reopen a pruned dependency directory.
-    banyan()
+    // .samongignore cannot reopen a pruned dependency directory.
+    samong()
         .current_dir(root)
         .arg("doctor")
         .assert()

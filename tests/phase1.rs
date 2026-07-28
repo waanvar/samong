@@ -5,8 +5,8 @@ use std::time::Instant;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-fn banyan() -> Command {
-    Command::cargo_bin("banyan").expect("binary should build")
+fn samong() -> Command {
+    Command::cargo_bin("samong").expect("binary should build")
 }
 
 fn write_note(vault: &Path, title: &str, body: &str) {
@@ -22,7 +22,7 @@ fn rename_rewrites_links_in_every_referencing_note() {
     write_note(vault.path(), "C", "# C\n\naliased [[A|the A note]] link\n");
     write_note(vault.path(), "D", "# D\n\nno links at all\n");
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["rename", "A", "Z"])
         .assert()
@@ -42,13 +42,13 @@ fn rename_rewrites_links_in_every_referencing_note() {
     assert!(!d.contains("[[Z]]"), "unrelated note must be untouched");
 
     // The graph agrees: Z has both backlinks, A is gone entirely.
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["links", "Z"])
         .assert()
         .success()
         .stdout(predicate::str::contains("<- B").and(predicate::str::contains("<- C")));
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["links", "A"])
         .assert()
@@ -62,12 +62,12 @@ fn rename_rejects_existing_target_and_missing_source() {
     write_note(vault.path(), "A", "# A\n");
     write_note(vault.path(), "B", "# B\n");
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["rename", "A", "B"])
         .assert()
         .failure();
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["rename", "Missing", "X"])
         .assert()
@@ -80,7 +80,7 @@ fn delete_removes_note_and_reports_dangling_backlinks() {
     write_note(vault.path(), "A", "# A\n\nwill be deleted\n");
     write_note(vault.path(), "B", "# B\n\nstill points at [[A]]\n");
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["delete", "A"])
         .assert()
@@ -92,7 +92,7 @@ fn delete_removes_note_and_reports_dangling_backlinks() {
     assert!(!vault.path().join("A.md").exists());
 
     // The dangling link now shows up in `broken`.
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("broken")
         .assert()
@@ -100,7 +100,7 @@ fn delete_removes_note_and_reports_dangling_backlinks() {
         .stdout(predicate::str::contains("B -> [[A]]"));
 
     // And the deleted note no longer matches searches.
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "deleted"])
         .assert()
@@ -115,7 +115,7 @@ fn orphans_lists_only_unlinked_notes() {
     write_note(vault.path(), "Leaf", "# Leaf\n");
     write_note(vault.path(), "Loner", "# Loner\n");
 
-    let output = banyan()
+    let output = samong()
         .current_dir(vault.path())
         .arg("orphans")
         .assert()
@@ -135,7 +135,7 @@ fn broken_reports_nothing_for_healthy_vault() {
     write_note(vault.path(), "A", "# A\n\n[[B]]\n");
     write_note(vault.path(), "B", "# B\n");
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("broken")
         .assert()
@@ -150,7 +150,7 @@ fn edit_runs_editor_and_reindexes() {
 
     // A no-op "editor" that exits 0 without touching the file.
     let editor = if cfg!(windows) { "cmd /C rem" } else { "true" };
-    banyan()
+    samong()
         .current_dir(vault.path())
         .env("EDITOR", editor)
         .args(["edit", "A"])
@@ -158,7 +158,7 @@ fn edit_runs_editor_and_reindexes() {
         .success()
         .stdout(predicate::str::contains("reindexed"));
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .env("EDITOR", editor)
         .args(["edit", "Missing"])
@@ -183,7 +183,7 @@ fn incremental_reindex_beats_full_reindex_on_large_vault() {
     }
 
     let full_start = Instant::now();
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["reindex", "--full"])
         .assert()
@@ -195,7 +195,7 @@ fn incremental_reindex_beats_full_reindex_on_large_vault() {
     write_note(vault.path(), "note-0500", "# note-0500\n\nedited body\n");
 
     let inc_start = Instant::now();
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("reindex")
         .assert()

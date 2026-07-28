@@ -132,7 +132,7 @@ pub fn find_notes(vault: &Path, title: &str) -> Result<Vec<Note>> {
 
 /// Locate a note by title anywhere in the vault (including subdirectories).
 /// When several share the title, the first in key order wins — deterministic,
-/// though `banyan doctor` will report the ambiguity.
+/// though `samong doctor` will report the ambiguity.
 pub fn find_note(vault: &Path, title: &str) -> Result<Option<Note>> {
     Ok(find_notes(vault, title)?.into_iter().next())
 }

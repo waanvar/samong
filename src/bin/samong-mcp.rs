@@ -1,4 +1,4 @@
-//! MCP server over stdio — plug banyan into Claude Code / Claude Desktop:
+//! MCP server over stdio — plug samong into Claude Code / Claude Desktop:
 //! stdout carries only protocol messages; anything else goes to stderr.
 
 use std::io::{self, BufRead, Write};
@@ -11,7 +11,7 @@ fn main() {
         if line.trim().is_empty() {
             continue;
         }
-        if let Some(response) = banyan::mcp::handle_line(&line) {
+        if let Some(response) = samong::mcp::handle_line(&line) {
             if writeln!(stdout, "{response}")
                 .and_then(|_| stdout.flush())
                 .is_err()

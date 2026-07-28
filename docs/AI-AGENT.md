@@ -1,12 +1,12 @@
-# ใช้ Banyan เป็นมันสมองของ AI agent 🧠
+# ใช้ Samong เป็นมันสมองของ AI agent 🧠
 
-Banyan ถูกออกแบบให้เป็น "ความจำถาวร" ของ AI coding agent — agent ค้นความรู้เก่า
+Samong ถูกออกแบบให้เป็น "ความจำถาวร" ของ AI coding agent — agent ค้นความรู้เก่า
 ก่อนทำงาน แล้วบันทึกสิ่งที่เรียนรู้ใหม่กลับเข้า vault วนเป็นวงจร
 
 ## ทางที่ 1: MCP (แนะนำ)
 
-`banyan-mcp` เป็น MCP server บน stdio — Claude Code, Claude Desktop และทุกเครื่องมือ
-ที่รองรับ MCP จะเห็น Banyan เป็น tools ในตัว
+`samong-mcp` เป็น MCP server บน stdio — Claude Code, Claude Desktop และทุกเครื่องมือ
+ที่รองรับ MCP จะเห็น Samong เป็น tools ในตัว
 
 ### ตั้งค่ากับ Claude Code
 
@@ -15,8 +15,8 @@ Banyan ถูกออกแบบให้เป็น "ความจำถ�
 ```json
 {
   "mcpServers": {
-    "banyan": {
-      "command": "banyan-mcp"
+    "samong": {
+      "command": "samong-mcp"
     }
   }
 }
@@ -25,11 +25,11 @@ Banyan ถูกออกแบบให้เป็น "ความจำถ�
 หรือผ่าน CLI (ผูกกับ user ทุกโปรเจกต์):
 
 ```sh
-claude mcp add --scope user banyan -- banyan-mcp
+claude mcp add --scope user samong -- samong-mcp
 ```
 
 > ถ้ายังไม่ได้ `cargo install` ให้ใส่ path เต็มของไบนารี เช่น
-> `C:\\path\\to\\banyan\\target\\release\\banyan-mcp.exe`
+> `C:\\path\\to\\samong\\target\\release\\samong-mcp.exe`
 
 ### Tools ที่ agent ได้
 
@@ -47,12 +47,12 @@ claude mcp add --scope user banyan -- banyan-mcp
 
 ## ทางที่ 2: CLI (ไม่ต้องตั้งค่าอะไร)
 
-Agent ที่รันคำสั่ง shell ได้ ใช้ Banyan ได้ทันที:
+Agent ที่รันคำสั่ง shell ได้ ใช้ Samong ได้ทันที:
 
 ```sh
-banyan search --all-vaults "jwt refresh token"   # ค้นก่อนเริ่มงาน
-banyan new "บทเรียน: redb lock"                   # บันทึกความรู้ใหม่
-banyan links "สถาปัตยกรรม auth"                   # ดูความเชื่อมโยง
+samong search --all-vaults "jwt refresh token"   # ค้นก่อนเริ่มงาน
+samong new "บทเรียน: redb lock"                   # บันทึกความรู้ใหม่
+samong links "สถาปัตยกรรม auth"                   # ดูความเชื่อมโยง
 ```
 
 ## Recipe: วางวงจรความรู้ใน CLAUDE.md
@@ -60,9 +60,9 @@ banyan links "สถาปัตยกรรม auth"                   # ดู
 คัดลอกบล็อกนี้ลง `CLAUDE.md` ของโปรเจกต์คุณ (ปรับชื่อ vault ตามจริง):
 
 ```markdown
-## Knowledge base (Banyan)
+## Knowledge base (Samong)
 
-มันสมองถาวรของโปรเจกต์นี้อยู่ใน Banyan vault ชื่อ `my-project`
+มันสมองถาวรของโปรเจกต์นี้อยู่ใน Samong vault ชื่อ `my-project`
 
 **ก่อนเริ่มงานชิ้นใหญ่**: ค้นความรู้เดิมก่อนเสมอ
 - MCP: เรียก `search_notes` ด้วยหัวข้อที่เกี่ยวข้อง (ไทย/อังกฤษได้ทั้งคู่)

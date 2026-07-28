@@ -282,7 +282,7 @@ async fn get_links(
             )
         };
 
-        // Same query-time federation as `banyan links --all-vaults`.
+        // Same query-time federation as `samong links --all-vaults`.
         let registry = Registry::open()?;
         let cross = crate::ops::cross_vault_backlinks(&registry, &vault_name, &title)?;
         Ok(LinksResponse {
@@ -576,7 +576,7 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
         registry.list()?
     };
     if vaults.is_empty() {
-        eprintln!("warning: no vaults registered — use `banyan vault add <name> <path>` first");
+        eprintln!("warning: no vaults registered — use `samong vault add <name> <path>` first");
     }
     for (name, root) in &vaults {
         let report = indexer::reindex(root, false)?;
@@ -610,7 +610,7 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
         .await
         .with_context(|| format!("binding {addr}"))?;
     let url = format!("http://{addr}");
-    println!("banyan-server listening on {url} (Ctrl+C to stop)");
+    println!("samong-server listening on {url} (Ctrl+C to stop)");
     if open_browser {
         // Launch off-thread so a slow browser start never delays serving.
         let url = url.clone();

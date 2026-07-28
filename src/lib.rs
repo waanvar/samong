@@ -1,5 +1,5 @@
-//! Banyan — local-first, Obsidian-compatible knowledge base.
-//! Shared library behind the `banyan` CLI and `banyan-server` API binaries.
+//! Samong — local-first, Obsidian-compatible knowledge base.
+//! Shared library behind the `samong` CLI and `samong-server` API binaries.
 
 pub mod cli;
 pub mod graph;

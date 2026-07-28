@@ -16,7 +16,7 @@ use crate::watch;
 
 #[derive(Parser)]
 #[command(
-    name = "banyan",
+    name = "samong",
     version,
     about = "A local-first, Obsidian-compatible knowledge base"
 )]
@@ -75,7 +75,7 @@ enum Command {
     List,
     /// Watch the vault and keep the index up to date automatically
     Watch,
-    /// Manage the central vault registry (~/.config/banyan)
+    /// Manage the central vault registry (~/.config/samong)
     Vault {
         #[command(subcommand)]
         action: VaultAction,
@@ -83,7 +83,7 @@ enum Command {
     /// Report on the vault: what is in scope, what was skipped, and any
     /// ambiguous note titles
     Doctor,
-    /// Update banyan to the latest GitHub release
+    /// Update samong to the latest GitHub release
     Update {
         /// Only report whether an update is available; don't install it
         #[arg(long)]
@@ -463,7 +463,7 @@ fn print_scope_summary(scope: &Scope) -> Result<()> {
             audit.skipped
         );
         // Naming the cause matters: someone who assumes "gitignored" reaches for
-        // .banyanignore, which cannot reopen a pruned dependency directory.
+        // .samongignore, which cannot reopen a pruned dependency directory.
         if audit.skipped_dependency > 0 {
             println!(
                 "  of those, {} are inside dependency directories — add the ones you want \

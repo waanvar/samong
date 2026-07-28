@@ -1,5 +1,5 @@
-/** Original banyan-tree mark: a canopy over hanging aerial roots. */
-export function BanyanMark({ size = 22 }: { size?: number }) {
+/** Original samong-tree mark: a canopy over hanging aerial roots. */
+export function SamongMark({ size = 22 }: { size?: number }) {
   return (
     <svg
       width={size}

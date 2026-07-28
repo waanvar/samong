@@ -2,7 +2,7 @@
 //! .md file directly on disk produces a WebSocket event.
 //!
 //! Everything runs in ONE test because the registry location comes from the
-//! BANYAN_CONFIG_DIR environment variable, which is process-global.
+//! SAMONG_CONFIG_DIR environment variable, which is process-global.
 
 use std::fs;
 use std::future::IntoFuture;
@@ -13,8 +13,8 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use serde_json::Value;
 
-use banyan::registry::Registry;
-use banyan::server::{self, AppState};
+use samong::registry::Registry;
+use samong::server::{self, AppState};
 
 async fn get_json(client: &reqwest::Client, url: &str) -> (reqwest::StatusCode, Value) {
     let resp = client.get(url).send().await.unwrap();
@@ -32,7 +32,7 @@ async fn rest_endpoints_and_websocket_events() {
     let ideas = root.path().join("ideas");
     fs::create_dir_all(&work).unwrap();
     fs::create_dir_all(&ideas).unwrap();
-    std::env::set_var("BANYAN_CONFIG_DIR", &config);
+    std::env::set_var("SAMONG_CONFIG_DIR", &config);
 
     fs::write(
         work.join("Source.md"),
@@ -49,8 +49,8 @@ async fn rest_endpoints_and_websocket_events() {
     let registry = Registry::open().unwrap();
     let work_canonical = registry.add("work", &work).unwrap();
     let ideas_canonical = registry.add("ideas", &ideas).unwrap();
-    banyan::indexer::reindex(&work_canonical, false).unwrap();
-    banyan::indexer::reindex(&ideas_canonical, false).unwrap();
+    samong::indexer::reindex(&work_canonical, false).unwrap();
+    samong::indexer::reindex(&ideas_canonical, false).unwrap();
     drop(registry); // release registry.redb before the server opens it
 
     // ---- boot the server on an ephemeral local port ----

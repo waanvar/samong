@@ -1,4 +1,4 @@
-//! Phase 7: banyan-mcp speaks real MCP over stdio — spawn the binary, feed
+//! Phase 7: samong-mcp speaks real MCP over stdio — spawn the binary, feed
 //! it a full JSON-RPC session, and check every response.
 
 use std::fs;
@@ -45,12 +45,12 @@ fn mcp_session_covers_every_tool() {
     .unwrap();
     fs::write(projects.join("แผนงาน.md"), "# แผนงาน\n\nแผนหลักของปีนี้\n").unwrap();
 
-    std::env::set_var("BANYAN_CONFIG_DIR", &config);
-    let registry = banyan::registry::Registry::open().unwrap();
+    std::env::set_var("SAMONG_CONFIG_DIR", &config);
+    let registry = samong::registry::Registry::open().unwrap();
     let brain_root = registry.add("brain", &brain).unwrap();
     let projects_root = registry.add("projects", &projects).unwrap();
-    banyan::indexer::reindex(&brain_root, false).unwrap();
-    banyan::indexer::reindex(&projects_root, false).unwrap();
+    samong::indexer::reindex(&brain_root, false).unwrap();
+    samong::indexer::reindex(&projects_root, false).unwrap();
     drop(registry); // one redb handle per process: release before the child runs
 
     // ---- drive the server: write the whole session, read all responses ----
@@ -88,8 +88,8 @@ fn mcp_session_covers_every_tool() {
     ]
     .join("\n");
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_banyan-mcp"))
-        .env("BANYAN_CONFIG_DIR", &config)
+    let mut child = Command::new(env!("CARGO_BIN_EXE_samong-mcp"))
+        .env("SAMONG_CONFIG_DIR", &config)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -110,7 +110,7 @@ fn mcp_session_covers_every_tool() {
     }
 
     // initialize: handshake succeeded, notification produced no response
-    assert_eq!(by_id[&1]["result"]["serverInfo"]["name"], "banyan-mcp");
+    assert_eq!(by_id[&1]["result"]["serverInfo"]["name"], "samong-mcp");
     assert_eq!(by_id.len(), 9);
 
     // tools/list: all six tools

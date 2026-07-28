@@ -3,21 +3,21 @@ use std::fs;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-fn banyan() -> Command {
-    Command::cargo_bin("banyan").expect("binary should build")
+fn samong() -> Command {
+    Command::cargo_bin("samong").expect("binary should build")
 }
 
 #[test]
 fn full_lifecycle_new_links_search_graph_list() {
     let vault = tempfile::tempdir().unwrap();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["new", "A"])
         .assert()
         .success();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["new", "B"])
         .assert()
@@ -31,7 +31,7 @@ fn full_lifecycle_new_links_search_graph_list() {
     .unwrap();
     fs::write(vault.path().join("B.md"), "# B\n\nSee [[A]] for details.\n").unwrap();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("reindex")
         .assert()
@@ -39,7 +39,7 @@ fn full_lifecycle_new_links_search_graph_list() {
         .stdout(predicate::str::contains("reindex complete"));
 
     // links: A should show a backlink from B
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["links", "A"])
         .assert()
@@ -47,7 +47,7 @@ fn full_lifecycle_new_links_search_graph_list() {
         .stdout(predicate::str::contains("<- B"));
 
     // search: content unique to A should be found, labelled with its path
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "superposition"])
         .assert()
@@ -55,7 +55,7 @@ fn full_lifecycle_new_links_search_graph_list() {
         .stdout(predicate::str::contains("A.md:"));
 
     // graph: the B -> A edge should be listed
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("graph")
         .assert()
@@ -63,7 +63,7 @@ fn full_lifecycle_new_links_search_graph_list() {
         .stdout(predicate::str::contains("B -> A"));
 
     // list: both notes should be present
-    let list_output = banyan()
+    let list_output = samong()
         .current_dir(vault.path())
         .arg("list")
         .assert()
@@ -80,13 +80,13 @@ fn full_lifecycle_new_links_search_graph_list() {
 fn new_rejects_duplicate_title() {
     let vault = tempfile::tempdir().unwrap();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["new", "Dup"])
         .assert()
         .success();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["new", "Dup"])
         .assert()
@@ -97,13 +97,13 @@ fn new_rejects_duplicate_title() {
 fn search_with_no_notes_reports_no_results() {
     let vault = tempfile::tempdir().unwrap();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("reindex")
         .assert()
         .success();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "nothing"])
         .assert()

@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Banyan</title>
+    <title>Samong</title>
     <script>
       // Apply the theme before first paint to avoid a flash.
       // Priority: ?theme= override, then saved preference, then the OS.
       const fromUrl = new URLSearchParams(location.search).get("theme");
-      const saved = localStorage.getItem("banyan-theme");
+      const saved = localStorage.getItem("samong-theme");
       const preferred =
         fromUrl ||
         saved ||

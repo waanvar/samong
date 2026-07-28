@@ -237,7 +237,7 @@ impl Graph {
     }
 
     /// Titles shared by more than one note, with their keys. Reported by
-    /// `banyan doctor`: a title collision is legal but means `[[title]]` links
+    /// `samong doctor`: a title collision is legal but means `[[title]]` links
     /// and title-addressed API calls are ambiguous.
     pub fn duplicate_titles(&self) -> Result<Vec<(String, Vec<String>)>> {
         let txn = self.db.begin_read().context("beginning read transaction")?;

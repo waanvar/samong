@@ -4,17 +4,17 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    name = "banyan-server",
+    name = "samong-server",
     version,
-    about = "Local REST/WebSocket API + web UI for banyan vaults (binds 127.0.0.1 only)"
+    about = "Local REST/WebSocket API + web UI for samong vaults (binds 127.0.0.1 only)"
 )]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
 
-    // Options accepted without a subcommand, so `banyan-server` and
-    // `banyan-server --port 8080` keep working alongside the new
-    // `banyan-server start` form.
+    // Options accepted without a subcommand, so `samong-server` and
+    // `samong-server --port 8080` keep working alongside the new
+    // `samong-server start` form.
     #[command(flatten)]
     opts: ServerOpts,
 }
@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
         Some(Command::Start { opts }) => opts,
         None => cli.opts,
     };
-    banyan::server::run(opts.port, opts.ui, !opts.no_open).await
+    samong::server::run(opts.port, opts.ui, !opts.no_open).await
 }
 
 #[cfg(test)]
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn bare_invocation_uses_defaults() {
-        let o = parse(&["banyan-server"]);
+        let o = parse(&["samong-server"]);
         assert_eq!(o.port, 3000);
         assert!(o.ui.is_none());
         assert!(!o.no_open);
@@ -76,14 +76,14 @@ mod tests {
 
     #[test]
     fn legacy_flags_without_subcommand_still_work() {
-        let o = parse(&["banyan-server", "--port", "8080", "--no-open"]);
+        let o = parse(&["samong-server", "--port", "8080", "--no-open"]);
         assert_eq!(o.port, 8080);
         assert!(o.no_open);
     }
 
     #[test]
     fn start_subcommand_with_options() {
-        let o = parse(&["banyan-server", "start", "--port", "9000"]);
+        let o = parse(&["samong-server", "start", "--port", "9000"]);
         assert_eq!(o.port, 9000);
     }
 }

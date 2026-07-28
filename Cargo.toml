@@ -1,10 +1,10 @@
 [package]
-name = "banyan"
+name = "samong"
 version = "0.1.0"
 edition = "2021"
-license = "AGPL-3.0-only"
+license = "Apache-2.0"
 description = "Local-first, Obsidian-compatible knowledge base with Thai full-text search"
-repository = "https://github.com/waanvar/banyan"
+repository = "https://github.com/waanvar/samong"
 keywords = ["knowledge-base", "notes", "markdown", "thai", "search"]
 categories = ["command-line-utilities", "text-processing"]
 

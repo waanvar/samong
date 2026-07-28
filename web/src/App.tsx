@@ -6,7 +6,7 @@ import { Editor } from "./components/Editor";
 import { RightPanel } from "./components/RightPanel";
 import { GraphView } from "./components/GraphView";
 import { CommandPalette } from "./components/CommandPalette";
-import { BanyanMark } from "./components/BanyanMark";
+import { SamongMark } from "./components/SamongMark";
 
 export function App() {
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
@@ -180,7 +180,7 @@ export function App() {
   const toggleTheme = useCallback(() => {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    localStorage.setItem("banyan-theme", next);
+    localStorage.setItem("samong-theme", next);
     setTheme(next);
   }, [theme]);
 
@@ -257,8 +257,8 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <span className="brand">
-          <BanyanMark size={22} />
-          Banyan
+          <SamongMark size={22} />
+          Samong
         </span>
         <span className="crumb">
           {vault && (
@@ -315,7 +315,7 @@ export function App() {
           />
         ) : (
           <div className="welcome">
-            <BanyanMark size={56} />
+            <SamongMark size={56} />
             <p>
               เลือกโน้ตจากด้านซ้าย หรือกด <kbd>Ctrl K</kbd> เพื่อค้นหา/สร้างโน้ตใหม่
             </p>

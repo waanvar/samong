@@ -49,13 +49,14 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          name="banyan-${{ github.ref_name }}-${{ matrix.target }}"
-          mkdir -p "stage/$name/web"
-          cp target/release/banyan* "stage/$name/" 2>/dev/null || true
+          name="samong-${{ github.ref_name }}-${{ matrix.target }}"
+          mkdir -p "stage/$name"
+          cp target/release/samong* "stage/$name/" 2>/dev/null || true
           rm -f "stage/$name/"*.d "stage/$name/"*.pdb
-          # The web UI is embedded into banyan-server, so the archive is just
-          # the binaries + docs.
-          cp README.md README.en.md LICENSE "stage/$name/"
+          # The web UI is embedded into samong-server, so the archive is just
+          # the binaries + docs. NOTICE and THIRD-PARTY.md must travel with the
+          # binaries: Apache-2.0 requires attribution to survive redistribution.
+          cp README.md README.en.md LICENSE NOTICE THIRD-PARTY.md "stage/$name/"
           cd stage
           if [ "${{ matrix.archive }}" = "zip" ]; then
             7z a "../$name.zip" "$name"
@@ -67,5 +68,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            banyan-*.zip
-            banyan-*.tar.gz
+            samong-*.zip
+            samong-*.tar.gz

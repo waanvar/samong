@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn offsets_slice_back_to_original_text() {
-        let text = "โน้ต Banyan รองรับภาษาไทย 100%";
+        let text = "โน้ต Samong รองรับภาษาไทย 100%";
         for token in tokenize(text) {
             assert_eq!(
                 &text[token.offset_from..token.offset_to],

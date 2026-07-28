@@ -14,15 +14,15 @@ pub struct Registry {
     db: Database,
 }
 
-/// Registry location: `~/.config/banyan/`. `BANYAN_CONFIG_DIR` overrides it
+/// Registry location: `~/.config/samong/`. `SAMONG_CONFIG_DIR` overrides it
 /// (used by tests to avoid touching the real registry).
 fn config_dir() -> Result<PathBuf> {
-    if let Ok(dir) = env::var("BANYAN_CONFIG_DIR") {
+    if let Ok(dir) = env::var("SAMONG_CONFIG_DIR") {
         return Ok(PathBuf::from(dir));
     }
     #[allow(deprecated)] // un-deprecated in Rust 1.85; kept for older lints
     let home = env::home_dir().context("cannot determine home directory")?;
-    Ok(home.join(".config").join("banyan"))
+    Ok(home.join(".config").join("samong"))
 }
 
 impl Registry {

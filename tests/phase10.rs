@@ -12,8 +12,8 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-fn banyan() -> Command {
-    Command::cargo_bin("banyan").unwrap()
+fn samong() -> Command {
+    Command::cargo_bin("samong").unwrap()
 }
 
 fn write(root: &Path, rel: &str, body: &str) {
@@ -58,7 +58,7 @@ fn repo_shaped_vault() -> tempfile::TempDir {
 fn a_repo_root_vault_indexes_only_the_projects_own_notes() {
     let vault = repo_shaped_vault();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("list")
         .assert()
@@ -77,14 +77,14 @@ fn a_repo_root_vault_indexes_only_the_projects_own_notes() {
 fn search_is_not_flooded_by_dependency_readmes() {
     let vault = repo_shaped_vault();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "dependency"])
         .assert()
         .success()
         .stdout(predicate::str::contains("no results"));
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .args(["search", "agents"])
         .assert()
@@ -96,7 +96,7 @@ fn search_is_not_flooded_by_dependency_readmes() {
 fn doctor_reports_scope_and_what_it_skipped() {
     let vault = repo_shaped_vault();
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("doctor")
         .assert()
@@ -112,19 +112,19 @@ fn doctor_reports_scope_and_what_it_skipped() {
 }
 
 #[test]
-fn banyanignore_can_re_include_notes_the_repo_gitignores() {
+fn samongignore_can_re_include_notes_the_repo_gitignores() {
     let vault = tempfile::tempdir().unwrap();
     let root = vault.path();
     // The repo keeps local notes out of git; the vault wants them indexed.
     write(root, ".gitignore", "notes/\n");
-    write(root, ".banyanignore", "!notes/\n");
+    write(root, ".samongignore", "!notes/\n");
     write(
         root,
         "notes/Local Thinking.md",
         "# local\n\nprivate research\n",
     );
 
-    banyan()
+    samong()
         .current_dir(root)
         .args(["search", "research"])
         .assert()
@@ -136,11 +136,11 @@ fn banyanignore_can_re_include_notes_the_repo_gitignores() {
 fn notes_dir_narrows_a_vault_to_one_subtree() {
     let vault = tempfile::tempdir().unwrap();
     let root = vault.path();
-    write(root, "banyan.toml", "[scope]\nnotes_dir = \"docs\"\n");
+    write(root, "samong.toml", "[scope]\nnotes_dir = \"docs\"\n");
     write(root, "docs/Guide.md", "# guide\n\nthe real docs\n");
     write(root, "README.md", "# repo readme\n");
 
-    banyan()
+    samong()
         .current_dir(root)
         .arg("list")
         .assert()
@@ -151,15 +151,15 @@ fn notes_dir_narrows_a_vault_to_one_subtree() {
 #[test]
 fn a_config_typo_fails_loudly_instead_of_widening_the_scope() {
     let vault = tempfile::tempdir().unwrap();
-    write(vault.path(), "banyan.toml", "[scope]\nexcludes = [\"x\"]\n");
+    write(vault.path(), "samong.toml", "[scope]\nexcludes = [\"x\"]\n");
     write(vault.path(), "Note.md", "# note\n");
 
-    banyan()
+    samong()
         .current_dir(vault.path())
         .arg("list")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("banyan.toml"));
+        .stderr(predicate::str::contains("samong.toml"));
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn notes_sharing_a_title_stay_separate_and_are_reported() {
     write(root, "docs/README.md", "# README\n\ndocs readme text\n");
 
     // Both files are indexed, and each hit says which file it came from.
-    banyan()
+    samong()
         .current_dir(root)
         .args(["search", "readme text"])
         .assert()
@@ -180,7 +180,7 @@ fn notes_sharing_a_title_stay_separate_and_are_reported() {
         );
 
     // And the ambiguity is named rather than hidden.
-    banyan()
+    samong()
         .current_dir(root)
         .arg("doctor")
         .assert()
@@ -207,8 +207,8 @@ fn a_vault_with_duplicate_titles_settles_after_one_reindex() {
         );
     }
 
-    banyan().current_dir(root).arg("reindex").assert().success();
-    banyan()
+    samong().current_dir(root).arg("reindex").assert().success();
+    samong()
         .current_dir(root)
         .arg("reindex")
         .assert()
@@ -221,13 +221,13 @@ fn rewriting_identical_bytes_does_not_reindex() {
     let vault = tempfile::tempdir().unwrap();
     let root = vault.path();
     write(root, "Note.md", "# Note\n\nsome content\n");
-    banyan().current_dir(root).arg("reindex").assert().success();
+    samong().current_dir(root).arg("reindex").assert().success();
 
     // Same bytes, new mtime — what a git checkout does to a whole tree.
     let content = fs::read_to_string(root.join("Note.md")).unwrap();
     fs::write(root.join("Note.md"), content).unwrap();
 
-    banyan()
+    samong()
         .current_dir(root)
         .arg("reindex")
         .assert()
@@ -249,7 +249,7 @@ fn renaming_works_when_the_linking_note_lives_in_a_subdirectory() {
         "# Source\n\nlinks [[Target]]\n",
     );
 
-    banyan()
+    samong()
         .current_dir(root)
         .args(["rename", "Target", "Renamed"])
         .assert()

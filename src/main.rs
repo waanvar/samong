@@ -1,3 +1,3 @@
 fn main() -> anyhow::Result<()> {
-    banyan::cli::run()
+    samong::cli::run()
 }

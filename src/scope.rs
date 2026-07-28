@@ -14,8 +14,8 @@
 //! files exist. So scope is decided *only* by files that live inside the vault
 //! and travel with it in git:
 //!
-//! - `banyan.toml`   — optional config, committed
-//! - `.banyanignore` — optional extra rules in gitignore syntax, committed
+//! - `samong.toml`   — optional config, committed
+//! - `.samongignore` — optional extra rules in gitignore syntax, committed
 //! - `.gitignore`    — the repo's own rules, committed
 //!
 //! Per-machine sources are deliberately switched off: the global gitignore
@@ -38,11 +38,11 @@ use crate::vault::BRAIN_DIR;
 
 /// Per-vault configuration. Lives at the vault root and is meant to be
 /// committed, so every machine indexing this vault reads the same rules.
-pub const CONFIG_FILE: &str = "banyan.toml";
+pub const CONFIG_FILE: &str = "samong.toml";
 
 /// Extra ignore rules in gitignore syntax, including `!` negation to re-include
 /// notes that `.gitignore` excludes. Also meant to be committed.
-pub const IGNORE_FILE: &str = ".banyanignore";
+pub const IGNORE_FILE: &str = ".samongignore";
 
 /// Directory names that are never notes, even in a vault that does not
 /// gitignore them (or is not a git repo at all).
@@ -138,7 +138,7 @@ fn default_true() -> bool {
 }
 
 impl Config {
-    /// Read `banyan.toml` from the vault root. A missing file means defaults;
+    /// Read `samong.toml` from the vault root. A missing file means defaults;
     /// a malformed or unrecognized one is a hard error — a typo that silently
     /// widened the scope back to the whole repo is exactly the failure this
     /// module exists to prevent.
@@ -163,7 +163,7 @@ pub struct ScopeAudit {
     pub skipped: usize,
     /// Of `skipped`, those inside a dependency directory. Split out because the
     /// two causes need different fixes — `scope.include` for this one,
-    /// `.banyanignore` or `follow_gitignore` for the other — and a reader who
+    /// `.samongignore` or `follow_gitignore` for the other — and a reader who
     /// assumes "gitignored" reaches for the wrong lever.
     pub skipped_dependency: usize,
     /// Top-level directories the skipped files came from, largest first.
@@ -265,7 +265,7 @@ impl Scope {
 
     /// Declared include roots that are not on this machine.
     ///
-    /// Never an error: `banyan.toml` is committed but the directories it points
+    /// Never an error: `samong.toml` is committed but the directories it points
     /// at are usually not, so "missing" is the normal state before
     /// `npm install`, after a version bump, or on a server that only has the
     /// git history. It has to be *reported* though — silently losing a few
@@ -396,7 +396,7 @@ impl Scope {
     /// what was left out and why.
     ///
     /// This deliberately descends the excluded directories, which is exactly
-    /// the expensive walk the rest of Banyan avoids — call it on explicit user
+    /// the expensive walk the rest of Samong avoids — call it on explicit user
     /// action (`vault add`, `doctor`), never on the reindex path.
     pub fn audit(&self) -> Result<ScopeAudit> {
         use std::collections::HashMap;
@@ -639,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    fn banyanignore_adds_rules_and_can_negate_gitignore() {
+    fn samongignore_adds_rules_and_can_negate_gitignore() {
         let dir = tempfile::tempdir().unwrap();
         // The repo ignores its local notes; the vault wants them back.
         write(dir.path(), ".gitignore", "notes/\n");
@@ -760,7 +760,7 @@ mod tests {
     }
 
     #[test]
-    fn exclude_rejects_negation_with_a_pointer_to_banyanignore() {
+    fn exclude_rejects_negation_with_a_pointer_to_samongignore() {
         let dir = tempfile::tempdir().unwrap();
         write(dir.path(), CONFIG_FILE, "[scope]\nexclude = [\"!keep\"]\n");
         let err = Scope::load(dir.path())
@@ -896,7 +896,7 @@ mod tests {
         assert!(!scope.is_reference("Own Note.md"));
     }
 
-    /// `banyan.toml` is committed; the directories it points at usually are not.
+    /// `samong.toml` is committed; the directories it points at usually are not.
     /// A missing root is the normal state, not a failure.
     #[test]
     fn a_missing_include_root_is_tolerated_and_reported() {

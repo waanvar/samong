@@ -1,33 +1,33 @@
-# Banyan 🌳
+# Samong 🧠
 
-[![CI](https://github.com/waanvar/banyan/actions/workflows/ci.yml/badge.svg)](https://github.com/waanvar/banyan/actions/workflows/ci.yml)
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![CI](https://github.com/waanvar/samong/actions/workflows/ci.yml/badge.svg)](https://github.com/waanvar/samong/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **มันสมองที่สองแบบ local-first เขียนด้วย Rust — ค้นหาภาษาไทยแบบตัดคำได้จริง**
 
 โน้ตของคุณคือไฟล์ Markdown ธรรมดา เข้ากันได้กับ [Obsidian](https://obsidian.md)
-(`[[wikilink]]` / `[[wikilink|alias]]`) — Banyan เพิ่ม link graph ที่เร็ว,
+(`[[wikilink]]` / `[[wikilink|alias]]`) — Samong เพิ่ม link graph ที่เร็ว,
 full-text search ที่**ตัดคำไทยได้**, ลิงก์ข้าม vault, API และ Web UI
 โดยไฟล์ `.md` เป็น source of truth เพียงแหล่งเดียวเสมอ
 
 *[English version →](README.en.md)*
 
-![Banyan editor](docs/editor-dark.png)
+![Samong editor](docs/editor-dark.png)
 
-## ทำไมต้อง Banyan
+## ทำไมต้อง Samong
 
 - 🇹🇭 **ค้นคำไทยกลางประโยคเจอ** — "ตลาดหลักทรัพย์แห่งประเทศไทยเปิดทำการ"
   ค้นด้วย "ตลาดหลักทรัพย์" หรือ "ประเทศไทย" เจอทันทีพร้อมไฮไลต์
   (ตัดคำด้วยพจนานุกรม newmm ผ่าน [nlpo3](https://github.com/PyThaiNLP/nlpo3) —
   สิ่งที่ Obsidian ทำไม่ได้)
 - 📁 **ไฟล์ของคุณ เครื่องของคุณ** — โน้ต = Markdown ธรรมดา ไม่มี lock-in
-  index ทั้งหมดอยู่ใน `<vault>/.brain/` และสร้างใหม่ได้เสมอด้วย `banyan reindex`
+  index ทั้งหมดอยู่ใน `<vault>/.brain/` และสร้างใหม่ได้เสมอด้วย `samong reindex`
 - 🔗 **Multi-vault** — ลิงก์ข้ามโปรเจกต์ด้วย `[[ชื่อ-vault/ชื่อโน้ต]]`
   backlinks ข้าม vault แสดงครบ
 - ⚡ **เร็ว** — link graph ใน [redb](https://github.com/cberner/redb),
   ค้นหาด้วย [tantivy](https://github.com/quickwit-oss/tantivy),
   incremental reindex แตะเฉพาะไฟล์ที่เปลี่ยน
-- 🤖 **เป็นมันสมองของ AI agent ได้** — `banyan-mcp` เสียบเข้า Claude Code /
+- 🤖 **เป็นมันสมองของ AI agent ได้** — `samong-mcp` เสียบเข้า Claude Code /
   Claude Desktop ผ่าน MCP ให้ agent ค้น-อ่าน-บันทึกความรู้เองได้
   ([วิธีตั้งค่า](docs/AI-AGENT.md))
 
@@ -35,46 +35,46 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 
 ### ความต้องการของระบบ
 
-ตอนนี้ Banyan ติดตั้งด้วยการ **build จาก source** (ยังไม่ได้เปิด public / ยังไม่มี
+ตอนนี้ Samong ติดตั้งด้วยการ **build จาก source** (ยังไม่ได้เปิด public / ยังไม่มี
 release binary สำเร็จรูป) จึงต้องมีเครื่องมือของนักพัฒนา:
 
 - [**Rust**](https://rustup.rs) (stable) — **จำเป็น** ใช้ build ตัวโปรแกรม
 - [**Node.js**](https://nodejs.org) 20+ — **จำเป็นถ้าต้องการหน้าเว็บ** เพราะ UI ถูก
   ฝังลงในไบนารีตอน build ถ้าไม่ลง Node จะได้เฉพาะ CLI + API
-  (`banyan-server` จะเสิร์ฟ API อย่างเดียว)
+  (`samong-server` จะเสิร์ฟ API อย่างเดียว)
 
 > **ในอนาคตเมื่อเปิด public**: จะมี release binary ให้โหลด — end user แค่แตกไฟล์แล้ว
-> รัน `banyan-server start` ได้เลย **ไม่ต้องลง Rust หรือ Node** (release.yml build
+> รัน `samong-server start` ได้เลย **ไม่ต้องลง Rust หรือ Node** (release.yml build
 > ไบนารีทั้ง 3 OS ให้อัตโนมัติเมื่อ tag เวอร์ชัน)
 
 ### build จาก source
 
 ```sh
-git clone https://github.com/waanvar/banyan.git
-cd banyan
+git clone https://github.com/waanvar/samong.git
+cd samong
 cd web && npm install && npm run build   # build Web UI ก่อน (จะถูกฝังในไบนารี)
-cd .. && cargo install --path .          # ติดตั้ง banyan / banyan-server / banyan-mcp ลงเครื่อง
+cd .. && cargo install --path .          # ติดตั้ง samong / samong-server / samong-mcp ลงเครื่อง
 ```
 
 > **ลำดับสำคัญ**: build Web UI ก่อน `cargo build`/`cargo install` เสมอ เพราะ
-> `banyan-server` จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ
+> `samong-server` จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ
 > ไม่ต้องมีโฟลเดอร์ UI ข้างๆ (ถ้าอยากลอง build เฉยๆ ไม่ติดตั้ง ใช้ `cargo build --release`
 > ได้ไบนารีใน `target/release/`)
 
-อัปเดตเป็นเวอร์ชันล่าสุดภายหลังด้วย `banyan update` (ดูหัวข้อ *อัปเดตเวอร์ชัน* ด้านล่าง)
+อัปเดตเป็นเวอร์ชันล่าสุดภายหลังด้วย `samong update` (ดูหัวข้อ *อัปเดตเวอร์ชัน* ด้านล่าง)
 
 ## เริ่มใช้งาน
 
 ```sh
 mkdir my-vault && cd my-vault
-banyan new "โน้ตแรกของฉัน"        # สร้างโน้ต + index อัตโนมัติ
-banyan vault add my-vault .        # ลงทะเบียนเข้า registry (~/.config/banyan)
-banyan-server start               # เปิดเบราว์เซอร์ที่ http://127.0.0.1:3000 ให้อัตโนมัติ
+samong new "โน้ตแรกของฉัน"        # สร้างโน้ต + index อัตโนมัติ
+samong vault add my-vault .        # ลงทะเบียนเข้า registry (~/.config/samong)
+samong-server start               # เปิดเบราว์เซอร์ที่ http://127.0.0.1:3000 ให้อัตโนมัติ
 ```
 
-`banyan-server start` เสิร์ฟหน้าเว็บที่ฝังในตัว แล้วเปิดเบราว์เซอร์ให้เอง —
+`samong-server start` เสิร์ฟหน้าเว็บที่ฝังในตัว แล้วเปิดเบราว์เซอร์ให้เอง —
 ไม่ต้องมีไฟล์ UI ข้างๆ ปรับพอร์ตด้วย `--port 8080`, ไม่ให้เปิดเบราว์เซอร์ด้วย
-`--no-open` (รูปแบบเดิม `banyan-server --port 8080` ยังใช้ได้)
+`--no-open` (รูปแบบเดิม `samong-server --port 8080` ยังใช้ได้)
 
 ![Graph view](docs/graph-dark.png)
 
@@ -82,42 +82,42 @@ banyan-server start               # เปิดเบราว์เซอร�
 
 | คำสั่ง | หน้าที่ |
 |---|---|
-| `banyan new <ชื่อ>` | สร้างโน้ตใหม่ + index |
-| `banyan edit <ชื่อ>` | เปิดใน `$EDITOR` แล้ว reindex เมื่อปิด |
-| `banyan rename <เก่า> <ใหม่>` | เปลี่ยนชื่อ + แก้ `[[wikilink]]` ทุกโน้ตที่ลิงก์มา |
-| `banyan delete <ชื่อ>` | ลบโน้ต + เตือน backlinks ที่จะค้าง |
-| `banyan links <ชื่อ> [--all-vaults]` | forward links + backlinks (รวมข้าม vault) |
-| `banyan orphans` / `banyan broken` | โน้ตที่ไม่มีใครลิงก์ / ลิงก์ที่ชี้ไปโน้ตที่ไม่มี |
-| `banyan search <คำ> [--vault <ชื่อ>\|--all-vaults] [--limit N]` | ค้นหา full-text (ไทย/อังกฤษ) |
-| `banyan graph [--all-vaults]` | edges ของ link graph |
-| `banyan list` | รายชื่อโน้ตทั้งหมด |
-| `banyan reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
-| `banyan watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
-| `banyan vault add/list/remove` | จัดการ registry กลาง |
-| `banyan doctor` | สรุปว่า vault นับไฟล์ไหนเป็นโน้ต ข้ามอะไรไป และ title ไหนกำกวม |
-| `banyan update [--check]` | อัปเดตเป็นเวอร์ชันล่าสุดจาก GitHub release (--check = เช็คเฉยๆ) |
+| `samong new <ชื่อ>` | สร้างโน้ตใหม่ + index |
+| `samong edit <ชื่อ>` | เปิดใน `$EDITOR` แล้ว reindex เมื่อปิด |
+| `samong rename <เก่า> <ใหม่>` | เปลี่ยนชื่อ + แก้ `[[wikilink]]` ทุกโน้ตที่ลิงก์มา |
+| `samong delete <ชื่อ>` | ลบโน้ต + เตือน backlinks ที่จะค้าง |
+| `samong links <ชื่อ> [--all-vaults]` | forward links + backlinks (รวมข้าม vault) |
+| `samong orphans` / `samong broken` | โน้ตที่ไม่มีใครลิงก์ / ลิงก์ที่ชี้ไปโน้ตที่ไม่มี |
+| `samong search <คำ> [--vault <ชื่อ>\|--all-vaults] [--limit N]` | ค้นหา full-text (ไทย/อังกฤษ) |
+| `samong graph [--all-vaults]` | edges ของ link graph |
+| `samong list` | รายชื่อโน้ตทั้งหมด |
+| `samong reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
+| `samong watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
+| `samong vault add/list/remove` | จัดการ registry กลาง |
+| `samong doctor` | สรุปว่า vault นับไฟล์ไหนเป็นโน้ต ข้ามอะไรไป และ title ไหนกำกวม |
+| `samong update [--check]` | อัปเดตเป็นเวอร์ชันล่าสุดจาก GitHub release (--check = เช็คเฉยๆ) |
 
 ### ไฟล์ไหนนับเป็นโน้ต (vault scope)
 
-กฎเดียวที่ต้องจำ: **โน้ต = ไฟล์ `.md` ที่คุณจะ commit** ชี้ `banyan vault add` ที่
-root ของโปรเจกต์ได้เลย ไม่ต้องตั้งค่าอะไร — Banyan จะ:
+กฎเดียวที่ต้องจำ: **โน้ต = ไฟล์ `.md` ที่คุณจะ commit** ชี้ `samong vault add` ที่
+root ของโปรเจกต์ได้เลย ไม่ต้องตั้งค่าอะไร — Samong จะ:
 
 - เคารพ `.gitignore` (จึงไม่ดูด `node_modules/`, `dist/`, `target/` เข้ามา)
 - ข้ามโฟลเดอร์ dependency ที่ไม่มีทางเป็นโน้ตเสมอ แม้ไม่ได้ gitignore
   (`node_modules`, `vendor`, `site-packages`, `__pycache__`, `Pods`, `bower_components`)
 - ข้ามโฟลเดอร์ที่ขึ้นต้นด้วยจุดทั้งหมด (`.git`, `.obsidian`, `.brain`)
 
-`banyan doctor` บอกว่าตอนนี้นับได้กี่โน้ตและข้ามไปกี่ไฟล์:
+`samong doctor` บอกว่าตอนนี้นับได้กี่โน้ตและข้ามไปกี่ไฟล์:
 
 ```sh
-banyan doctor
+samong doctor
 # vault: /home/me/myproject
 # gitignore: respected
 # 4 note(s) in scope
 # skipped 90 .md file(s) not tracked as notes (web 90)
 ```
 
-อยากปรับ สร้าง `banyan.toml` ที่ root ของ vault (**commit ไปกับ repo** เพื่อให้
+อยากปรับ สร้าง `samong.toml` ที่ root ของ vault (**commit ไปกับ repo** เพื่อให้
 ทุกเครื่องและ server เห็นกฎเดียวกัน — ทุกฟิลด์ optional):
 
 ```toml
@@ -133,7 +133,7 @@ max_depth = 0             # 0 = ไม่จำกัดความลึก
 ```
 
 ถ้า repo ของคุณ gitignore โน้ตของตัวเองไว้ (เช่นโน้ต local ใน `notes/`) ใช้
-`.banyanignore` ดึงกลับมาได้ — ไฟล์นี้ใช้ syntax เดียวกับ gitignore และ negate ได้:
+`.samongignore` ดึงกลับมาได้ — ไฟล์นี้ใช้ syntax เดียวกับ gitignore และ negate ได้:
 
 ```
 !notes/
@@ -154,16 +154,16 @@ include = ["node_modules/next/dist/docs"]
 โน้ตที่ได้มาทางนี้เรียกว่า **reference notes** อยู่ใน vault เดียวกัน index เดียวกัน
 ลิงก์ `[[installation]]` จากโน้ตของคุณถึงกันได้ — **หนึ่งโปรเจกต์ หนึ่งสมอง** ไม่ต้องแยก vault
 
-> `.banyanignore` กับ `!node_modules/...` **ใช้แทนกันไม่ได้** เพราะโฟลเดอร์ dependency
+> `.samongignore` กับ `!node_modules/...` **ใช้แทนกันไม่ได้** เพราะโฟลเดอร์ dependency
 > ถูกตัดกิ่งทิ้งก่อน walker เดินเข้าไป จึงไม่มีรายการให้ negate และกฎ gitignore เองก็
 > re-include ไฟล์ใต้ parent ที่ถูก exclude ไม่ได้ — `scope.include` คือคานงัดที่ถูก
 
 **สองข้อที่ต้องรู้:**
 
-1. **reference notes เป็นของเฉพาะเครื่อง** — `banyan.toml` เดินทางไปกับ git แต่
+1. **reference notes เป็นของเฉพาะเครื่อง** — `samong.toml` เดินทางไปกับ git แต่
    `node_modules` ไม่ ฉะนั้นเครื่องที่ยังไม่ `npm install` หรือ server ที่มีแต่ git
-   history จะหาไม่เจอ ซึ่ง**ไม่ใช่ error** — Banyan ข้ามแล้วเตือน 1 บรรทัด และ
-   `banyan doctor` บอกว่า root ไหนมี root ไหนไม่มี
+   history จะหาไม่เจอ ซึ่ง**ไม่ใช่ error** — Samong ข้ามแล้วเตือน 1 บรรทัด และ
+   `samong doctor` บอกว่า root ไหนมี root ไหนไม่มี
 2. **reference notes เป็น read-only** — `save_note` / `PUT` / `delete` / `rename` จะ
    ปฏิเสธ เพราะไฟล์เป็นของ dependency ถ้าเขียนลงไปจะหายตอน install ครั้งถัดไป
    (สำคัญกับ agent มาก: `save_note("installation")` ไม่ควรไปทับหน้าเอกสารของ framework)
@@ -177,19 +177,19 @@ include = ["node_modules/next/dist/docs"]
 
 ### อัปเดตเวอร์ชัน
 
-`banyan update` ดาวน์โหลด release ล่าสุดจาก GitHub แล้วแทนที่ไบนารีทั้งสาม
-(banyan / banyan-server / banyan-mcp) ให้อัตโนมัติ — รวมหน้าเว็บที่ฝังในตัวด้วย
-`banyan update --check` เช็คว่ามีเวอร์ชันใหม่ไหมโดยไม่ติดตั้ง และ `banyan-server start`
+`samong update` ดาวน์โหลด release ล่าสุดจาก GitHub แล้วแทนที่ไบนารีทั้งสาม
+(samong / samong-server / samong-mcp) ให้อัตโนมัติ — รวมหน้าเว็บที่ฝังในตัวด้วย
+`samong update --check` เช็คว่ามีเวอร์ชันใหม่ไหมโดยไม่ติดตั้ง และ `samong-server start`
 จะแจ้งบรรทัดเดียวถ้ามีเวอร์ชันใหม่ (best-effort ไม่บล็อก ไม่ล้มถ้าออฟไลน์)
 
 > ต้องมี release เผยแพร่บน GitHub ก่อน (`git tag v0.1.0 && git push origin v0.1.0`
-> ให้ workflow build binary ทั้ง 3 OS) `banyan update` ถึงจะหา release เจอ
+> ให้ workflow build binary ทั้ง 3 OS) `samong update` ถึงจะหา release เจอ
 
 ## Web UI
 
-ดีไซน์ต้นฉบับธีม "ต้นไทร" (ไม่ลอก Obsidian) — typography ไทยด้วย
+ดีไซน์ต้นฉบับ (ไม่ลอก Obsidian) — typography ไทยด้วย
 IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้ และหน้าเว็บทั้งชุดถูก**ฝังในไบนารี**
-`banyan-server` (rust-embed) แจกไฟล์เดียวเปิดใช้ได้ทันที
+`samong-server` (rust-embed) แจกไฟล์เดียวเปิดใช้ได้ทันที
 
 - Layout 3 ส่วน: รายชื่อโน้ต / editor (เขียน–คู่กัน–อ่าน) / backlinks + โครงร่าง
 - พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ตรวมข้าม vault — คลิก wikilink เพื่อกระโดด
@@ -199,9 +199,9 @@ IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้ แล�
 - ธีมมืด/สว่าง, บันทึกอัตโนมัติ, real-time ผ่าน WebSocket —
   แก้ไฟล์จาก Obsidian หรือ editor อื่นแล้วหน้าจออัปเดตเอง
 
-พัฒนา UI: `cd web && npm run dev` (Vite proxy ไป banyan-server พอร์ต 3000)
+พัฒนา UI: `cd web && npm run dev` (Vite proxy ไป samong-server พอร์ต 3000)
 
-## API (banyan-server)
+## API (samong-server)
 
 Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่มี auth)
 
@@ -215,15 +215,15 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
 | `GET /api/graph?vault=` | nodes + edges เป็น JSON |
 | `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
 
-## AI agent (banyan-mcp)
+## AI agent (samong-mcp)
 
-`banyan-mcp` เป็น MCP server บน stdio — agent ได้ tools: `search_notes`
+`samong-mcp` เป็น MCP server บน stdio — agent ได้ tools: `search_notes`
 (ค้นไทยตัดคำ), `read_note`, `save_note`, `get_links`, `list_notes`,
 `list_vaults` (จงใจไม่มี delete — การลบเป็นเรื่องของมนุษย์)
 
 ```json
 // .mcp.json ใน repo ของคุณ
-{ "mcpServers": { "banyan": { "command": "banyan-mcp" } } }
+{ "mcpServers": { "samong": { "command": "samong-mcp" } } }
 ```
 
 ดูวิธีตั้งค่าเต็มและ recipe สำหรับ `CLAUDE.md` ที่ [docs/AI-AGENT.md](docs/AI-AGENT.md)
@@ -236,11 +236,11 @@ Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่
   .brain/
     graph.redb    ← forward/backlinks + mtimes + index version (redb)
     tantivy/      ← full-text index, tokenizer ไทย newmm (tantivy)
-~/.config/banyan/
+~/.config/samong/
   registry.redb   ← ชื่อ vault -> path สำหรับลิงก์ข้าม vault
 ```
 
-ลบ `.brain/` ทิ้งเมื่อไหร่ก็ได้ — `banyan reindex` สร้างใหม่จากไฟล์ .md ทั้งหมด
+ลบ `.brain/` ทิ้งเมื่อไหร่ก็ได้ — `samong reindex` สร้างใหม่จากไฟล์ .md ทั้งหมด
 เมื่อ schema/tokenizer เปลี่ยนเวอร์ชัน index เก่าจะถูก rebuild อัตโนมัติ
 
 ## Development
@@ -263,7 +263,16 @@ cargo fmt --all -- --check
 
 ## License
 
-[AGPL-3.0-only](LICENSE) — ใช้ฟรี แก้ได้ แต่ถ้านำไปให้บริการต้องเปิดซอร์สส่วนที่แก้
+[Apache-2.0](LICENSE) — ใช้ฟรี แก้ได้ นำไปใช้ในเชิงพาณิชย์ได้ รวมถึงฝังใน
+ซอฟต์แวร์ปิดของคุณเอง ขอแค่คงประกาศลิขสิทธิ์และระบุที่มา
 
-พจนานุกรมตัดคำ `words_th.txt` จาก [PyThaiNLP](https://github.com/PyThaiNLP/pythainlp)
-(Apache-2.0)
+ที่มาของส่วนประกอบภายนอกทั้งหมดอยู่ใน [THIRD-PARTY.md](THIRD-PARTY.md) —
+พจนานุกรมตัดคำ `words_th.txt` มาจาก
+[PyThaiNLP](https://github.com/PyThaiNLP/pythainlp) (Apache-2.0)
+
+### ชื่อและโลโก้
+
+**"Samong" กับโลโก้ไม่ได้อยู่ใต้ Apache-2.0** — โค้ดเอาไป fork ดัดแปลง หรือขายได้
+เต็มที่ แต่กรุณาใช้ชื่ออื่นกับผลงานที่แยกไปแล้ว เพื่อไม่ให้ผู้ใช้สับสนว่าใครดูแล
+เวอร์ชันไหน (พูดถึงโปรเจกต์นี้ เปรียบเทียบ หรือบอกว่าเข้ากันได้กับ Samong —
+ทำได้เสมอ ไม่ต้องขออนุญาต)

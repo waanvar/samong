@@ -1,15 +1,15 @@
 //! Self-update from GitHub releases: check for a newer version and replace the
-//! installed binaries in place. Backs the `banyan update` command and the
-//! best-effort "new version available" notice printed by `banyan-server start`.
+//! installed binaries in place. Backs the `samong update` command and the
+//! best-effort "new version available" notice printed by `samong-server start`.
 
 use anyhow::{Context, Result};
 use self_update::backends::github;
 
 const REPO_OWNER: &str = "waanvar";
-const REPO_NAME: &str = "banyan";
+const REPO_NAME: &str = "samong";
 
-/// The three binaries this project ships; `banyan update` refreshes all of them.
-const BINARIES: [&str; 3] = ["banyan", "banyan-server", "banyan-mcp"];
+/// The three binaries this project ships; `samong update` refreshes all of them.
+const BINARIES: [&str; 3] = ["samong", "samong-server", "samong-mcp"];
 
 /// This build's version (from Cargo.toml at compile time).
 pub fn current_version() -> &'static str {
@@ -52,13 +52,13 @@ pub fn notify_if_outdated() {
     };
     if is_newer(current_version(), &latest) {
         println!(
-            "→ banyan {latest} is available (you have {}). Run `banyan update` to upgrade.",
+            "→ samong {latest} is available (you have {}). Run `samong update` to upgrade.",
             current_version()
         );
     }
 }
 
-/// `banyan update`: report status, and unless `check_only`, download the latest
+/// `samong update`: report status, and unless `check_only`, download the latest
 /// release and replace every installed binary in place.
 pub fn run(check_only: bool) -> Result<()> {
     let target = asset_target().context(
@@ -82,12 +82,12 @@ pub fn run(check_only: bool) -> Result<()> {
     let current = current_version();
 
     if !is_newer(current, &latest) {
-        println!("already up to date (banyan {current})");
+        println!("already up to date (samong {current})");
         return Ok(());
     }
     println!("update available: {current} → {latest}");
     if check_only {
-        println!("run `banyan update` (without --check) to install it");
+        println!("run `samong update` (without --check) to install it");
         return Ok(());
     }
 
@@ -107,7 +107,7 @@ pub fn run(check_only: bool) -> Result<()> {
             .and_then(|u| u.update());
         match status {
             Ok(s) => println!("done ({})", s.version()),
-            // A locked binary (e.g. banyan-server still running) shouldn't abort
+            // A locked binary (e.g. samong-server still running) shouldn't abort
             // the others — report and continue.
             Err(e) => println!("skipped: {e}"),
         }

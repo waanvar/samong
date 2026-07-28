@@ -1,0 +1,15 @@
+Samong
+Copyright 2026 Samong contributors
+
+This product includes software developed as part of the Samong project
+(https://github.com/waanvar/samong), licensed under the Apache License,
+Version 2.0.
+
+This product bundles the Thai word-segmentation dictionary
+`assets/words_th.txt` from PyThaiNLP (https://github.com/PyThaiNLP/pythainlp),
+Copyright PyThaiNLP contributors, licensed under the Apache License,
+Version 2.0.
+
+Full attribution for every third-party component is in THIRD-PARTY.md.
+
+"Samong" and the Samong logo are not licensed under Apache-2.0.

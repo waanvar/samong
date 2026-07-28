@@ -1,5 +1,5 @@
 //! MCP (Model Context Protocol) server over stdio, so AI agents like
-//! Claude Code can use banyan vaults as their knowledge base.
+//! Claude Code can use samong vaults as their knowledge base.
 //!
 //! MCP is JSON-RPC 2.0, one message per line on stdin/stdout. We implement
 //! the minimal method set a tools-only server needs (initialize, tools/list,
@@ -70,7 +70,7 @@ fn initialize_result(params: &Value) -> Value {
     json!({
         "protocolVersion": version,
         "capabilities": { "tools": {} },
-        "serverInfo": { "name": "banyan-mcp", "version": env!("CARGO_PKG_VERSION") }
+        "serverInfo": { "name": "samong-mcp", "version": env!("CARGO_PKG_VERSION") }
     })
 }
 
@@ -192,7 +192,7 @@ fn resolve_vault(registry: &Registry, name: &str) -> Result<PathBuf> {
 fn tool_list_vaults() -> Result<String> {
     let vaults = Registry::open()?.list()?;
     if vaults.is_empty() {
-        return Ok("no vaults registered — run `banyan vault add <name> <path>` first".into());
+        return Ok("no vaults registered — run `samong vault add <name> <path>` first".into());
     }
     Ok(vaults
         .into_iter()
@@ -354,7 +354,7 @@ mod tests {
         .unwrap();
         let v: Value = serde_json::from_str(&response).unwrap();
         assert_eq!(v["result"]["protocolVersion"], "2025-03-26");
-        assert_eq!(v["result"]["serverInfo"]["name"], "banyan-mcp");
+        assert_eq!(v["result"]["serverInfo"]["name"], "samong-mcp");
         assert!(v["result"]["capabilities"]["tools"].is_object());
     }
 
