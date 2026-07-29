@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samong — you already solved this once</title>
+<meta name="description" content="A local-first knowledge base for the notes already in your repositories. Search finds them; every AI tool you use can read them. No account, no cloud, one binary.">
+<meta property="og:title" content="Samong — you already solved this once">
+<meta property="og:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='25' font-size='26'>🧠</text></svg>">
+
+<style>
+/* ============================================================================
+   Samong landing page.
+
+   The hero is not a screenshot and not a slogan: it is the product's one
+   distinctive act, playable in three seconds. Type, and the map of what you know
+   dims to the part that answers you. Everything else on the page stays quiet so
+   that moment is the thing you remember.
+
+   Committed to a single dark look on purpose — the graph reads best on a deep
+   ground, and it is the same surface the app itself uses, so the promise here and
+   the product a visitor downloads are the same object.
+   ========================================================================== */
+
+@font-face { font-family: "Bai Jamjuree"; src: url("fonts/bai-jamjuree-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Bai Jamjuree"; src: url("fonts/bai-jamjuree-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Plex Thai"; src: url("fonts/ibm-plex-sans-thai-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Thai"; src: url("fonts/ibm-plex-sans-thai-thai-400-normal.woff2") format("woff2"); font-weight: 400; unicode-range: U+0E01-0E5B; font-display: swap; }
+@font-face { font-family: "Plex Thai"; src: url("fonts/ibm-plex-sans-thai-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+:root {
+  --void: #0d1014;
+  --surface: #14181e;
+  --surface-2: #1b2028;
+  --ink: #e8ecf2;
+  --ink-2: #b7bfcc;
+  --ink-mute: #8792a3;
+  --line: #262c36;
+  --line-strong: #39414e;
+  --found: #d8f24a;
+  --found-edge: #b6d423;
+  --accent: #6f8dff;
+  /* The app's validated vault hues, reused so the page and the product match. */
+  --v1: #4a7fd4; --v2: #c47b16; --v3: #a35fc4; --v4: #0f9b7e;
+  --display: "Bai Jamjuree", system-ui, sans-serif;
+  --body: "Plex Thai", system-ui, -apple-system, sans-serif;
+  --mono: "Plex Mono", ui-monospace, monospace;
+  --measure: 62ch;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+:focus-visible { outline: 2px solid var(--found); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { width: min(1120px, 100% - 2.5rem); margin-inline: auto; }
+
+/* ---------- nav ---------- */
+
+.nav {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 1rem;
+  padding: .85rem 0;
+  background: color-mix(in oklab, var(--void) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: .5rem; font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: -.02em; }
+.brand svg { width: 22px; height: 22px; }
+.nav-spacer { flex: 1; }
+.nav a:not(.btn) { color: var(--ink-2); text-decoration: none; font-size: .92rem; }
+.nav a:not(.btn):hover { color: var(--ink); }
+@media (max-width: 700px) { .nav .hide-sm { display: none; } }
+
+.btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .58rem 1.05rem;
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  background: var(--surface-2); color: var(--ink);
+  font-size: .93rem; text-decoration: none; cursor: pointer;
+}
+.btn:hover { background: #232935; }
+.btn-primary { background: var(--found); border-color: var(--found); color: #14180a; font-weight: 600; }
+.btn-primary:hover { background: #e3fb63; }
+.btn-lg { padding: .8rem 1.5rem; font-size: 1rem; }
+
+/* ---------- hero ---------- */
+
+.hero { padding: clamp(2.5rem, 7vw, 5.5rem) 0 0; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 46ch) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
+@media (max-width: 940px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+
+h1 {
+  margin: 0 0 1rem;
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(2.3rem, 5.6vw, 3.6rem);
+  line-height: 1.06; letter-spacing: -.035em;
+}
+/* The claim of the page, marked the way the product marks a match. */
+h1 .hit { color: var(--found); }
+
+.lede { margin: 0 0 1.6rem; max-width: 42ch; font-size: clamp(1.02rem, 1.6vw, 1.16rem); color: var(--ink-2); }
+.cta-row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; }
+.trust { margin: 1.1rem 0 0; font-size: .87rem; color: var(--ink-mute); }
+.trust b { color: var(--ink-2); font-weight: 500; }
+
+/* ---------- the demo: search reveals the map ---------- */
+
+.demo {
+  position: relative;
+  border: 1px solid var(--line-strong); border-radius: 14px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--void) 100%);
+  overflow: hidden;
+  box-shadow: 0 30px 80px -40px #000;
+}
+.demo-bar { display: flex; align-items: center; gap: .55rem; padding: .6rem .8rem; border-bottom: 1px solid var(--line); }
+.demo-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); }
+.demo-label { font-family: var(--mono); font-size: .72rem; color: var(--ink-mute); }
+
+.demo-search { display: flex; align-items: center; gap: .55rem; margin: .8rem .8rem 0; padding: 0 .7rem; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; }
+.demo-search span { color: var(--ink-mute); }
+.demo-search input { flex: 1; min-width: 0; padding: .5rem 0; background: none; border: 0; color: var(--ink); font: inherit; font-size: .93rem; }
+.demo-search input:focus { outline: none; }
+.demo-search .count { font-family: var(--mono); font-size: .72rem; color: var(--found); white-space: nowrap; }
+
+#graph { display: block; width: 100%; height: clamp(260px, 34vw, 350px); touch-action: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; padding: 0 .8rem .85rem; }
+.chip { padding: .25rem .6rem; border: 1px solid var(--line-strong); border-radius: 999px; background: none; color: var(--ink-2); font: inherit; font-size: .78rem; cursor: pointer; }
+.chip:hover, .chip[aria-pressed="true"] { border-color: var(--found-edge); color: var(--ink); }
+
+/* ---------- sections ---------- */
+
+section { padding: clamp(3.5rem, 9vw, 6.5rem) 0; border-top: 1px solid var(--line); }
+.eyebrow { margin: 0 0 .7rem; font-family: var(--mono); font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--found-edge); }
+h2 { margin: 0 0 .9rem; font-family: var(--display); font-weight: 600; font-size: clamp(1.6rem, 3.4vw, 2.3rem); line-height: 1.15; letter-spacing: -.025em; }
+.section-lede { margin: 0 0 2rem; max-width: var(--measure); color: var(--ink-2); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: center; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { padding: 1.1rem 1.2rem; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.panel-title { margin: 0 0 .6rem; font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+
+pre { margin: 0; overflow-x: auto; font-family: var(--mono); font-size: .84rem; line-height: 1.85; color: var(--ink-2); }
+pre .k { color: var(--found); }
+pre .c { color: var(--ink-mute); }
+pre .p { color: var(--accent); }
+
+/* Word-boundary demo: the one place a feature gets its own illustration,
+   because it is the part nobody believes until they see it. */
+.seg { font-size: clamp(1.15rem, 2.6vw, 1.6rem); line-height: 2.4; word-break: break-all; }
+.seg .tok { position: relative; padding: 0 1px; }
+.seg .tok.on { background: color-mix(in oklab, var(--found) 22%, transparent); color: #fff; }
+.seg .tok.on::before, .seg .tok.on::after { content: ""; position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--found-edge); }
+.seg .tok.on::before { left: -1px; } .seg .tok.on::after { right: -1px; }
+.seg-note { margin: .9rem 0 0; font-size: .87rem; color: var(--ink-mute); }
+.seg-q { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1.1rem; }
+
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+.card { padding: 1.2rem; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.card h3 { margin: 0 0 .45rem; font-family: var(--display); font-weight: 600; font-size: 1.05rem; }
+.card p { margin: 0; font-size: .93rem; color: var(--ink-2); }
+
+.tools { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 1.4rem; }
+.tool { padding: .35rem .75rem; border: 1px solid var(--line-strong); border-radius: 999px; font-size: .86rem; color: var(--ink-2); }
+
+table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+th, td { padding: .7rem .6rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); font-weight: 400; }
+td:first-child { color: var(--ink-mute); width: 34%; }
+.yes { color: var(--found); }
+.tbl-wrap { overflow-x: auto; }
+
+/* ---------- download ---------- */
+
+.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .8rem; margin: 0 0 1.4rem; }
+.dl a { display: grid; gap: .15rem; padding: .95rem 1.1rem; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; text-decoration: none; color: var(--ink); }
+.dl a:hover { border-color: var(--found-edge); }
+.dl .os { font-weight: 600; }
+.dl .arch { font-family: var(--mono); font-size: .76rem; color: var(--ink-mute); }
+
+.warn { padding: 1rem 1.2rem; background: color-mix(in oklab, #e0b063 9%, transparent); border: 1px solid color-mix(in oklab, #e0b063 34%, transparent); border-radius: 10px; font-size: .91rem; color: var(--ink-2); }
+.warn b { color: var(--ink); }
+.warn pre { margin-top: .6rem; color: var(--ink); }
+
+footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var(--ink-mute); font-size: .87rem; }
+.foot-row { display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(10px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.3,1); }
+  .reveal.in { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap" style="display:flex;align-items:center;gap:1rem">
+    <span class="brand">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="7" cy="8" r="2.6" fill="var(--v1)"/>
+        <circle cx="17" cy="6.5" r="2" fill="var(--v3)"/>
+        <circle cx="16.5" cy="16.5" r="2.6" fill="var(--found)"/>
+        <circle cx="6" cy="17" r="1.8" fill="var(--v4)"/>
+        <path d="M7 8 17 6.5M7 8l9.5 8.5M6 17l10.5-.5M7 8 6 17" stroke="var(--line-strong)" stroke-width="1.1"/>
+      </svg>
+      Samong
+    </span>
+    <span class="nav-spacer"></span>
+    <a href="#files" class="hide-sm">Your files</a>
+    <a href="#agents" class="hide-sm">AI tools</a>
+    <a href="#search" class="hide-sm">Search</a>
+    <a href="https://github.com/waanvar/samong" class="btn">GitHub</a>
+    <a href="#download" class="btn btn-primary">Download</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>You <span class="hit">already</span> solved this once.</h1>
+      <p class="lede">
+        Six months ago you worked it out and wrote it down. The note is still in
+        your repository. Samong makes it findable again — by you, and by every AI
+        tool you work with.
+      </p>
+      <div class="cta-row">
+        <a href="#download" class="btn btn-primary btn-lg">Download</a>
+        <a href="https://github.com/waanvar/samong" class="btn btn-lg">Read the source</a>
+      </div>
+      <p class="trust">
+        <b>No account. No cloud. One binary.</b> Your notes never leave the machine —
+        there is nothing for anyone to read, including us.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="demo-bar">
+        <span class="demo-dot"></span><span class="demo-dot"></span><span class="demo-dot"></span>
+        <span class="demo-label">samong · a project's own knowledge</span>
+      </div>
+      <label class="demo-search">
+        <span aria-hidden="true">⌕</span>
+        <input id="q" type="text" placeholder="Try: rate limiting" aria-label="Search the example vault" autocomplete="off" spellcheck="false">
+        <span class="count" id="count"></span>
+      </label>
+      <canvas id="graph" role="img" aria-label="An example knowledge map. Typing a query dims every note that does not match and lights the ones that do."></canvas>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+</header>
+
+<section id="files">
+  <div class="wrap">
+    <p class="eyebrow">The part that cannot be copied</p>
+    <div class="two">
+      <div>
+        <h2>Your notes are files, in the repository they describe.</h2>
+        <p class="section-lede">
+          Not rows in someone's database with a Markdown export button. Actual
+          <code>.md</code> files, beside the code they explain — so they move with
+          the branch, show up in review, and open in the editor you already use.
+          Point Samong at a project root and it works out what is a note and what
+          is a dependency's README.
+        </p>
+        <p class="section-lede" style="margin-bottom:0">
+          Delete the index whenever you like. <code>samong reindex</code> rebuilds
+          it from the files, because the files were always the truth.
+        </p>
+      </div>
+      <div class="panel">
+        <p class="panel-title">a repository, as Samong sees it</p>
+<pre><span class="c">my-api/</span>
+├── src/                      <span class="c"># code</span>
+├── <span class="k">ARCHITECTURE.md</span>            <span class="c"># a note</span>
+├── <span class="k">decisions/</span>
+│   ├── <span class="k">rate-limiting.md</span>       <span class="c"># a note</span>
+│   └── <span class="k">why-not-redis.md</span>       <span class="c"># a note</span>
+├── node_modules/             <span class="c"># 1,214 .md — skipped</span>
+└── .gitignore                <span class="c"># decides what counts</span>
+
+<span class="p">$ samong doctor</span>
+4 project note(s) in scope
+skipped 1,214 .md file(s) not tracked as notes
+no ambiguous titles among project notes</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="wrap">
+    <p class="eyebrow">One memory, every assistant</p>
+    <h2>Your AI stops re-deriving what you already know.</h2>
+    <p class="section-lede">
+      Samong speaks the Model Context Protocol, so any tool that supports it reads
+      and writes the same notes. An agent searches before it starts, and writes
+      down what it worked out when it finishes. Next session — or next tool — it
+      is already there.
+    </p>
+    <div class="tools">
+      <span class="tool">Claude Code</span>
+      <span class="tool">Claude Desktop</span>
+      <span class="tool">Cursor</span>
+      <span class="tool">Windsurf</span>
+      <span class="tool">any MCP client</span>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <p class="panel-title">.mcp.json</p>
+<pre>{
+  <span class="p">"mcpServers"</span>: {
+    <span class="p">"samong"</span>: { <span class="p">"command"</span>: <span class="k">"samong-mcp"</span> }
+  }
+}</pre>
+      </div>
+      <div class="grid3" style="grid-template-columns:minmax(0,1fr)">
+        <div class="card">
+          <h3>Six tools, no delete</h3>
+          <p>An agent can list, read, search, save and follow links — but it cannot erase knowledge. Deletion stays a human act.</p>
+        </div>
+        <div class="card">
+          <h3>Results priced for context</h3>
+          <p>Search returns a small number of hits by default, counted across all vaults. Every extra hit is context the agent pays for on every later turn.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="search">
+  <div class="wrap">
+    <p class="eyebrow">Search that reads the language</p>
+    <h2>Some languages don't put spaces between words.</h2>
+    <p class="section-lede">
+      Thai, Japanese and Chinese run words together. Most search engines see one
+      long token and find nothing, or match a fragment that means something else.
+      Samong segments with a real dictionary, so a word buried mid-sentence is
+      still a word. Thai ships today, using the
+      <a href="https://github.com/PyThaiNLP/nlpo3">newmm</a> dictionary.
+    </p>
+    <div class="two">
+      <div>
+        <div class="seg-q" id="segq"></div>
+        <div class="seg" id="seg"></div>
+        <p class="seg-note">
+          The bar marks what matched; the hairlines mark where the dictionary cut a
+          word. Nothing here is a space — the sentence is one unbroken string.
+        </p>
+      </div>
+      <div class="panel">
+        <p class="panel-title">why substring matching is not enough</p>
+        <p style="margin:0 0 .8rem;font-size:.93rem;color:var(--ink-2)">
+          Searching <code>ตลาด</code> ("market") by substring also hits
+          <code>ตลาดหลักทรัพย์</code> ("stock exchange") — a different thing. And
+          searching for the exchange finds nothing unless you happen to type the
+          exact prefix the text starts with.
+        </p>
+        <p style="margin:0;font-size:.93rem;color:var(--ink-2)">
+          Segmentation gives you the words, so ranking and highlighting work the way
+          they do in English.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What you actually get</p>
+    <h2>A knowledge base that behaves like a tool, not a service.</h2>
+    <div class="tbl-wrap" style="margin-top:1.6rem">
+      <table>
+        <tr><th>Where notes live</th><td><span class="yes">Plain <code>.md</code> in your repositories.</span> The index is disposable and rebuildable.</td></tr>
+        <tr><th>What it runs on</th><td><span class="yes">One binary on your machine.</span> No account, no vendor, works offline.</td></tr>
+        <tr><th>Editing</th><td>Obsidian-compatible <code>[[wikilinks]]</code>. Use Obsidian, your editor, or the built-in web UI — same files.</td></tr>
+        <tr><th>Finding</th><td>Full-text search with dictionary word segmentation, a link graph, backlinks across projects.</td></tr>
+        <tr><th>Seeing</th><td>The web UI opens on a map of the vault; typing dims everything that does not answer you.</td></tr>
+        <tr><th>Licence</th><td>Apache-2.0. Fork it, ship it commercially, embed it. The name and logo are not covered — rename what you ship.</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <p class="eyebrow">Install</p>
+    <h2>Extract, run, point it at a project.</h2>
+    <p class="section-lede">
+      Nothing to install alongside it — the web UI is inside the binary.
+    </p>
+    <div class="dl">
+      <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">Linux</span><span class="arch">x86_64 · tar.gz</span></a>
+      <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">Windows</span><span class="arch">x86_64 · zip</span></a>
+      <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">macOS</span><span class="arch">Apple Silicon · tar.gz</span></a>
+      <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">macOS</span><span class="arch">Intel · tar.gz</span></a>
+    </div>
+    <div class="panel" style="margin-bottom:1.2rem">
+      <p class="panel-title">then</p>
+<pre><span class="p">$ samong vault add my-api /path/to/my-api</span>
+<span class="p">$ samong-server start</span>
+<span class="c"># opens http://127.0.0.1:3000</span></pre>
+    </div>
+    <div class="warn">
+      <b>The binaries are not code-signed yet.</b> macOS refuses to open unsigned
+      downloads outright, and Windows SmartScreen warns. On macOS, clear the
+      quarantine flag after extracting:
+<pre>xattr -d com.apple.quarantine samong samong-server samong-mcp</pre>
+      Every release ships a <code>.sha256</code> beside the archive — check it.
+      This is what open-source software without a paid certificate looks like; it
+      is not a sign the file is wrong.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-row">
+    <span class="brand" style="font-size:.95rem">Samong</span>
+    <span>Apache-2.0 · the name and logo are not covered by the licence</span>
+    <span class="nav-spacer"></span>
+    <a href="https://github.com/waanvar/samong">Source</a>
+    <a href="https://github.com/waanvar/samong/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/waanvar/samong/blob/main/docs/AI-AGENT.md">Agent setup</a>
+  </div>
+</footer>
+
+<script>
+(() => {
+  "use strict";
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ------------------------------------------------------------------
+     Hero: a small vault, and search that reveals it.
+
+     The nodes are an illustration, not live data — but the behaviour is the
+     product's: matches light up, everything else recedes, and the answer is a
+     file path.
+     ------------------------------------------------------------------ */
+  const NOTES = [
+    ["ARCHITECTURE.md", "ARCHITECTURE", 0],
+    ["decisions/rate-limiting.md", "rate limiting", 0],
+    ["decisions/why-not-redis.md", "why not redis", 0],
+    ["decisions/auth-tokens.md", "auth tokens", 0],
+    ["decisions/queue-choice.md", "queue choice", 0],
+    ["runbooks/deploy.md", "deploy", 1],
+    ["runbooks/rollback.md", "rollback", 1],
+    ["runbooks/on-call.md", "on-call", 1],
+    ["runbooks/incident-2024-11.md", "incident 2024-11", 1],
+    ["api/webhooks.md", "webhooks", 2],
+    ["api/pagination.md", "pagination", 2],
+    ["api/errors.md", "errors", 2],
+    ["api/versioning.md", "versioning", 2],
+    ["notes/postgres-locks.md", "postgres locks", 3],
+    ["notes/tracing.md", "tracing", 3],
+    ["notes/cost-review.md", "cost review", 3],
+    ["notes/hiring-loop.md", "hiring loop", 3],
+    ["README.md", "README", 0],
+  ];
+  const LINKS = [
+    [0,1],[0,2],[0,3],[0,4],[1,2],[1,11],[3,9],[4,13],
+    [5,6],[5,7],[6,8],[7,8],[5,0],
+    [9,10],[10,11],[11,12],[9,0],
+    [13,14],[14,15],[15,16],[13,1],[16,7],[17,0],[17,5]
+  ];
+  const HUES = ["--v1","--v2","--v3","--v4"];
+
+  const canvas = document.getElementById("graph");
+  const ctx = canvas.getContext("2d");
+  const input = document.getElementById("q");
+  const countEl = document.getElementById("count");
+
+  const nodes = NOTES.map(([key, label, group], i) => ({
+    key, label, group,
+    degree: LINKS.filter(l => l[0] === i || l[1] === i).length,
+    x: 0, y: 0, vx: 0, vy: 0,
+  }));
+
+  // A few relaxation passes give a stable, readable layout without shipping a
+  // physics library to a landing page.
+  function layout(w, h) {
+    const cx = w / 2, cy = h / 2;
+    nodes.forEach((n, i) => {
+      const a = (i / nodes.length) * Math.PI * 2;
+      const groupA = (n.group / HUES.length) * Math.PI * 2;
+      n.x = cx + Math.cos(groupA) * w * 0.19 + Math.cos(a) * w * 0.07;
+      n.y = cy + Math.sin(groupA) * h * 0.24 + Math.sin(a) * h * 0.09;
+    });
+    for (let pass = 0; pass < 260; pass++) {
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          let dx = b.x - a.x, dy = b.y - a.y;
+          let d = Math.hypot(dx, dy) || 0.01;
+          const push = 900 / (d * d);
+          dx /= d; dy /= d;
+          a.x -= dx * push; a.y -= dy * push;
+          b.x += dx * push; b.y += dy * push;
+        }
+      }
+      for (const [i, j] of LINKS) {
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) || 0.01;
+        const pull = (d - Math.min(w, h) * 0.17) * 0.012;
+        a.x += (dx / d) * pull; a.y += (dy / d) * pull;
+        b.x -= (dx / d) * pull; b.y -= (dy / d) * pull;
+      }
+      for (const n of nodes) {
+        n.x += (cx - n.x) * 0.004;
+        n.y += (cy - n.y) * 0.006;
+        n.x = Math.max(58, Math.min(w - 58, n.x));
+        n.y = Math.max(26, Math.min(h - 26, n.y));
+      }
+    }
+  }
+
+  let matched = null;   // Set of indices, or null when the field is empty
+  let hover = -1;
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function paint() {
+    const dpr = devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; layout(w, h); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const found = css("--found"), line = css("--line-strong"), mute = css("--ink-mute"), ink = css("--ink");
+    const alphaOf = i => (matched ? (matched.has(i) ? 1 : 0.1) : 0.9);
+
+    ctx.lineWidth = 1;
+    for (const [i, j] of LINKS) {
+      ctx.globalAlpha = Math.min(alphaOf(i), alphaOf(j)) * 0.5;
+      ctx.strokeStyle = line;
+      ctx.beginPath();
+      ctx.moveTo(nodes[i].x, nodes[i].y);
+      ctx.lineTo(nodes[j].x, nodes[j].y);
+      ctx.stroke();
+    }
+
+    ctx.font = '500 11px "Plex Thai", system-ui, sans-serif';
+    ctx.textBaseline = "middle";
+    nodes.forEach((n, i) => {
+      const on = matched?.has(i);
+      const a = alphaOf(i);
+      const r = 3.5 + Math.min(n.degree, 8) * 0.75;
+      ctx.globalAlpha = a;
+      if (on || hover === i) { ctx.shadowColor = found; ctx.shadowBlur = 16; } else ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = on ? found : css(HUES[n.group]);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      if (on || hover === i || !matched && n.degree > 3) {
+        ctx.fillStyle = on || hover === i ? ink : mute;
+        ctx.fillText(n.label, n.x + r + 5, n.y);
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function apply(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) { matched = null; countEl.textContent = ""; paint(); return; }
+    matched = new Set();
+    nodes.forEach((n, i) => {
+      if (n.label.toLowerCase().includes(q) || n.key.toLowerCase().includes(q)) matched.add(i);
+    });
+    countEl.textContent = matched.size ? `${matched.size} found` : "no match";
+    paint();
+  }
+
+  input.addEventListener("input", e => apply(e.target.value));
+
+  // Example queries, because most visitors will not type.
+  const CHIPS = ["rate limiting", "deploy", "postgres", "api"];
+  const chipsEl = document.getElementById("chips");
+  CHIPS.forEach(text => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.type = "button";
+    b.textContent = text;
+    b.addEventListener("click", () => {
+      input.value = text;
+      apply(text);
+      input.focus();
+    });
+    chipsEl.appendChild(b);
+  });
+
+  canvas.addEventListener("pointermove", e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    let best = -1, bestD = 400;
+    nodes.forEach((n, i) => {
+      const d = (n.x - x) ** 2 + (n.y - y) ** 2;
+      if (d < bestD) { best = i; bestD = d; }
+    });
+    if (best !== hover) { hover = best; canvas.style.cursor = best >= 0 ? "pointer" : "default"; paint(); }
+  });
+  canvas.addEventListener("pointerleave", () => { hover = -1; paint(); });
+
+  addEventListener("resize", () => { canvas.width = 0; paint(); });
+  paint();
+
+  // Show the effect once, unprompted — then hand control over.
+  if (!reduce) {
+    const seed = "rate limiting";
+    let shown = false;
+    const play = () => {
+      if (shown) return;
+      shown = true;
+      let i = 0;
+      const tick = () => {
+        input.value = seed.slice(0, ++i);
+        apply(input.value);
+        if (i < seed.length) setTimeout(tick, 62);
+        else setTimeout(() => { if (input.value === seed && document.activeElement !== input) { input.value = ""; apply(""); } }, 2400);
+      };
+      setTimeout(tick, 700);
+    };
+    new IntersectionObserver(es => es.forEach(e => e.isIntersecting && play()), { threshold: 0.4 })
+      .observe(canvas);
+  }
+
+  /* ------------------------------------------------------------------
+     Word segmentation demo. The tokens are the real newmm output for this
+     sentence; the point is that none of these boundaries is a space.
+     ------------------------------------------------------------------ */
+  const TOKENS = ["ตลาดหลักทรัพย์","แห่ง","ประเทศ","ไทย","ประกาศ","ดัชนี","ใหม่","เมื่อ","วาน","นี้"];
+  const QUERIES = [
+    { q: "ตลาดหลักทรัพย์", hit: ["ตลาดหลักทรัพย์"], en: "stock exchange" },
+    { q: "ประเทศไทย", hit: ["ประเทศ","ไทย"], en: "Thailand" },
+    { q: "ดัชนี", hit: ["ดัชนี"], en: "index" },
+  ];
+  const segEl = document.getElementById("seg");
+  const segQ = document.getElementById("segq");
+  let active = 0;
+
+  function drawSeg() {
+    const hit = QUERIES[active].hit;
+    segEl.innerHTML = "";
+    TOKENS.forEach(t => {
+      const span = document.createElement("span");
+      span.className = "tok" + (hit.includes(t) ? " on" : "");
+      span.textContent = t;
+      segEl.appendChild(span);
+    });
+    [...segQ.children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === active)));
+  }
+  QUERIES.forEach((entry, i) => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.type = "button";
+    b.innerHTML = `${entry.q} <span style="color:var(--ink-mute)">· ${entry.en}</span>`;
+    b.addEventListener("click", () => { active = i; drawSeg(); });
+    segQ.appendChild(b);
+  });
+  drawSeg();
+
+  /* Scroll reveals, one per section. */
+  if (!reduce) {
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }), { threshold: 0.12 });
+    document.querySelectorAll("section > .wrap").forEach(el => { el.classList.add("reveal"); io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>
