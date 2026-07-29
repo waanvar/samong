@@ -6,6 +6,41 @@ The version starts at 0.3.0: two earlier generations of the index and API existe
 during development but were never published, and the numbering keeps their
 lineage rather than pretending this is the first shape the project took.
 
+## 0.3.2
+
+The first release with an archive for every platform — see the last item.
+
+### The map is readable in a vault full of vendored docs
+
+A vault pointed at a project root can hold 425 read-only notes from
+`node_modules` against 5 of your own. At that ratio the graph stopped being a map
+and became a uniform field of rings with your own knowledge lost inside it.
+
+- **The graph now shows your notes plus one hop**: everything you wrote, and
+  whatever those notes link to directly. A borrowed documentation page you
+  actually cite belongs on your map; the other 423 do not.
+- Reference notes are one click away — **the legend is the switch**, and it says
+  how many are currently off the map. When they are shown they are drawn smaller
+  and fainter, so your own notes stay in front.
+- **A "not created yet" target only appears beside the note that names it.** They
+  used to float unattached once their source was filtered out.
+- Layout clusters by the folder a note actually sits in. It used to cluster by
+  the top-level folder, which is `node_modules` for every vendored file, so every
+  reference note landed in one group and the clustering said nothing.
+
+### The note list is usable at depth
+
+- **Chains of folders that contain nothing but each other collapse into one row.**
+  `node_modules/next/dist/docs` was five rows deep before the first readable
+  name, and the indentation truncated leaf labels to `0…`.
+
+### Fixed
+
+- **The Intel Mac archive is built again.** It asked for a `macos-13` runner,
+  which GitHub has retired, so that job queued indefinitely and the archive was
+  never published for 0.3.0 or 0.3.1. It now cross-compiles from the arm64
+  runner.
+
 ## 0.3.1
 
 The 0.3.0 binaries were built from a commit that predates the brand work below,
