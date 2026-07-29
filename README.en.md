@@ -272,6 +272,21 @@ cargo fmt --all -- --check
 > Note: run `cd web && npm run build` before the first `cargo test` so the
 > embedded-UI tests exercise a real build (they self-skip the UI part otherwise).
 
+### Changing the web UI means reinstalling
+
+The UI is **embedded into the binary at compile time** (rust-embed), so editing
+anything under `web/` and then running an already-installed `samong-server` still
+serves the old UI. Build, then install over it:
+
+```sh
+cd web && npm run build && cd ..
+cargo install --path . --force
+```
+
+While working on the UI, use `cd web && npm run dev` (hot reload, proxied to the
+API) or `cargo run --bin samong-server -- start`, which always picks up the
+latest `web/dist` — much faster than reinstalling on every change.
+
 ## Roadmap
 
 - Go public + publish release binaries (download and run, no Rust/Node needed)

@@ -256,6 +256,20 @@ cargo fmt --all -- --check
 > หมายเหตุ: ต้อง `cd web && npm run build` ก่อน `cargo test` ครั้งแรก เพื่อให้
 > เทสต์ที่เกี่ยวกับ UI ที่ฝังในไบนารีทำงานครบ (ถ้าไม่ build เทสต์จะข้ามส่วน UI ให้เอง)
 
+### แก้ Web UI แล้วต้องติดตั้งใหม่
+
+หน้าเว็บถูก**ฝังลงในไบนารีตอน compile** (rust-embed) ฉะนั้นแก้ไฟล์ใน `web/` แล้ว
+รัน `samong-server` ตัวที่ติดตั้งไว้ จะยังเห็น UI เก่า — ต้อง build แล้วติดตั้งทับ:
+
+```sh
+cd web && npm run build && cd ..
+cargo install --path . --force
+```
+
+ตอนพัฒนา UI ใช้ `cd web && npm run dev` (hot reload, proxy ไปที่ API) หรือรัน
+`cargo run --bin samong-server -- start` ซึ่งใช้ `web/dist` ที่ build ล่าสุดเสมอ
+จะเร็วกว่าการ `cargo install` ทุกครั้ง
+
 ## แผนต่อไป
 
 - เปิด public + เผยแพร่ release binary (โหลดไปรันได้โดยไม่ต้องมี Rust/Node)
