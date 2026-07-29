@@ -33,21 +33,40 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 
 ## ติดตั้ง
 
-### ความต้องการของระบบ
+### ดาวน์โหลดไบนารี (แนะนำ)
 
-ตอนนี้ Samong ติดตั้งด้วยการ **build จาก source** (ยังไม่ได้เปิด public / ยังไม่มี
-release binary สำเร็จรูป) จึงต้องมีเครื่องมือของนักพัฒนา:
+โหลดจาก [หน้า Releases](https://github.com/waanvar/samong/releases) แตกไฟล์ แล้วรัน
+**ไม่ต้องลง Rust หรือ Node** — หน้าเว็บฝังอยู่ในไบนารีแล้ว มีให้ 4 แพลตฟอร์ม:
+`x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
+`x86_64-macos` (Intel)
 
-- [**Rust**](https://rustup.rs) (stable) — **จำเป็น** ใช้ build ตัวโปรแกรม
-- [**Node.js**](https://nodejs.org) 20+ — **จำเป็นถ้าต้องการหน้าเว็บ** เพราะ UI ถูก
-  ฝังลงในไบนารีตอน build ถ้าไม่ลง Node จะได้เฉพาะ CLI + API
-  (`samong-server` จะเสิร์ฟ API อย่างเดียว)
+ตรวจไฟล์ที่โหลดมาได้จาก `.sha256` ที่แนบมาคู่กัน:
 
-> **ในอนาคตเมื่อเปิด public**: จะมี release binary ให้โหลด — end user แค่แตกไฟล์แล้ว
-> รัน `samong-server start` ได้เลย **ไม่ต้องลง Rust หรือ Node** (release.yml build
-> ไบนารีทั้ง 3 OS ให้อัตโนมัติเมื่อ tag เวอร์ชัน)
+```sh
+sha256sum -c samong-v0.3.0-x86_64-linux.tar.gz.sha256
+```
 
-### build จาก source
+#### ⚠️ ไบนารียังไม่ได้เซ็นดิจิทัล
+
+Samong ยังไม่มีใบรับรองสำหรับ code signing ฉะนั้นระบบปฏิบัติการจะขัดขวางไว้:
+
+**macOS** — Gatekeeper จะ*ปฏิเสธ*ไม่ให้เปิด (ไม่ใช่แค่เตือน) ปลดด้วยคำสั่งเดียว
+หลังแตกไฟล์:
+
+```sh
+xattr -d com.apple.quarantine samong samong-server samong-mcp
+```
+
+**Windows** — SmartScreen จะขึ้นเตือน กด **More info → Run anyway**
+
+> ทั้งสองกรณีเกิดกับซอฟต์แวร์โอเพนซอร์สที่ไม่มีงบซื้อใบรับรอง ไม่ใช่สัญญาณว่าไฟล์
+> ผิดปกติ — แต่คุณควรตรวจ checksum ข้างบนเสมอ และโหลดจากหน้า Releases ทางการเท่านั้น
+
+### หรือ build จาก source
+
+ต้องมี [**Rust**](https://rustup.rs) (stable) และ [**Node.js**](https://nodejs.org) 20+
+(Node จำเป็นถ้าต้องการหน้าเว็บ เพราะ UI ถูกฝังลงในไบนารีตอน build — ไม่ลง Node
+จะได้เฉพาะ CLI + API)
 
 ```sh
 git clone https://github.com/waanvar/samong.git
@@ -182,8 +201,9 @@ include = ["node_modules/next/dist/docs"]
 `samong update --check` เช็คว่ามีเวอร์ชันใหม่ไหมโดยไม่ติดตั้ง และ `samong-server start`
 จะแจ้งบรรทัดเดียวถ้ามีเวอร์ชันใหม่ (best-effort ไม่บล็อก ไม่ล้มถ้าออฟไลน์)
 
-> ต้องมี release เผยแพร่บน GitHub ก่อน (`git tag v0.1.0 && git push origin v0.1.0`
-> ให้ workflow build binary ทั้ง 3 OS) `samong update` ถึงจะหา release เจอ
+> วิธีออก release: `git tag v0.3.0 && git push origin v0.3.0` แล้ว
+> [release.yml](.github/workflows/release.yml) จะ build ไบนารีทั้ง 4 แพลตฟอร์ม
+> พร้อม checksum และแนบเข้า GitHub Release ให้เอง
 
 ## Web UI
 

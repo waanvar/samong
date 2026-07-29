@@ -37,21 +37,41 @@ the single source of truth.
 
 ## Install
 
-### Requirements
+### Download a binary (recommended)
 
-Samong currently installs by **building from source** (not public yet, no
-prebuilt release binaries), so you need the developer toolchain:
+Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
+run. **No Rust or Node needed** — the web UI is already inside the binary. Four
+platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
+`x86_64-macos` (Intel).
 
-- [**Rust**](https://rustup.rs) (stable) — **required**, builds the program
-- [**Node.js**](https://nodejs.org) 20+ — **required if you want the web UI**,
-  which is embedded into the binary at build time. Without Node you still get
-  the CLI + API (`samong-server` serves API only)
+Verify what you downloaded against the `.sha256` published beside it:
 
-> **Once it goes public**: prebuilt release binaries will be available — end
-> users just extract and run `samong-server start`, **no Rust or Node needed**
-> (release.yml builds binaries for all three OSes automatically on a version tag).
+```sh
+sha256sum -c samong-v0.3.0-x86_64-linux.tar.gz.sha256
+```
 
-### Build from source
+#### ⚠️ The binaries are not code-signed
+
+Samong has no code-signing certificate yet, so the OS will get in the way:
+
+**macOS** — Gatekeeper *refuses* to open it (not merely a warning). One command
+after extracting clears it:
+
+```sh
+xattr -d com.apple.quarantine samong samong-server samong-mcp
+```
+
+**Windows** — SmartScreen warns; choose **More info → Run anyway**.
+
+> Both happen to any open-source project without a paid certificate and are not a
+> sign that something is wrong with the file — but do check the checksum above,
+> and only download from the official Releases page.
+
+### Or build from source
+
+Needs [**Rust**](https://rustup.rs) (stable) and [**Node.js**](https://nodejs.org)
+20+ (Node only if you want the web UI, which is embedded into the binary at build
+time — without it you get the CLI + API).
 
 ```sh
 git clone https://github.com/waanvar/samong.git

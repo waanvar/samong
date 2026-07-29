@@ -24,6 +24,7 @@ fn asset_target() -> Option<&'static str> {
         ("x86_64", "linux") => Some("x86_64-linux"),
         ("x86_64", "windows") => Some("x86_64-windows"),
         ("aarch64", "macos") => Some("aarch64-macos"),
+        ("x86_64", "macos") => Some("x86_64-macos"),
         _ => None,
     }
 }
@@ -134,7 +135,13 @@ mod tests {
         // Whatever platform the test runs on, if we publish for it the string
         // must be one the release workflow actually produces.
         if let Some(t) = asset_target() {
-            assert!(["x86_64-linux", "x86_64-windows", "aarch64-macos"].contains(&t));
+            assert!([
+                "x86_64-linux",
+                "x86_64-windows",
+                "aarch64-macos",
+                "x86_64-macos",
+            ]
+            .contains(&t));
         }
     }
 
