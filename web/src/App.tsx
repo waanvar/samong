@@ -8,84 +8,78 @@ import {
   type VaultInfo,
 } from "./api";
 import { listenChanges } from "./ws";
-import { Sidebar } from "./components/Sidebar";
+import { GraphCanvas } from "./components/GraphCanvas";
+import { SearchPanel } from "./components/SearchPanel";
+import { DetailPanel } from "./components/DetailPanel";
+import { NoteTree } from "./components/NoteTree";
 import { Editor } from "./components/Editor";
-import { RightPanel } from "./components/RightPanel";
-import { GraphView } from "./components/GraphView";
-import { CommandPalette } from "./components/CommandPalette";
 import { VaultHealth } from "./components/VaultHealth";
 import { SamongMark } from "./components/SamongMark";
 
+/**
+ * The graph is the home surface: a vault is a shape, not a folder listing, and
+ * searching is how you enter it. Reading a note is a focused state on top of
+ * that map rather than a different application.
+ */
 export function App() {
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
-  const [vault, setVault] = useState<string>("");
+  const [vault, setVault] = useState("");
   const [notesByVault, setNotesByVault] = useState<Record<string, NoteInfo[]>>({});
-  // Notes are addressed by key (their path in the vault); the title is display
-  // only, because several files can share one.
-  const [noteKey, setNoteKey] = useState<string>("");
+  const [noteKey, setNoteKey] = useState("");
   const [readOnly, setReadOnly] = useState(false);
-  const [content, setContent] = useState<string>("");
+  const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [links, setLinks] = useState<NoteLinks | null>(null);
-  const [view, setView] = useState<"editor" | "graph">(() =>
-    new URLSearchParams(location.search).get("view") === "graph" ? "graph" : "editor",
-  );
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [matched, setMatched] = useState<Set<string> | null>(null);
+  const [allVaults, setAllVaults] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(true);
   const [healthOpen, setHealthOpen] = useState(false);
   const [status, setStatus] = useState("");
-  const [theme, setTheme] = useState(
-    () => document.documentElement.dataset.theme ?? "light",
-  );
+  const [revision, setRevision] = useState(0);
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? "dark");
 
   const title = noteKey ? titleFromKey(noteKey) : "";
+  const notes = useMemo(() => notesByVault[vault] ?? [], [notesByVault, vault]);
 
-  // Refs so WebSocket / debounce callbacks never see stale state.
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   const activeRef = useRef({ vault, noteKey, readOnly });
   activeRef.current = { vault, noteKey, readOnly };
   const contentRef = useRef(content);
   contentRef.current = content;
+  const saveTimer = useRef(0);
 
   const flash = useCallback((message: string) => {
     setStatus(message);
-    window.setTimeout(() => setStatus(""), 2500);
+    window.setTimeout(() => setStatus(""), 2600);
   }, []);
 
-  const notes = useMemo(() => notesByVault[vault] ?? [], [notesByVault, vault]);
-
-  const refreshNotes = useCallback(async (vaultName: string) => {
-    const list = await api.notes(vaultName);
-    setNotesByVault((prev) => ({ ...prev, [vaultName]: list }));
+  const refreshNotes = useCallback(async (name: string) => {
+    const list = await api.notes(name);
+    setNotesByVault((prev) => ({ ...prev, [name]: list }));
     return list;
   }, []);
 
-  const refreshLinks = useCallback(async (vaultName: string, key: string) => {
+  const refreshLinks = useCallback(async (name: string, key: string) => {
     try {
-      setLinks(await api.links(vaultName, key));
+      setLinks(await api.links(name, key));
     } catch {
       setLinks(null);
     }
   }, []);
 
-  /** Persist the current buffer now (used by ctrl+S, debounce, and
-   *  navigation away from a dirty note). */
   const saveNow = useCallback(
-    async (vaultName: string, key: string, body: string) => {
-      if (!vaultName || !key) return;
-      // Reference notes belong to a dependency: the server refuses the write,
-      // so don't pretend we tried.
+    async (name: string, key: string, body: string) => {
+      if (!name || !key) return;
       if (activeRef.current.noteKey === key && activeRef.current.readOnly) return;
       try {
-        const result = await api.save(vaultName, key, body);
+        const result = await api.save(name, key, body);
         setDirty(false);
-        flash(
-          result.indexed
-            ? "บันทึกแล้ว ✓"
-            : "บันทึกแล้ว — แต่ไฟล์นี้อยู่นอก scope จึงค้นหาไม่เจอ",
-        );
-        void refreshNotes(vaultName);
-        void refreshLinks(vaultName, key);
+        flash(result.indexed ? "บันทึกแล้ว" : "บันทึกแล้ว — ไฟล์นี้อยู่นอก scope จึงค้นไม่เจอ");
+        void refreshNotes(name);
+        void refreshLinks(name, key);
+        setRevision((r) => r + 1);
       } catch (err) {
         flash(`บันทึกไม่สำเร็จ: ${(err as Error).message}`);
       }
@@ -93,7 +87,6 @@ export function App() {
     [flash, refreshLinks, refreshNotes],
   );
 
-  const saveTimer = useRef<number>(0);
   const scheduleSave = useCallback(
     (body: string) => {
       setContent(body);
@@ -106,21 +99,20 @@ export function App() {
   );
 
   const openNote = useCallback(
-    async (vaultName: string, key: string) => {
+    async (name: string, key: string) => {
       window.clearTimeout(saveTimer.current);
       const previous = activeRef.current;
       if (dirtyRef.current && previous.noteKey) {
         await saveNow(previous.vault, previous.noteKey, contentRef.current);
       }
       try {
-        const note = await api.note(vaultName, key);
-        setVault(vaultName);
+        const note = await api.note(name, key);
+        setVault(name);
         setNoteKey(note.key);
         setReadOnly(note.reference);
         setContent(note.content);
         setDirty(false);
-        setView("editor");
-        void refreshLinks(vaultName, note.key);
+        void refreshLinks(name, note.key);
       } catch (err) {
         flash(`เปิดโน้ตไม่สำเร็จ: ${(err as Error).message}`);
       }
@@ -129,13 +121,15 @@ export function App() {
   );
 
   const createNote = useCallback(
-    async (vaultName: string, noteTitle: string) => {
+    async (name: string, noteTitle: string) => {
       const key = keyForTitle(noteTitle);
       try {
-        await api.save(vaultName, key, `# ${noteTitle}\n\n`);
-        await refreshNotes(vaultName);
-        await openNote(vaultName, key);
-        flash(`สร้าง "${noteTitle}" แล้ว`);
+        await api.save(name, key, `# ${noteTitle}\n\n`);
+        await refreshNotes(name);
+        await openNote(name, key);
+        setReading(true);
+        setRevision((r) => r + 1);
+        flash(`สร้าง “${noteTitle}” แล้ว`);
       } catch (err) {
         flash(`สร้างโน้ตไม่สำเร็จ: ${(err as Error).message}`);
       }
@@ -145,81 +139,75 @@ export function App() {
 
   const deleteNote = useCallback(async () => {
     const { vault: v, noteKey: k } = activeRef.current;
-    if (!k || !window.confirm(`ลบโน้ต "${k}" ?`)) return;
+    if (!k || !window.confirm(`ลบโน้ต “${k}” ?`)) return;
     try {
       const result = await api.remove(v, k);
-      const remaining = await refreshNotes(v);
-      const danglingNote =
-        result.dangling_backlinks.length > 0
-          ? ` (มี ${result.dangling_backlinks.length} โน้ตยังลิงก์มา)`
-          : "";
-      flash(`ลบ "${k}" แล้ว${danglingNote}`);
+      await refreshNotes(v);
+      const dangling = result.dangling_backlinks.length;
+      flash(`ลบ “${k}” แล้ว${dangling ? ` (ยังมี ${dangling} โน้ตลิงก์มา)` : ""}`);
       setNoteKey("");
       setContent("");
       setLinks(null);
-      if (remaining.length > 0) void openNote(v, remaining[0].key);
+      setReading(false);
+      setRevision((r) => r + 1);
     } catch (err) {
       flash(`ลบไม่สำเร็จ: ${(err as Error).message}`);
     }
-  }, [flash, openNote, refreshNotes]);
+  }, [flash, refreshNotes]);
 
-  /** Follow a [[wikilink]]. Targets name a *title*, so resolve it to a note
-   *  path: cross-vault when prefixed with a registered vault name, otherwise
-   *  inside the current vault — creating the note when it doesn't exist yet
-   *  (Obsidian behavior). An ambiguous title opens the first match, which is
-   *  what `samong doctor` warns about. */
+  /** A [[target]] names a title; resolve it to a path, creating the note if it
+   *  does not exist yet (Obsidian behaviour). */
   const followWikilink = useCallback(
     (target: string) => {
-      const resolve = (vaultName: string, wanted: string) =>
-        (notesByVault[vaultName] ?? []).find(
-          (n) => n.title === wanted || n.key === wanted,
-        );
-
+      const find = (name: string, wanted: string) =>
+        (notesByVault[name] ?? []).find((n) => n.title === wanted || n.key === wanted);
       const slash = target.indexOf("/");
       if (slash > 0) {
         const prefix = target.slice(0, slash);
         if (vaults.some((v) => v.name === prefix)) {
           const rest = target.slice(slash + 1);
-          const found = resolve(prefix, rest);
+          const found = find(prefix, rest);
           void openNote(prefix, found ? found.key : keyForTitle(rest));
           return;
         }
       }
-      const { vault: v } = activeRef.current;
-      const found = resolve(v, target);
-      if (found) void openNote(v, found.key);
-      else void createNote(v, target);
+      const found = find(activeRef.current.vault, target);
+      if (found) void openNote(activeRef.current.vault, found.key);
+      else void createNote(activeRef.current.vault, target);
     },
     [createNote, notesByVault, openNote, vaults],
   );
 
   const switchVault = useCallback(
-    async (vaultName: string) => {
-      setVault(vaultName);
-      const list = notesByVault[vaultName] ?? (await refreshNotes(vaultName));
-      if (list.length > 0) void openNote(vaultName, list[0].key);
-      else {
-        setNoteKey("");
-        setContent("");
-        setLinks(null);
-      }
+    async (name: string) => {
+      setVault(name);
+      setNoteKey("");
+      setContent("");
+      setLinks(null);
+      setReading(false);
+      await refreshNotes(name);
+      setRevision((r) => r + 1);
     },
-    [notesByVault, openNote, refreshNotes],
+    [refreshNotes],
   );
 
-  const addVault = useCallback(
-    async (name: string, path: string) => {
-      try {
-        const added = await api.addVault(name, path);
-        setVaults((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)));
-        await switchVault(added.name);
-        flash(`เพิ่ม vault "${added.name}" แล้ว`);
-      } catch (err) {
-        flash(`เพิ่ม vault ไม่สำเร็จ: ${(err as Error).message}`);
-      }
-    },
-    [flash, switchVault],
-  );
+  const addVault = useCallback(async () => {
+    const path = window.prompt(
+      "โฟลเดอร์ของ vault (พาธเต็ม)\nชี้ที่ root ของโปรเจกต์ได้เลย — Samong ข้าม node_modules และไฟล์ที่ gitignore ให้เอง",
+    );
+    if (!path?.trim()) return;
+    const suggested = path.trim().replace(/[/\\]+$/, "").split(/[/\\]/).pop() ?? "";
+    const name = window.prompt("ชื่อ vault (ใช้ใน [[ชื่อ/โน้ต]])", suggested);
+    if (!name?.trim()) return;
+    try {
+      const added = await api.addVault(name.trim(), path.trim());
+      setVaults((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)));
+      await switchVault(added.name);
+      flash(`เพิ่ม vault “${added.name}” แล้ว`);
+    } catch (err) {
+      flash(`เพิ่ม vault ไม่สำเร็จ: ${(err as Error).message}`);
+    }
+  }, [flash, switchVault]);
 
   const toggleTheme = useCallback(() => {
     const next = theme === "dark" ? "light" : "dark";
@@ -228,26 +216,14 @@ export function App() {
     setTheme(next);
   }, [theme]);
 
-  // ---- boot: vaults + notes of every vault (for palette + autocomplete) ----
+  // ---- boot ----
   useEffect(() => {
     void (async () => {
       try {
         const list = await api.vaults();
         setVaults(list);
         for (const v of list) void refreshNotes(v.name);
-        if (list.length > 0) {
-          const first = list[0].name;
-          setVault(first);
-          const notes = await api.notes(first);
-          setNotesByVault((prev) => ({ ...prev, [first]: notes }));
-          if (notes.length > 0) {
-            const note = await api.note(first, notes[0].key);
-            setNoteKey(note.key);
-            setReadOnly(note.reference);
-            setContent(note.content);
-            void refreshLinks(first, note.key);
-          }
-        }
+        if (list.length > 0) setVault(list[0].name);
       } catch (err) {
         flash(`เชื่อมต่อ server ไม่ได้: ${(err as Error).message}`);
       }
@@ -255,42 +231,40 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- real-time: refresh on server change events ----
-  useEffect(() => {
-    return listenChanges((event) => {
-      void refreshNotes(event.vault);
-      const { vault: v, noteKey: k } = activeRef.current;
-      if (event.vault === v && k) {
-        void refreshLinks(v, k);
-        if (!dirtyRef.current) {
-          void api.note(v, k).then(
-            (note) => setContent(note.content),
-            () => undefined, // the active note may have been deleted
-          );
+  useEffect(
+    () =>
+      listenChanges((event) => {
+        void refreshNotes(event.vault);
+        setRevision((r) => r + 1);
+        const { vault: v, noteKey: k } = activeRef.current;
+        if (event.vault === v && k) {
+          void refreshLinks(v, k);
+          if (!dirtyRef.current) {
+            void api.note(v, k).then(
+              (note) => setContent(note.content),
+              () => undefined,
+            );
+          }
         }
-      }
-    });
-  }, [refreshLinks, refreshNotes]);
+      }),
+    [refreshLinks, refreshNotes],
+  );
 
-  // ---- global shortcuts ----
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         const { vault: v, noteKey: k } = activeRef.current;
         window.clearTimeout(saveTimer.current);
         void saveNow(v, k, contentRef.current);
       }
+      if (e.key === "Escape" && reading) setReading(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [saveNow]);
+  }, [saveNow, reading]);
 
-  /** Every note across every vault, for the palette and `[[` autocomplete. */
+  const vaultNames = useMemo(() => vaults.map((v) => v.name), [vaults]);
   const allNotes = useMemo(() => {
     const out: { vault: string; key: string; title: string }[] = [];
     for (const v of vaults) {
@@ -301,62 +275,137 @@ export function App() {
     return out;
   }, [vaults, notesByVault]);
 
+  if (vaults.length === 0) {
+    return (
+      <div className="app onboard">
+        <div className="onboard-card">
+          <SamongMark size={44} />
+          <h1>Samong</h1>
+          <p>
+            ชี้ไปที่โฟลเดอร์โน้ตหรือ root ของโปรเจกต์ แล้ว Samong จะทำแผนที่ความรู้ให้
+            โดยข้าม <code>node_modules</code> และไฟล์ที่ <code>.gitignore</code> กันไว้เอง
+          </p>
+          <button className="btn primary lg" onClick={() => void addVault()}>
+            เพิ่ม vault แรก
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className={`app ${reading ? "is-reading" : ""}`}>
+      <header className="frame-top">
         <span className="brand">
-          <SamongMark size={22} />
+          <SamongMark size={20} />
           Samong
         </span>
-        <span className="crumb">
-          {vault && (
-            <>
-              {vault} / <b>{title || "—"}</b>
-              {readOnly && " 🔒"}
-              {dirty && " •"}
-            </>
-          )}
-        </span>
-        <span className="spacer" />
+
+        <div className="vault-switch">
+          <select
+            value={vault}
+            onChange={(e) =>
+              e.target.value === "__add" ? void addVault() : void switchVault(e.target.value)
+            }
+            aria-label="เลือก vault"
+          >
+            {vaults.map((v) => (
+              <option key={v.name} value={v.name}>
+                {v.name}
+              </option>
+            ))}
+            <option value="__add">+ เพิ่ม vault…</option>
+          </select>
+        </div>
+
+        <SearchPanel
+          vault={vault}
+          allVaults={allVaults}
+          onMatches={setMatched}
+          onOpen={(v, k) => void openNote(v, k)}
+          onCreate={(t) => void createNote(vault, t)}
+        />
+
         <span className="status-flash" role="status">
           {status}
         </span>
-        <button className="btn" onClick={() => setPaletteOpen(true)}>
-          ค้นหา… <kbd>Ctrl K</kbd>
-        </button>
-        <button
-          className={`btn ${view === "graph" ? "active" : ""}`}
-          onClick={() => setView(view === "graph" ? "editor" : "graph")}
-        >
-          กราฟ
-        </button>
-        <button className="btn" onClick={() => setHealthOpen(true)} disabled={!vault}>
+
+        {vaults.length > 1 && (
+          <button
+            className={`btn ${allVaults ? "on" : ""}`}
+            onClick={() => setAllVaults(!allVaults)}
+            title="รวมทุก vault ในแผนที่เดียว"
+          >
+            ทุก vault
+          </button>
+        )}
+        <button className="btn" onClick={() => setHealthOpen(true)}>
           สภาพ vault
         </button>
-        <button className="btn" onClick={toggleTheme} aria-label="สลับธีม">
-          {theme === "dark" ? "☀️" : "🌙"}
+        <button className="btn icon" onClick={toggleTheme} aria-label="สลับธีม">
+          {theme === "dark" ? "☀" : "☾"}
         </button>
       </header>
 
-      <div className="workspace">
-        <Sidebar
-          vaults={vaults}
-          vault={vault}
-          notes={notes}
-          active={noteKey}
-          onSwitchVault={(v) => void switchVault(v)}
-          onOpen={(key) => void openNote(vault, key)}
-          onCreate={(t) => void createNote(vault, t)}
-          onAddVault={(name, path) => void addVault(name, path)}
-        />
+      <div className="frame-body">
+        <aside className={`rail ${treeOpen ? "open" : ""}`}>
+          <button
+            className="rail-toggle"
+            onClick={() => setTreeOpen(!treeOpen)}
+            aria-expanded={treeOpen}
+          >
+            <span aria-hidden>{treeOpen ? "‹" : "›"}</span>
+            <span className="rail-toggle-label">รายการโน้ต</span>
+          </button>
+          {treeOpen && (
+            <div className="rail-body">
+              <NoteTree notes={notes} active={noteKey} onOpen={(k) => void openNote(vault, k)} />
+            </div>
+          )}
+        </aside>
 
-        {view === "graph" ? (
-          <GraphView
+        <main className="stage">
+          <GraphCanvas
             vault={vault}
-            vaults={vaults.map((v) => v.name)}
-            onOpen={(v, key) => void openNote(v, key)}
+            vaults={vaultNames}
+            allVaults={allVaults}
+            matched={matched}
+            selectedKey={noteKey}
+            onSelect={(v, k) => void openNote(v, k)}
+            revision={revision}
           />
-        ) : noteKey ? (
+          {matched && (
+            <div className="stage-note">
+              เน้นเฉพาะ {matched.size} โน้ตที่ตรงกับคำค้น — กด Esc ในช่องค้นเพื่อกลับมาดูทั้งหมด
+            </div>
+          )}
+        </main>
+
+        <DetailPanel
+          vault={vault}
+          noteKey={noteKey}
+          title={title}
+          content={content}
+          readOnly={readOnly}
+          links={links}
+          onOpenKey={(k) => void openNote(vault, k)}
+          onFollow={followWikilink}
+          onExpand={() => setReading(true)}
+          onDelete={() => void deleteNote()}
+        />
+      </div>
+
+      {reading && noteKey && (
+        <div className="reader">
+          <div className="reader-bar">
+            <span className="reader-title">{title}</span>
+            <span className="path">{noteKey}</span>
+            {dirty && <span className="reader-dirty">ยังไม่บันทึก</span>}
+            <span className="spacer" />
+            <button className="btn" onClick={() => setReading(false)}>
+              กลับไปที่แผนที่ <kbd>Esc</kbd>
+            </button>
+          </div>
           <Editor
             title={title}
             noteKey={noteKey}
@@ -368,24 +417,8 @@ export function App() {
             onFollow={followWikilink}
             onDelete={() => void deleteNote()}
           />
-        ) : (
-          <div className="welcome">
-            <SamongMark size={56} />
-            <p>
-              เลือกโน้ตจากด้านซ้าย หรือกด <kbd>Ctrl K</kbd> เพื่อค้นหา/สร้างโน้ตใหม่
-            </p>
-          </div>
-        )}
-
-        {view === "editor" && (
-          <RightPanel
-            links={links}
-            content={content}
-            onOpenKey={(key) => void openNote(vault, key)}
-            onOpenTarget={followWikilink}
-          />
-        )}
-      </div>
+        </div>
+      )}
 
       {healthOpen && vault && (
         <VaultHealth
@@ -394,21 +427,6 @@ export function App() {
           onOpen={(key) => {
             setHealthOpen(false);
             void openNote(vault, key);
-          }}
-        />
-      )}
-
-      {paletteOpen && (
-        <CommandPalette
-          allNotes={allNotes}
-          onClose={() => setPaletteOpen(false)}
-          onOpen={(v, key) => {
-            setPaletteOpen(false);
-            void openNote(v, key);
-          }}
-          onCreate={(t) => {
-            setPaletteOpen(false);
-            void createNote(vault, t);
           }}
         />
       )}

@@ -1,104 +1,94 @@
 /* ============================================================================
-   Samong — "graphite & highlighter"
+   Samong — an instrument for a mind
 
-   The product's whole thesis is that Thai has no spaces between words and Samong
-   finds the boundaries anyway. So the interface treats a *match* as the precious
-   thing: the highlighter colour appears nowhere except on matched text and on
-   what is active right now, and every match shows the word edges the segmenter
-   found as hairline ticks. Everything else stays graphite and quiet.
+   The graph is the workspace. A vault is a shape you learn to recognise, and
+   searching is how you enter it: type, and everything that does not match falls
+   away. So the palette is built for luminous data on a deep neutral ground, the
+   way an instrument panel is, and one accent — `--found` — is reserved for the
+   single meaning "this is what you were looking for".
 
-   Ground is a cool blue-grey, not warm paper. Indigo carries interaction and
-   links (a connection between notes is a kind of citation). Paths are set in
-   mono, because a path is an identifier, not prose.
+   Vault hues are a fixed, validated categorical set (colour-vision safe and
+   contrast-checked against both surfaces). They are never cycled: identity is
+   also carried by the legend, so colour is never the only signal.
+
+   The product is global. Thai word segmentation is something it is unusually
+   good at, not a theme — the only place that capability shows in the visual
+   language is the word-boundary tick on a matched token, which is information.
    ========================================================================== */
 
 :root {
-  color-scheme: light;
-
-  --paper: #eef0f4;
-  --surface: #fbfcfd;
-  --surface-2: #e3e6ed;
-  --surface-3: #d7dbe5;
-  --ink: #161922;
-  --ink-2: #3c4353;
-  --ink-mute: #6b7385;
-  --line: #d3d7e1;
-  --line-strong: #b9bfcd;
-
-  /* Reserved: matches and "now". Never used for body text. */
-  --mark: #d8f24a;
-  --mark-edge: #8a9c14;
-  --mark-wash: color-mix(in oklab, var(--mark) 55%, transparent);
-
-  /* Interaction + connections. */
-  --accent: #3f4ddb;
-  --accent-ink: #ffffff;
-  --accent-wash: color-mix(in oklab, var(--accent) 10%, transparent);
-  --link: #3a3fb0;
-  --link-wash: color-mix(in oklab, var(--link) 9%, transparent);
-
-  --danger: #b3352c;
-  --ok: #2c7a52;
-  --warn: #9a6410;
-
-  --v1: #3f4ddb;
-  --v2: #b06c12;
-  --v3: #2c7a72;
-  --v4: #8e3f9e;
-  --v5: #b3352c;
-  --v6: #4a6b2f;
-
-  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
-  --font-ui: "IBM Plex Sans Thai", system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-
-  --shadow-1: 0 1px 2px rgba(22, 25, 34, 0.06);
-  --shadow-2: 0 12px 40px -12px rgba(22, 25, 34, 0.28);
-
-  --radius: 7px;
-  --radius-sm: 4px;
-
-  /* Thai needs generous leading: sara sit above and below the base line. */
-  --leading-body: 1.75;
-  --leading-tight: 1.35;
-}
-
-:root[data-theme="dark"] {
   color-scheme: dark;
 
-  --paper: #12141a;
-  --surface: #191c24;
-  --surface-2: #22262f;
-  --surface-3: #2b303b;
-  --ink: #e7eaf1;
-  --ink-2: #bcc2d0;
-  --ink-mute: #8b93a5;
-  --line: #2c313c;
-  --line-strong: #3d4351;
+  --void: #0d1014;
+  --surface: #14181e;
+  --surface-2: #1b2028;
+  --surface-3: #242a34;
+  --ink: #e8ecf2;
+  --ink-2: #b7bfcc;
+  --ink-mute: #8792a3;
+  --line: #262c36;
+  --line-strong: #39414e;
 
-  --mark: #dcff5a;
-  --mark-edge: #b6e02a;
-  --mark-wash: color-mix(in oklab, var(--mark) 26%, transparent);
+  /* Reserved for "found" and "now". Distinct from every vault hue on purpose. */
+  --found: #d8f24a;
+  --found-edge: #b6d423;
+  --found-wash: color-mix(in oklab, var(--found) 20%, transparent);
 
-  --accent: #8b95ff;
-  --accent-ink: #10121a;
+  --accent: #6f8dff;
+  --accent-ink: #0d1014;
   --accent-wash: color-mix(in oklab, var(--accent) 16%, transparent);
-  --link: #9aa2ff;
+  --link: #8fa3ff;
   --link-wash: color-mix(in oklab, var(--link) 14%, transparent);
 
   --danger: #e88378;
   --ok: #6fce9d;
   --warn: #e0b063;
 
-  --v1: #8b95ff;
-  --v2: #e0b063;
-  --v3: #6fcec2;
-  --v4: #d38ee2;
-  --v5: #e88378;
-  --v6: #a8cf7a;
+  /* Validated categorical set — see PLAN.md. Fixed order, never cycled. */
+  --v1: #4a7fd4;
+  --v2: #c47b16;
+  --v3: #a35fc4;
+  --v4: #0f9b7e;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
+  --font-display: "Bai Jamjuree", "IBM Plex Sans Thai", system-ui, sans-serif;
+  --font-ui: "IBM Plex Sans Thai", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --shadow-2: 0 24px 60px -20px rgba(0, 0, 0, 0.75);
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  /* Thai sets sara above and below the line and needs the room. */
+  --leading-body: 1.75;
+  --leading-tight: 1.3;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --void: #eceef2;
+  --surface: #f8f9fb;
+  --surface-2: #e6e9ef;
+  --surface-3: #d8dce4;
+  --ink: #12161d;
+  --ink-2: #3a4250;
+  --ink-mute: #646d7d;
+  --line: #dcdfe7;
+  --line-strong: #bcc2cd;
+
+  --found: #b9d61f;
+  --found-edge: #7f9410;
+  --found-wash: color-mix(in oklab, var(--found) 34%, transparent);
+
+  --accent: #3b4fd0;
+  --accent-ink: #ffffff;
+  --link: #3843b4;
+
+  --danger: #b3352c;
+  --ok: #2c7a52;
+  --warn: #8f5c0d;
+
+  --shadow-2: 0 20px 52px -22px rgba(18, 22, 29, 0.32);
 }
 
 * {
@@ -110,13 +100,11 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  /* A fixed three-pane shell: each pane scrolls itself, the document never does.
-     Without this the page can rubber-band on touch and drift under a scrollbar. */
   overflow: hidden;
 }
 
 body {
-  background: var(--paper);
+  background: var(--void);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 14px;
@@ -129,7 +117,6 @@ body {
   color: inherit;
 }
 
-/* Keyboard users must always be able to see where they are. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -143,95 +130,70 @@ code,
   letter-spacing: -0.01em;
 }
 
-/* ---------- app shell ---------- */
-
-.app {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100%;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  block-size: 52px;
-  background: var(--surface);
-  border-block-end: 1px solid var(--line);
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: -0.015em;
-}
-
-.crumb {
+.path {
   color: var(--ink-mute);
-  font-size: 13px;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.crumb b {
-  color: var(--ink);
-  font-weight: 600;
+.empty-hint {
+  margin: 6px 0;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.65;
 }
 
 .spacer {
   flex: 1;
 }
 
-.status-flash {
-  color: var(--ink-mute);
-  font-size: 12.5px;
-  white-space: nowrap;
-}
+/* Colour is never transitioned anywhere in this file, on purpose.
+   Every colour here comes from a custom property, and a transition on a
+   token-valued colour cannot be interpolated when the token itself changes:
+   flipping the theme strands the computed colour on the old value, which showed
+   up as a search field and buttons still painted dark in light mode. Only
+   layout and transform animate. Hover feedback is instant, which in a dense
+   tool reads as responsive rather than abrupt. */
+
+/* ---------- buttons ---------- */
 
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 11px;
-  background: var(--surface);
+  background-color: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   color: var(--ink-2);
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--surface-2);
+  background-color: var(--surface-3);
   color: var(--ink);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.42;
   cursor: not-allowed;
 }
 
 .btn.primary {
-  background: var(--accent);
+  background-color: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 500;
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+  background-color: color-mix(in oklab, var(--accent) 86%, white);
   color: var(--accent-ink);
+}
+
+.btn.lg {
+  padding: 10px 18px;
+  font-size: 14px;
 }
 
 .btn.danger:hover:not(:disabled) {
@@ -239,100 +201,571 @@ code,
   color: var(--danger);
 }
 
-/* "Active" is now, so it earns the highlighter. */
-.btn.active {
-  background: var(--mark-wash);
-  border-color: var(--mark-edge);
+/* A toggle that is on is "now", so it takes the found accent. */
+.btn.on {
+  background-color: var(--found-wash);
+  border-color: var(--found-edge);
   color: var(--ink);
+}
+
+.btn.icon {
+  padding: 6px 9px;
 }
 
 kbd {
   padding: 1px 5px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);
-  font-size: 11px;
-  /* Small text on a tinted chip: --ink-mute would not clear AA here. */
+  font-size: 10.5px;
   color: var(--ink-2);
 }
 
-.workspace {
+/* ---------- frame ---------- */
+
+.app {
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr) 272px;
-  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
 }
 
-.workspace > * {
-  min-height: 0;
-  overflow: auto;
-}
-
-/* Load in as one movement rather than three separate effects. */
-@media (prefers-reduced-motion: no-preference) {
-  .topbar,
-  .sidebar,
-  .editor-body,
-  .right-panel,
-  .welcome,
-  .graph-view {
-    animation: rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
-  }
-  .sidebar {
-    animation-delay: 40ms;
-  }
-  .editor-body,
-  .welcome,
-  .graph-view {
-    animation-delay: 70ms;
-  }
-  .right-panel {
-    animation-delay: 100ms;
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
-/* ---------- sidebar + note tree ---------- */
-
-.sidebar {
+.frame-top {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 8px 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
   background: var(--surface);
-  border-inline-end: 1px solid var(--line);
+  border-block-end: 1px solid var(--line);
+  z-index: 3;
 }
 
-.sidebar-head {
-  display: flex;
-  gap: 6px;
-  padding: 0 4px 10px;
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.015em;
 }
 
-.vault-select {
-  flex: 1;
-  min-inline-size: 0;
+.vault-switch select {
   padding: 6px 8px;
   background: var(--surface-2);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   font-size: 13px;
+  max-inline-size: 150px;
   cursor: pointer;
 }
+
+.status-flash {
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  white-space: nowrap;
+  max-inline-size: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- search: the way into the graph ---------- */
+
+.search-panel {
+  position: relative;
+  flex: 1;
+  min-inline-size: 0;
+  max-inline-size: 620px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background-color: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+
+.search-field:focus-within {
+  border-color: var(--found-edge);
+  background-color: var(--surface);
+}
+
+.search-icon {
+  color: var(--ink-mute);
+  font-size: 15px;
+}
+
+.search-field input {
+  flex: 1;
+  min-inline-size: 0;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  font-size: 14px;
+}
+
+.search-field input:focus {
+  outline: none;
+}
+
+.search-field input::placeholder {
+  color: var(--ink-mute);
+}
+
+.search-meta,
+.search-clear {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+.search-clear {
+  padding: 2px 5px;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.search-clear:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.search-results {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(100% + 8px);
+  max-block-size: min(62vh, 520px);
+  overflow: auto;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-results {
+    animation: drop 160ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.search-hit {
+  display: grid;
+  gap: 3px;
+  inline-size: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.search-hit.sel {
+  background: var(--accent-wash);
+}
+
+.search-hit.create {
+  color: var(--accent);
+}
+
+.hit-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.hit-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hit-head .path {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: end;
+}
+
+.snippet {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The one place the segmentation capability is visible: the band marks what
+   matched, the hairlines mark where the tokenizer cut a word. In a language
+   without spaces between words, that cut is the whole trick. */
+.snippet b {
+  position: relative;
+  padding: 0 1px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--found-wash);
+  border-radius: 1px;
+}
+
+.snippet b::before,
+.snippet b::after {
+  content: "";
+  position: absolute;
+  inset-block: -2px;
+  inline-size: 1px;
+  background: var(--found-edge);
+  opacity: 0.8;
+}
+
+.snippet b::before {
+  inset-inline-start: -1px;
+}
+
+.snippet b::after {
+  inset-inline-end: -1px;
+}
+
+/* ---------- body: rail | stage | detail ---------- */
+
+.frame-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 380px;
+  min-height: 0;
+}
+
+.rail {
+  display: flex;
+  min-height: 0;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--line);
+  inline-size: 34px;
+  transition: inline-size 180ms ease;
+}
+
+.rail.open {
+  inline-size: 250px;
+}
+
+.rail-toggle {
+  flex: 0 0 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  border-inline-end: 1px solid var(--line);
+  color: var(--ink-mute);
+  cursor: pointer;
+}
+
+.rail-toggle:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.rail-toggle-label {
+  writing-mode: vertical-rl;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.rail-body {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: auto;
+  padding: 8px 6px 20px;
+}
+
+.stage {
+  position: relative;
+  min-inline-size: 0;
+  background: var(--void);
+  overflow: hidden;
+}
+
+.stage-note {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 10px;
+  margin-inline: auto;
+  inline-size: max-content;
+  max-inline-size: 90%;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid var(--found-edge);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+/* ---------- graph ---------- */
+
+.graph-canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.graph-canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.graph-canvas:active {
+  cursor: grabbing;
+}
+
+/* Hover detail is HTML, not painted into the canvas, so text stays selectable
+   and legible at any device pixel ratio. */
+.graph-tip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(12px, -50%);
+  display: grid;
+  gap: 1px;
+  max-inline-size: 280px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  font-size: 12.5px;
+}
+
+.graph-tip .path {
+  overflow-wrap: anywhere;
+}
+
+.graph-tip-meta {
+  color: var(--ink-mute);
+  font-size: 11.5px;
+}
+
+.graph-legend,
+.graph-scale {
+  position: absolute;
+  inset-block-end: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 11px;
+  background: color-mix(in oklab, var(--surface) 90%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 11.5px;
+}
+
+.graph-legend {
+  inset-inline-start: 12px;
+  flex-wrap: wrap;
+  max-inline-size: 45%;
+}
+
+.graph-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.graph-scale {
+  inset-inline-end: 12px;
+  gap: 7px;
+}
+
+.dot {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot.solid {
+  background: var(--v1);
+}
+
+.dot.hollow {
+  border: 1.6px solid var(--v1);
+}
+
+.dot.dashed {
+  border: 1.4px dashed var(--ink-mute);
+}
+
+/* ---------- detail column ---------- */
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line);
+}
+
+.detail-empty {
+  padding: 28px 20px;
+  color: var(--ink-mute);
+}
+
+.detail-head {
+  padding: 16px 18px 12px;
+  border-block-end: 1px solid var(--line);
+  position: sticky;
+  inset-block-start: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
+.detail-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.015em;
+}
+
+.detail-path {
+  margin-block-start: 4px;
+  overflow-wrap: anywhere;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 7px;
+  margin-block-start: 12px;
+}
+
+.ref-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+.detail-links {
+  padding: 12px 18px;
+  border-block-end: 1px solid var(--line);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.chip-row + .chip-row {
+  margin-block-start: 8px;
+}
+
+.chip-label {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-inline-end: 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  background: var(--link-wash);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--link);
+  font-size: 12.5px;
+  cursor: pointer;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--link);
+}
+
+/* A link with nothing behind it, and a title that names several files, are both
+   worth seeing while reading — not only when a command reports them. */
+.chip.dangling {
+  background: none;
+  border-style: dashed;
+  border-color: var(--line-strong);
+  color: var(--ink-mute);
+}
+
+.chip.ambiguous {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: color-mix(in oklab, var(--warn) 12%, transparent);
+}
+
+.chip.cross {
+  background: none;
+  border-color: var(--line-strong);
+}
+
+.chip-flag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.detail-body {
+  padding: 14px 18px 40px;
+}
+
+/* ---------- note tree (in the rail) ---------- */
 
 .side-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 14px 6px 6px;
+  padding: 12px 6px 5px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -355,13 +788,14 @@ kbd {
   align-items: center;
   gap: 6px;
   inline-size: 100%;
-  padding: 4px 8px;
+  padding: 3px 7px;
   background: none;
   border: 0;
   border-radius: var(--radius-sm);
   text-align: start;
   cursor: pointer;
   line-height: 1.5;
+  font-size: 13px;
 }
 
 .tree-list button:hover {
@@ -392,7 +826,6 @@ kbd {
   transform: rotate(90deg);
 }
 
-/* Counts are data, so they are set in mono and never shout. */
 .tree-count {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -404,10 +837,9 @@ kbd {
   color: var(--ink-2);
 }
 
-/* The open note is "now": highlighter, plus an edge tick like a match. */
 .tree-note.active {
   position: relative;
-  background: var(--mark-wash);
+  background: var(--found-wash);
   color: var(--ink);
   font-weight: 500;
 }
@@ -418,7 +850,7 @@ kbd {
   inset-block: 3px;
   inset-inline-start: 0;
   inline-size: 2px;
-  background: var(--mark-edge);
+  background: var(--found-edge);
   border-radius: 2px;
 }
 
@@ -427,21 +859,48 @@ kbd {
   opacity: 0.6;
 }
 
-.ref-badge {
-  padding: 1px 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ink-mute);
-  white-space: nowrap;
+/* ---------- reader (focused note) ---------- */
+
+.reader {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--void);
 }
 
-.empty-hint {
-  margin: 6px;
-  color: var(--ink-mute);
-  font-size: 12.5px;
-  line-height: 1.65;
+@media (prefers-reduced-motion: no-preference) {
+  .reader {
+    animation: reader-in 200ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
+@keyframes reader-in {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+}
+
+.reader-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-block-end: 1px solid var(--line);
+}
+
+.reader-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.reader-dirty {
+  color: var(--warn);
+  font-size: 12px;
 }
 
 /* ---------- editor ---------- */
@@ -450,20 +909,15 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--surface);
   border-block-end: 1px solid var(--line);
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 2;
 }
 
 .editor-toolbar .title {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.012em;
-  line-height: var(--leading-tight);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -479,7 +933,7 @@ kbd {
 
 .mode-switch button {
   padding: 5px 11px;
-  background: var(--surface);
+  background: var(--surface-2);
   border: 0;
   color: var(--ink-mute);
   font-size: 12.5px;
@@ -491,7 +945,7 @@ kbd {
 }
 
 .mode-switch button.on {
-  background: var(--mark-wash);
+  background: var(--found-wash);
   color: var(--ink);
   font-weight: 500;
 }
@@ -504,12 +958,6 @@ kbd {
 
 .editor-body.split {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-@media (max-width: 860px) {
-  .editor-body.split {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .editor-wrap,
@@ -526,8 +974,8 @@ kbd {
   display: block;
   inline-size: 100%;
   min-block-size: 100%;
-  padding: 24px 28px 40vh;
-  background: var(--paper);
+  padding: 26px 30px 40vh;
+  background: var(--void);
   border: 0;
   resize: none;
   font-family: var(--font-mono);
@@ -545,9 +993,14 @@ kbd {
   color: var(--ink-2);
 }
 
+/* ---------- markdown ---------- */
+
 .preview {
-  padding: 24px 30px 40vh;
-  max-inline-size: 74ch;
+  max-inline-size: 72ch;
+}
+
+.reader .preview {
+  padding: 26px 30px 40vh;
 }
 
 .preview h1,
@@ -562,19 +1015,14 @@ kbd {
 }
 
 .preview h1 {
-  font-size: 25px;
+  font-size: 24px;
   margin-block-start: 0;
 }
 .preview h2 {
-  font-size: 20px;
+  font-size: 19px;
 }
 .preview h3 {
-  font-size: 16.5px;
-}
-
-.preview p,
-.preview li {
-  line-height: var(--leading-body);
+  font-size: 16px;
 }
 
 .preview code {
@@ -584,7 +1032,7 @@ kbd {
 }
 
 .preview pre {
-  padding: 14px 16px;
+  padding: 13px 15px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -598,7 +1046,7 @@ kbd {
 
 .preview blockquote {
   margin-inline: 0;
-  padding-inline-start: 14px;
+  padding-inline-start: 13px;
   border-inline-start: 2px solid var(--line-strong);
   color: var(--ink-2);
 }
@@ -618,7 +1066,6 @@ kbd {
   max-inline-size: 100%;
 }
 
-/* A wikilink is a citation between notes: indigo, underlined on hover only. */
 .wikilink {
   padding: 0 2px;
   background: var(--link-wash);
@@ -635,7 +1082,7 @@ kbd {
 
 .wiki-suggest {
   position: absolute;
-  z-index: 5;
+  z-index: 20;
   min-inline-size: 240px;
   max-block-size: 240px;
   overflow: auto;
@@ -656,7 +1103,7 @@ kbd {
 }
 
 .wiki-suggest li.sel {
-  background: var(--mark-wash);
+  background: var(--found-wash);
 }
 
 .wiki-suggest .cross {
@@ -668,243 +1115,34 @@ kbd {
   font-size: 11.5px;
 }
 
-/* ---------- right panel ---------- */
+/* ---------- onboarding ---------- */
 
-.right-panel {
-  padding: 12px 10px 24px;
-  background: var(--surface);
-  border-inline-start: 1px solid var(--line);
-}
-
-.panel-section + .panel-section {
-  margin-block-start: 8px;
-}
-
-.backlink-list,
-.outline-list,
-.plain-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.backlink-list button,
-.outline-list button {
-  display: block;
-  inline-size: 100%;
-  padding: 4px 8px;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  text-align: start;
-  color: var(--ink-2);
-  font-size: 13px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.backlink-list button:hover,
-.outline-list button:hover {
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.backlink-list .cross button {
-  color: var(--link);
-}
-
-.outline-list .lvl-2 button {
-  padding-inline-start: 22px;
-}
-
-.outline-list .lvl-3 button {
-  padding-inline-start: 34px;
-}
-
-.link-btn {
-  padding: 2px 4px;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--link);
-  cursor: pointer;
-  text-align: start;
-}
-
-.link-btn:hover {
-  background: var(--link-wash);
-}
-
-/* ---------- welcome ---------- */
-
-.welcome {
+.app.onboard {
   display: grid;
-  place-content: center;
+  place-items: center;
+  background: var(--void);
+}
+
+.onboard-card {
+  display: grid;
   justify-items: center;
-  gap: 16px;
+  gap: 14px;
+  max-inline-size: 46ch;
   padding: 40px;
   text-align: center;
-  color: var(--ink-mute);
 }
 
-.welcome p {
-  max-inline-size: 34ch;
-  line-height: 1.7;
-}
-
-/* ---------- command palette ---------- */
-
-.palette-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  padding-block-start: 12vh;
-  background: color-mix(in oklab, var(--paper) 62%, transparent);
-  backdrop-filter: blur(3px);
-}
-
-.palette {
-  inline-size: min(680px, 92vw);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  box-shadow: var(--shadow-2);
-  overflow: hidden;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .palette {
-    animation: rise 180ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
-  }
-}
-
-.palette input {
-  inline-size: 100%;
-  padding: 15px 18px;
-  background: none;
-  border: 0;
-  border-block-end: 1px solid var(--line);
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.palette input:focus {
-  outline: none;
-}
-
-.palette ul {
-  list-style: none;
+.onboard-card h1 {
   margin: 0;
-  padding: 6px;
-  max-block-size: 54vh;
-  overflow: auto;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.palette li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.palette li.sel {
-  background: var(--accent-wash);
-}
-
-.palette .kind {
-  align-self: center;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-}
-
-.palette .title {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.palette .create {
-  color: var(--accent);
-}
-
-.palette .snippet {
-  grid-column: 2;
+.onboard-card p {
+  margin: 0;
   color: var(--ink-2);
-  font-size: 12.5px;
-  line-height: 1.7;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* ---------- the signature: a match, and the word edges around it ----------
-   Thai runs together with no spaces, so a Thai search hit is proof that
-   something found the boundary. The band marks what matched; the ticks mark
-   where the segmenter cut. This is the one place the highlighter appears in
-   prose, and the only decoration in the interface that carries information. */
-
-.snippet b {
-  position: relative;
-  padding: 0 1px;
-  font-weight: 500;
-  color: var(--ink);
-  background: var(--mark-wash);
-  border-radius: 1px;
-}
-
-.snippet b::before,
-.snippet b::after {
-  content: "";
-  position: absolute;
-  inset-block: -2px;
-  inline-size: 1px;
-  background: var(--mark-edge);
-  opacity: 0.75;
-}
-
-.snippet b::before {
-  inset-inline-start: -1px;
-}
-
-.snippet b::after {
-  inset-inline-end: -1px;
-}
-
-/* Adjacent matched tokens are two cuts, not one: keep both ticks visible. */
-.snippet b + b {
-  margin-inline-start: 1px;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .snippet b {
-    animation: mark-in 220ms ease-out both;
-  }
-}
-
-/* Both ends are spelled out on purpose: with only a `from` keyframe and
-   `fill-mode: both`, the forwards fill holds the 0% value and the band never
-   appears at all. */
-@keyframes mark-in {
-  from {
-    background-color: transparent;
-  }
-  to {
-    background-color: var(--mark-wash);
-  }
 }
 
 /* ---------- vault health sheet ---------- */
@@ -915,12 +1153,12 @@ kbd {
   z-index: 25;
   display: flex;
   justify-content: flex-end;
-  background: color-mix(in oklab, var(--paper) 55%, transparent);
+  background: color-mix(in oklab, var(--void) 60%, transparent);
   backdrop-filter: blur(2px);
 }
 
 .sheet {
-  inline-size: min(460px, 100vw);
+  inline-size: min(470px, 100vw);
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -937,7 +1175,7 @@ kbd {
 
 @keyframes slide-in {
   from {
-    transform: translateX(18px);
+    transform: translateX(20px);
     opacity: 0;
   }
 }
@@ -960,7 +1198,6 @@ kbd {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 .sheet-body {
@@ -968,7 +1205,7 @@ kbd {
 }
 
 .sheet-body section {
-  margin-block-start: 10px;
+  margin-block-start: 12px;
 }
 
 .stat-row {
@@ -982,7 +1219,7 @@ kbd {
   display: grid;
   gap: 2px;
   padding: 10px 12px;
-  background: var(--paper);
+  background: var(--void);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
@@ -1018,6 +1255,12 @@ kbd {
   overflow-wrap: anywhere;
 }
 
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .plain-list li {
   padding: 3px 0;
   font-size: 13px;
@@ -1025,6 +1268,20 @@ kbd {
 
 .plain-list.nested {
   padding-inline-start: 12px;
+}
+
+.link-btn {
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--link);
+  cursor: pointer;
+  text-align: start;
+}
+
+.link-btn:hover {
+  background: var(--link-wash);
 }
 
 .tag {
@@ -1036,16 +1293,15 @@ kbd {
 
 .tag.ok {
   color: var(--ok);
-  background: color-mix(in oklab, var(--ok) 12%, transparent);
+  background: color-mix(in oklab, var(--ok) 14%, transparent);
 }
 
 .tag.warn {
   color: var(--warn);
-  background: color-mix(in oklab, var(--warn) 14%, transparent);
+  background: color-mix(in oklab, var(--warn) 16%, transparent);
 }
 
-/* Skipped files, as a shape. The bar is the only chart here and it earns its
-   place: "which directory swallowed my notes" is the actual question. */
+/* Magnitude, so one hue light-to-dark and a labelled value on every row. */
 .bar-list {
   list-style: none;
   margin: 8px 0 0;
@@ -1056,7 +1312,7 @@ kbd {
 
 .bar-list li {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr) 3rem;
+  grid-template-columns: 8rem minmax(0, 1fr) 3rem;
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
@@ -1074,8 +1330,9 @@ kbd {
 .bar {
   block-size: 7px;
   min-inline-size: 2px;
-  background: var(--surface-3);
+  background: var(--accent);
   border-radius: 999px;
+  opacity: 0.85;
 }
 
 .bar-num {
@@ -1086,137 +1343,54 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- graph ---------- */
-
-.graph-view {
-  position: relative;
-  background: var(--paper);
-  overflow: hidden;
-}
-
-.graph-view svg {
-  inline-size: 100%;
-  block-size: 100%;
-  display: block;
-}
-
-.graph-edge {
-  stroke: var(--line-strong);
-  stroke-width: 1;
-}
-
-.graph-node circle {
-  cursor: pointer;
-  transition: r 120ms ease;
-}
-
-.graph-node text {
-  fill: var(--ink-2);
-  font-family: var(--font-ui);
-  font-size: 11px;
-  pointer-events: none;
-}
-
-.graph-node:hover circle {
-  stroke: var(--mark-edge);
-  stroke-width: 2;
-}
-
-.graph-node.missing circle {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.graph-node.missing text {
-  fill: var(--ink-mute);
-  font-style: italic;
-}
-
-.graph-legend,
-.graph-controls {
-  position: absolute;
-  inset-block-end: 12px;
-  display: flex;
-  gap: 10px;
-  padding: 6px 10px;
-  background: color-mix(in oklab, var(--surface) 88%, transparent);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font-size: 12px;
-}
-
-.graph-legend {
-  inset-inline-start: 12px;
-  flex-wrap: wrap;
-  max-inline-size: 60%;
-}
-
-.graph-controls {
-  inset-inline-end: 12px;
-  padding: 6px;
-}
-
-.graph-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ink-2);
-}
-
-.dot {
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: 50%;
-}
-
 /* ============================================================================
-   Responsive — kept at the end of the file on purpose.
-
-   These are overrides, and CSS resolves ties by order: placed earlier, a rule
-   like `.sidebar { display: none }` loses to the `.sidebar { display: flex }`
-   that defines the component further down, and the phone layout silently breaks.
+   Responsive — last in the file so these overrides actually win.
    ========================================================================== */
 
-/* Backlinks and outline are context, not the work: first to go. */
-@media (max-width: 1100px) {
-  .workspace {
-    grid-template-columns: 232px minmax(0, 1fr);
+@media (max-width: 1180px) {
+  .frame-body {
+    grid-template-columns: auto minmax(0, 1fr) 320px;
   }
-
-  .right-panel {
-    display: none;
+  .rail.open {
+    inline-size: 210px;
   }
 }
 
-/* One column. The note is the screen; the tree becomes a trip to the palette. */
-@media (max-width: 760px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 900px) {
+  /* The map and the note cannot share this width: keep the map, and let a
+     selected note open the reader instead of squeezing a column. */
+  .frame-body {
+    grid-template-columns: auto minmax(0, 1fr);
   }
-
-  .sidebar {
+  .detail {
     display: none;
   }
-
-  .topbar {
-    gap: 6px;
-    padding-inline: 10px;
+  .search-panel {
+    max-inline-size: none;
   }
+}
 
-  .crumb {
+@media (max-width: 640px) {
+  .frame-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .search-panel {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .status-flash {
     display: none;
   }
-
-  .editor-textarea,
-  .preview {
-    padding-inline: 16px;
+  .rail {
+    position: absolute;
+    z-index: 4;
+    block-size: 100%;
   }
-
-  .stat-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .graph-legend {
+    max-inline-size: 60%;
   }
-
-  .bar-list li {
-    grid-template-columns: 6rem minmax(0, 1fr) 2.5rem;
+  .graph-scale {
+    display: none;
   }
 }
