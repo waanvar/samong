@@ -8,7 +8,8 @@
 <meta property="og:title" content="Samong — you already solved this once">
 <meta property="og:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with.">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='25' font-size='26'>🧠</text></svg>">
+<link rel="icon" type="image/svg+xml" href="brand/samong-mark.svg">
+<link rel="apple-touch-icon" href="brand/samong-mark.svg">
 
 <style>
 /* ============================================================================
@@ -82,11 +83,36 @@ code, .mono { font-family: var(--mono); font-size: 0.88em; }
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: .5rem; font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: -.02em; }
-.brand svg { width: 22px; height: 22px; }
+/* ---------- the brand ----------
+   The wordmark is one locked-up object: mark, a fixed gap, then "Samong" in the
+   display face at a tightened track. It is always drawn this way, at every size,
+   so the pairing is what people recognise rather than the letters alone.
+   The mark is geometry, not type, so it prints and embroiders on its own. */
+.brand { display: flex; align-items: center; gap: .55rem; color: var(--ink); text-decoration: none; }
+.brand-mark { width: 28px; height: 28px; flex: none; }
+.wordmark {
+  font-family: var(--display); font-weight: 700; font-size: 1.3rem;
+  letter-spacing: -.03em;
+  /* The one letter that carries the accent, so the name and the idea are the
+     same gesture: the "o" is a lit node. */
+  background: none;
+}
+.wordmark::first-letter { color: var(--ink); }
+
+.lockup { display: flex; align-items: center; gap: .85rem; margin: 0 0 1.6rem; }
+.lockup-mark { width: clamp(44px, 6vw, 58px); height: clamp(44px, 6vw, 58px); flex: none; }
+.lockup-word {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(2.1rem, 4.6vw, 3rem);
+  letter-spacing: -.04em; line-height: 1;
+}
+.lockup-word .o { color: var(--found); }
 .nav-spacer { flex: 1; }
 .nav a:not(.btn) { color: var(--ink-2); text-decoration: none; font-size: .92rem; }
 .nav a:not(.btn):hover { color: var(--ink); }
+/* The brand is an anchor inside the nav, so it has to outrank the nav-link rule
+   above — otherwise the name renders in the muted ink meant for navigation. */
+.nav a.brand { color: var(--ink); }
 @media (max-width: 700px) { .nav .hide-sm { display: none; } }
 
 .btn {
@@ -103,7 +129,12 @@ code, .mono { font-family: var(--mono); font-size: 0.88em; }
 
 /* ---------- hero ---------- */
 
-.hero { padding: clamp(2.5rem, 7vw, 5.5rem) 0 0; }
+.hero { position: relative; padding: clamp(2.2rem, 6vw, 4.5rem) 0 0; }
+/* Ambient field: the subject's own material, at a density that reads as texture
+   rather than decoration. Painted on the canvas we already need, so it costs no
+   dependency and stops entirely when motion is not wanted. */
+#ambient { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .5; }
+.hero-grid { position: relative; z-index: 1; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 46ch) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
 @media (max-width: 940px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
 
@@ -211,18 +242,27 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
 </head>
 <body>
 
+<!-- The mark, defined once and referenced wherever it appears. Same geometry as
+     brand/samong-mark.svg and the app's SamongMark component. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 32 32">
+    <g fill="none" stroke="var(--ink-mute)" stroke-width="1.5" stroke-linecap="round">
+      <path d="M9 9.5 22.5 7"/><path d="M9 9.5 20.5 20.5"/>
+      <path d="M8.5 22.5 20 21.5"/><path d="M9 9.5 8.5 22.5"/>
+    </g>
+    <circle cx="9" cy="9.5" r="3.4" fill="var(--ink)"/>
+    <circle cx="22.5" cy="7" r="2.3" fill="var(--ink-mute)"/>
+    <circle cx="8.5" cy="22.5" r="2.3" fill="var(--ink-mute)"/>
+    <circle cx="21.5" cy="21.5" r="5.2" fill="var(--found)"/>
+  </symbol>
+</svg>
+
 <nav class="nav">
   <div class="wrap" style="display:flex;align-items:center;gap:1rem">
-    <span class="brand">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="7" cy="8" r="2.6" fill="var(--v1)"/>
-        <circle cx="17" cy="6.5" r="2" fill="var(--v3)"/>
-        <circle cx="16.5" cy="16.5" r="2.6" fill="var(--found)"/>
-        <circle cx="6" cy="17" r="1.8" fill="var(--v4)"/>
-        <path d="M7 8 17 6.5M7 8l9.5 8.5M6 17l10.5-.5M7 8 6 17" stroke="var(--line-strong)" stroke-width="1.1"/>
-      </svg>
-      Samong
-    </span>
+    <a class="brand" href="#top" aria-label="Samong, home">
+      <svg class="brand-mark" viewBox="0 0 32 32"><use href="#mark"/></svg>
+      <span class="wordmark">Samong</span>
+    </a>
     <span class="nav-spacer"></span>
     <a href="#files" class="hide-sm">Your files</a>
     <a href="#agents" class="hide-sm">AI tools</a>
@@ -232,9 +272,14 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
   </div>
 </nav>
 
-<header class="hero">
+<header class="hero" id="top">
+  <canvas id="ambient" aria-hidden="true"></canvas>
   <div class="wrap hero-grid">
     <div>
+      <div class="lockup">
+        <svg class="lockup-mark" viewBox="0 0 32 32"><use href="#mark"/></svg>
+        <span class="lockup-word">Sam<span class="o">o</span>ng</span>
+      </div>
       <h1>You <span class="hit">already</span> solved this once.</h1>
       <p class="lede">
         Six months ago you worked it out and wrote it down. The note is still in
@@ -432,7 +477,10 @@ no ambiguous titles among project notes</pre>
 
 <footer>
   <div class="wrap foot-row">
-    <span class="brand" style="font-size:.95rem">Samong</span>
+    <span class="brand" style="font-size:.95rem">
+      <svg class="brand-mark" viewBox="0 0 32 32"><use href="#mark"/></svg>
+      <span class="wordmark">Samong</span>
+    </span>
     <span>Apache-2.0 · the name and logo are not covered by the licence</span>
     <span class="nav-spacer"></span>
     <a href="https://github.com/waanvar/samong">Source</a>
@@ -445,6 +493,68 @@ no ambiguous titles among project notes</pre>
 (() => {
   "use strict";
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ------------------------------------------------------------------
+     Ambient field behind the hero.
+
+     Not an effect looking for a home: it is the same material the product is
+     made of — nodes and the links between them — at a density low enough to read
+     as texture. Drifts at a few pixels a second, pauses when the tab is hidden,
+     and is never drawn at all when reduced motion is asked for.
+     ------------------------------------------------------------------ */
+  const amb = document.getElementById("ambient");
+  if (amb && !reduce) {
+    const actx = amb.getContext("2d");
+    let pts = [], raf = 0;
+    const seed = () => {
+      const w = amb.clientWidth, h = amb.clientHeight, dpr = devicePixelRatio || 1;
+      amb.width = w * dpr; amb.height = h * dpr;
+      actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.min(46, Math.round((w * h) / 17000));
+      pts = Array.from({ length: count }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.11, vy: (Math.random() - 0.5) * 0.11,
+        r: 0.8 + Math.random() * 1.5,
+      }));
+    };
+    const step = () => {
+      const w = amb.clientWidth, h = amb.clientHeight;
+      actx.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+      }
+      actx.strokeStyle = "#39414e";
+      actx.lineWidth = 0.6;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+          if (d > 128) continue;
+          actx.globalAlpha = (1 - d / 128) * 0.3;
+          actx.beginPath();
+          actx.moveTo(pts[i].x, pts[i].y);
+          actx.lineTo(pts[j].x, pts[j].y);
+          actx.stroke();
+        }
+      }
+      actx.fillStyle = "#8792a3";
+      for (const p of pts) {
+        actx.globalAlpha = 0.5;
+        actx.beginPath();
+        actx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        actx.fill();
+      }
+      actx.globalAlpha = 1;
+      raf = requestAnimationFrame(step);
+    };
+    seed(); step();
+    addEventListener("resize", seed);
+    document.addEventListener("visibilitychange", () => {
+      cancelAnimationFrame(raf);
+      if (!document.hidden) raf = requestAnimationFrame(step);
+    });
+  }
 
   /* ------------------------------------------------------------------
      Hero: a small vault, and search that reveals it.

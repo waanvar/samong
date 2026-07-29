@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Samong">
+  <title>Samong</title>
+  <!--
+    One-colour version for screen print, embroidery, engraving, stamps and
+    forced-colours mode. `currentColor` means it takes the colour of whatever it
+    sits in, so there is nothing to recolour by hand.
+
+    With the accent gone, the lit node has to be told apart by weight instead:
+    it stays solid while the others become rings. That is the same trick the app
+    uses to separate your notes from read-only ones, so the mark and the product
+    encode state the same way.
+  -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+    <path d="M9 9.5 22.5 7"/>
+    <path d="M9 9.5 20.5 20.5"/>
+    <path d="M8.5 22.5 20 21.5"/>
+    <path d="M9 9.5 8.5 22.5"/>
+    <circle cx="9" cy="9.5" r="2.9"/>
+    <circle cx="22.5" cy="7" r="1.8"/>
+    <circle cx="8.5" cy="22.5" r="1.8"/>
+  </g>
+  <circle cx="21.5" cy="21.5" r="5.2" fill="currentColor"/>
+</svg>

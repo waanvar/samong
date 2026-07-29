@@ -15,6 +15,25 @@ This 62,000-word dictionary is embedded in the binary and is what makes Thai
 search work — it lets the tokenizer split unspaced Thai text into real words, so
 a query matches mid-sentence. Samong would not do its main job without it.
 
+### Fonts
+
+All three are **SIL Open Font License 1.1**, which permits commercial use,
+embedding, and putting text set in them on printed goods — it restricts
+redistributing the *font software*, not the rendered output. Because Samong does
+redistribute the font files (in `web/dist`, inside the `samong-server` binary,
+and in `site/fonts/`), the licence text travels with them: see
+`site/fonts/LICENSE-*.txt`.
+
+| Font | Used for | Copyright | License |
+|---|---|---|---|
+| [Bai Jamjuree](https://github.com/cadsondemak/Bai-Jamjuree) | display / wordmark | Cadson Demak | OFL-1.1 |
+| [IBM Plex Sans Thai](https://github.com/IBM/plex) | body text, Thai and Latin | IBM Corp. | OFL-1.1 |
+| [IBM Plex Mono](https://github.com/IBM/plex) | paths, counts, code | IBM Corp. | OFL-1.1 |
+
+The OFL's Reserved Font Name clause means a *modified* font must be renamed.
+Samong ships these unmodified; the logo mark is drawn geometry and depends on no
+font at all.
+
 ## Rust dependencies
 
 Resolved versions and their license texts are in `Cargo.lock`; the direct
