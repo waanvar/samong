@@ -248,14 +248,14 @@ kbd {
   z-index: 3;
 }
 
+/* Both halves of the brand are geometry now — the name is outlined paths, not
+   type — so nothing here sets a font. The mark is 1.726x the wordmark's cap
+   height, the same ratio the site's lockup uses, so the app and the website show
+   one object at two sizes rather than two lockups. */
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -0.015em;
 }
 
 .vault-switch select {
@@ -1140,12 +1140,12 @@ kbd {
   text-align: center;
 }
 
-.onboard-card h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+/* The onboarding card is the app's one hero moment, so it gets the full lockup
+   at display size: cap 26px, mark 45px (1.726x). */
+.onboard-card .lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .onboard-card p {

@@ -16,6 +16,7 @@ import { NoteTree } from "./components/NoteTree";
 import { Editor } from "./components/Editor";
 import { VaultHealth } from "./components/VaultHealth";
 import { SamongMark } from "./components/SamongMark";
+import { SamongWordmark } from "./components/SamongWordmark";
 
 /**
  * The graph is the home surface: a vault is a shape, not a folder listing, and
@@ -287,8 +288,10 @@ export function App() {
     return (
       <div className="app onboard">
         <div className="onboard-card">
-          <SamongMark size={44} />
-          <h1>Samong</h1>
+          <div className="lockup">
+            <SamongMark size={45} />
+            <SamongWordmark cap={26} />
+          </div>
           <p>{t("onboard.body")}</p>
           <button className="btn primary lg" onClick={() => void addVault()}>
             {t("vault.addFirst")}
@@ -302,8 +305,8 @@ export function App() {
     <div className={`app ${reading ? "is-reading" : ""}`}>
       <header className="frame-top">
         <span className="brand">
-          <SamongMark size={20} />
-          Samong
+          <SamongMark size={22} />
+          <SamongWordmark cap={13} />
         </span>
 
         <div className="vault-switch">

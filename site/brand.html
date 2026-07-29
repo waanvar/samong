@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samong — brand assets</title>
+<meta name="description" content="The Samong mark, wordmark and lockup as SVG, with the rules for using them. Colour and one-colour versions for screen, print, embroidery and signage.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/svg+xml" href="brand/samong-mark.svg">
+
+<style>
+/* ============================================================================
+   Brand assets.
+
+   Deliberately plainer than the landing page: this is a reference sheet, and the
+   assets are the only thing on it that should attract attention. Same tokens and
+   the same dark ground as the site and the app, so what you download looks the
+   way you saw it.
+   ========================================================================== */
+
+@font-face { font-family: "Bai Jamjuree"; src: url("fonts/bai-jamjuree-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Plex Thai"; src: url("fonts/ibm-plex-sans-thai-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Thai"; src: url("fonts/ibm-plex-sans-thai-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+:root {
+  --void: #0b0e14;
+  --surface: #12161f;
+  --surface-2: #1a1f2b;
+  --line: #232936;
+  --line-strong: #303849;
+  --ink: #e8ecf2;
+  --ink-2: #aab4c4;
+  --ink-mute: #8792a3;
+  --found: #d8f24a;
+  --display: "Bai Jamjuree", system-ui, sans-serif;
+  --body: "Plex Thai", system-ui, -apple-system, sans-serif;
+  --mono: "Plex Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-inline-size: 68rem; margin: 0 auto; padding: 0 1.25rem; }
+a { color: var(--found); }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 .6rem; }
+h2 { font-size: 1.35rem; margin: 3rem 0 .4rem; }
+h3 { font-size: 1rem; margin: 0 0 .3rem; }
+p { margin: 0 0 1rem; color: var(--ink-2); max-inline-size: 66ch; }
+
+/* Same brand rules as the landing page: sized from cap height, both halves
+   geometry. See index.html for why. */
+.nav {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 1rem;
+  padding: .85rem 0;
+  background: color-mix(in oklab, var(--void) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: .55rem; color: var(--ink); text-decoration: none; }
+.brand-mark { width: 29px; height: 29px; flex: none; }
+.wordmark { height: 22.1px; width: auto; flex: none; display: block; }
+.nav-spacer { flex: 1; }
+.nav a:not(.brand) { color: var(--ink-2); text-decoration: none; font-size: .92rem; }
+.nav a:not(.brand):hover { color: var(--ink); }
+
+header.page { padding: clamp(2rem, 5vw, 3.5rem) 0 0; }
+
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); }
+
+.asset {
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+/* Two grounds, because a one-colour asset has to be checked on both. */
+.asset .stage { display: grid; place-items: center; padding: 2rem 1.25rem; min-height: 8.5rem; }
+.asset .stage.light { background: #f4f6fa; color: #14181f; }
+.asset .stage.dark { background: var(--void); color: var(--ink); }
+.asset img, .asset svg { max-width: 100%; height: auto; }
+.asset .meta { padding: .85rem 1rem; border-top: 1px solid var(--line); }
+.asset .meta p { margin: 0 0 .5rem; font-size: .88rem; }
+.asset .files { display: flex; flex-wrap: wrap; gap: .5rem; }
+.asset .files a {
+  font-family: var(--mono); font-size: .78rem;
+  padding: .25rem .5rem; border: 1px solid var(--line-strong); border-radius: 6px;
+  background: var(--surface-2); color: var(--ink-2); text-decoration: none;
+}
+.asset .files a:hover { color: var(--ink); border-color: var(--found); }
+
+.rules { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); margin-top: 1rem; }
+.rule { border: 1px solid var(--line); border-left: 2px solid var(--found); border-radius: 0 10px 10px 0; padding: .9rem 1.1rem; background: var(--surface); }
+.rule h3 { color: var(--ink); }
+.rule p { margin: 0; font-size: .9rem; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 0; }
+.swatch { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-inline-size: 9.5rem; }
+.swatch .chip { height: 3.25rem; }
+.swatch .label { padding: .5rem .7rem; font-family: var(--mono); font-size: .78rem; color: var(--ink-2); }
+.swatch .label b { display: block; color: var(--ink); font-family: var(--body); font-size: .85rem; font-weight: 500; }
+
+table { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: .9rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--ink); font-weight: 600; }
+td { color: var(--ink-2); }
+.scroll { overflow-x: auto; }
+
+footer { margin-top: 4rem; border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; color: var(--ink-mute); font-size: .9rem; }
+footer a { color: var(--ink-2); text-decoration: none; margin-right: 1.2rem; }
+footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- Mark and wordmark, defined once. Identical geometry to brand/*.svg and to the
+     app's SamongMark / SamongWordmark components. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 32 32">
+    <g fill="none" stroke="var(--ink-mute)" stroke-width="1.5" stroke-linecap="round">
+      <path d="M9 9.5 22.5 7"/><path d="M9 9.5 20.5 20.5"/>
+      <path d="M8.5 22.5 20 21.5"/><path d="M9 9.5 8.5 22.5"/>
+    </g>
+    <circle cx="9" cy="9.5" r="3.4" fill="var(--ink)"/>
+    <circle cx="22.5" cy="7" r="2.3" fill="var(--ink-mute)"/>
+    <circle cx="8.5" cy="22.5" r="2.3" fill="var(--ink-mute)"/>
+    <circle cx="21.5" cy="21.5" r="5.2" fill="var(--found)"/>
+  </symbol>
+</svg>
+
+<nav class="nav">
+  <div class="wrap" style="display:flex;align-items:center;gap:1rem">
+    <a class="brand" href="index.html" aria-label="Samong, home">
+      <svg class="brand-mark" viewBox="0 0 32 32"><use href="#mark"/></svg>
+      <img class="wordmark" src="brand/samong-wordmark.svg" alt="" aria-hidden="true">
+    </a>
+    <span class="nav-spacer"></span>
+    <a href="index.html">Back to the site</a>
+  </div>
+</nav>
+
+<header class="page">
+  <div class="wrap">
+    <h1>Brand assets</h1>
+    <p>
+      The mark is a small network with exactly one node lit — the product's one
+      act, drawn rather than typed. The wordmark is outlined, so nothing here
+      needs a font installed to look right. Everything is SVG: scale it to a
+      favicon or to a wall.
+    </p>
+    <p>
+      Two versions of each. The colour files are drawn in light ink for a dark
+      ground — the product's own surface. On white, on a shirt, or in one ink, use
+      the <span class="mono">-mono</span> file and set the colour yourself.
+    </p>
+    <p>
+      Apache-2.0 covers the code, <strong>not</strong> the name or these marks.
+      You may use them to refer to Samong — writing about it, linking to it,
+      saying your tool works with it. Do not use them as the identity of your own
+      product, or on a fork you distribute under a different name.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h2>Files</h2>
+  <div class="grid">
+
+    <div class="asset">
+      <div class="stage dark"><img src="brand/samong-lockup.svg" alt="Samong lockup: the mark beside the wordmark" style="width:min(100%,17rem)"></div>
+      <div class="meta">
+        <h3>Lockup</h3>
+        <p>The default. Mark, a fixed gap, then the name — mark 1.208em, gap 0.283em of the wordmark, so it holds at any size. Use this wherever there is room.</p>
+        <div class="files">
+          <a href="brand/samong-lockup.svg" download>samong-lockup.svg</a>
+          <a href="brand/samong-lockup-mono.svg" download>…-mono.svg</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="asset">
+      <div class="stage dark"><img src="brand/samong-wordmark.svg" alt="The Samong wordmark" style="width:min(100%,15rem)"></div>
+      <div class="meta">
+        <h3>Wordmark</h3>
+        <p>Outlined Bai Jamjuree 700 at a −0.04em track. The <span class="mono">o</span> carries the accent because it is the lit node: the name and the idea are one gesture.</p>
+        <div class="files">
+          <a href="brand/samong-wordmark.svg" download>samong-wordmark.svg</a>
+          <a href="brand/samong-wordmark-mono.svg" download>…-mono.svg</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="asset">
+      <div class="stage dark"><img src="brand/samong-mark.svg" alt="The Samong mark" style="width:6.5rem"></div>
+      <div class="meta">
+        <h3>Mark</h3>
+        <p>Four circles, four lines. For favicons, app icons, avatars and anything under about 32px, where the name would not be legible anyway.</p>
+        <div class="files">
+          <a href="brand/samong-mark.svg" download>samong-mark.svg</a>
+          <a href="brand/samong-mark-mono.svg" download>…-mono.svg</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="asset">
+      <div class="stage light"><img src="brand/samong-lockup-mono.svg" alt="The one-colour Samong lockup on a light ground" style="width:min(100%,17rem)"></div>
+      <div class="meta">
+        <h3>One colour</h3>
+        <p>Every <span class="mono">-mono</span> file draws in <span class="mono">currentColor</span>: set the colour on the parent and it follows, or leave it and get black. For screen print, embroidery, engraving, laser cut, and Windows forced-colors mode — and <strong>for any light background</strong>, since the colour files are drawn in light ink for a dark ground.</p>
+        <div class="files">
+          <a href="brand/samong-lockup-mono.svg" download>lockup</a>
+          <a href="brand/samong-wordmark-mono.svg" download>wordmark</a>
+          <a href="brand/samong-mark-mono.svg" download>mark</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Rules</h2>
+  <div class="rules">
+    <div class="rule">
+      <h3>Clear space</h3>
+      <p>Keep the height of the mark clear on every side. Nothing crops into it — not a card edge, not another logo.</p>
+    </div>
+    <div class="rule">
+      <h3>Minimum size</h3>
+      <p>Lockup: 96px wide on screen, 25mm in print. Below that use the mark alone; the letters stop resolving before the circles do.</p>
+    </div>
+    <div class="rule">
+      <h3>One lit node</h3>
+      <p>Exactly one element wears the accent, and it is always the same node. Two lit nodes is not the logo. Neither is none.</p>
+    </div>
+    <div class="rule">
+      <h3>Do not redraw</h3>
+      <p>No outlines, shadows, gradients, rotation, stretching, or re-spacing the letters. Recolour only by swapping in a <span class="mono">-mono</span> file.</p>
+    </div>
+  </div>
+
+  <h2>Colour</h2>
+  <p>Three values do the whole job. The accent is reserved: in the product it means <em>this is the thing you were looking for</em>, and it should not be spent on decoration here either.</p>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background:#d8f24a"></div><div class="label"><b>Found</b>#d8f24a</div></div>
+    <div class="swatch"><div class="chip" style="background:#e8ecf2"></div><div class="label"><b>Ink</b>#e8ecf2</div></div>
+    <div class="swatch"><div class="chip" style="background:#8792a3"></div><div class="label"><b>Muted</b>#8792a3</div></div>
+    <div class="swatch"><div class="chip" style="background:#0b0e14"></div><div class="label"><b>Void</b>#0b0e14</div></div>
+  </div>
+
+  <h2>Type</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Face</th><th>Used for</th><th>Licence</th></tr></thead>
+      <tbody>
+        <tr><td>Bai Jamjuree 600/700<br><span class="mono">Cadson Demak</span></td><td>Headings, and the outlines the wordmark was made from</td><td>OFL-1.1</td></tr>
+        <tr><td>IBM Plex Sans Thai<br><span class="mono">IBM</span></td><td>Body text, Latin and Thai</td><td>OFL-1.1</td></tr>
+        <tr><td>IBM Plex Mono<br><span class="mono">IBM</span></td><td>Paths, keys, code</td><td>OFL-1.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:1rem">
+    All three are OFL-1.1 and licence copies ship beside them in
+    <span class="mono">site/fonts/</span>. The licence governs redistributing the
+    <em>font software</em>, not artwork rendered with it — so a shirt, a mug or an
+    office sign printed from these files is unencumbered. The fonts are not
+    modified, so the Reserved Font Name clause is not engaged. The wordmark being
+    outlined means a print shop needs no font licence at all.
+  </p>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="index.html">Samong</a>
+    <a href="https://github.com/waanvar/samong">Source</a>
+    <a href="https://github.com/waanvar/samong/blob/main/THIRD-PARTY.md">Attribution</a>
+  </div>
+</footer>
+
+</body>
+</html>
