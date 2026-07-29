@@ -8,6 +8,7 @@ import {
   type VaultInfo,
 } from "./api";
 import { listenChanges } from "./ws";
+import { LOCALES, setLocale, useLocale, useT } from "./i18n";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { SearchPanel } from "./components/SearchPanel";
 import { DetailPanel } from "./components/DetailPanel";
@@ -22,6 +23,11 @@ import { SamongMark } from "./components/SamongMark";
  * that map rather than a different application.
  */
 export function App() {
+  const t = useT();
+  const lang = useLocale();
+  // The switch shows the language you would move *to*, the way a two-language
+  // toggle reads everywhere else.
+  const other = LOCALES.find((l) => l.code !== lang) ?? LOCALES[0];
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
   const [vault, setVault] = useState("");
   const [notesByVault, setNotesByVault] = useState<Record<string, NoteInfo[]>>({});
@@ -76,15 +82,15 @@ export function App() {
       try {
         const result = await api.save(name, key, body);
         setDirty(false);
-        flash(result.indexed ? "บันทึกแล้ว" : "บันทึกแล้ว — ไฟล์นี้อยู่นอก scope จึงค้นไม่เจอ");
+        flash(t(result.indexed ? "saved" : "saved.outOfScope"));
         void refreshNotes(name);
         void refreshLinks(name, key);
         setRevision((r) => r + 1);
       } catch (err) {
-        flash(`บันทึกไม่สำเร็จ: ${(err as Error).message}`);
+        flash(t("save.failed", { error: (err as Error).message }));
       }
     },
-    [flash, refreshLinks, refreshNotes],
+    [flash, refreshLinks, refreshNotes, t],
   );
 
   const scheduleSave = useCallback(
@@ -114,10 +120,10 @@ export function App() {
         setDirty(false);
         void refreshLinks(name, note.key);
       } catch (err) {
-        flash(`เปิดโน้ตไม่สำเร็จ: ${(err as Error).message}`);
+        flash(t("open.failed", { error: (err as Error).message }));
       }
     },
-    [flash, refreshLinks, saveNow],
+    [flash, refreshLinks, saveNow, t],
   );
 
   const createNote = useCallback(
@@ -129,31 +135,35 @@ export function App() {
         await openNote(name, key);
         setReading(true);
         setRevision((r) => r + 1);
-        flash(`สร้าง “${noteTitle}” แล้ว`);
+        flash(t("create.done", { title: noteTitle }));
       } catch (err) {
-        flash(`สร้างโน้ตไม่สำเร็จ: ${(err as Error).message}`);
+        flash(t("create.failed", { error: (err as Error).message }));
       }
     },
-    [flash, openNote, refreshNotes],
+    [flash, openNote, refreshNotes, t],
   );
 
   const deleteNote = useCallback(async () => {
     const { vault: v, noteKey: k } = activeRef.current;
-    if (!k || !window.confirm(`ลบโน้ต “${k}” ?`)) return;
+    if (!k || !window.confirm(t("delete.confirm", { key: k }))) return;
     try {
       const result = await api.remove(v, k);
       await refreshNotes(v);
       const dangling = result.dangling_backlinks.length;
-      flash(`ลบ “${k}” แล้ว${dangling ? ` (ยังมี ${dangling} โน้ตลิงก์มา)` : ""}`);
+      flash(
+        dangling
+          ? t("delete.dangling", { key: k, count: dangling })
+          : t("delete.done", { key: k }),
+      );
       setNoteKey("");
       setContent("");
       setLinks(null);
       setReading(false);
       setRevision((r) => r + 1);
     } catch (err) {
-      flash(`ลบไม่สำเร็จ: ${(err as Error).message}`);
+      flash(t("delete.failed", { error: (err as Error).message }));
     }
-  }, [flash, refreshNotes]);
+  }, [flash, refreshNotes, t]);
 
   /** A [[target]] names a title; resolve it to a path, creating the note if it
    *  does not exist yet (Obsidian behaviour). */
@@ -192,22 +202,20 @@ export function App() {
   );
 
   const addVault = useCallback(async () => {
-    const path = window.prompt(
-      "โฟลเดอร์ของ vault (พาธเต็ม)\nชี้ที่ root ของโปรเจกต์ได้เลย — Samong ข้าม node_modules และไฟล์ที่ gitignore ให้เอง",
-    );
+    const path = window.prompt(t("prompt.vaultPath"));
     if (!path?.trim()) return;
     const suggested = path.trim().replace(/[/\\]+$/, "").split(/[/\\]/).pop() ?? "";
-    const name = window.prompt("ชื่อ vault (ใช้ใน [[ชื่อ/โน้ต]])", suggested);
+    const name = window.prompt(t("prompt.vaultName"), suggested);
     if (!name?.trim()) return;
     try {
       const added = await api.addVault(name.trim(), path.trim());
       setVaults((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)));
       await switchVault(added.name);
-      flash(`เพิ่ม vault “${added.name}” แล้ว`);
+      flash(t("vault.added", { name: added.name }));
     } catch (err) {
-      flash(`เพิ่ม vault ไม่สำเร็จ: ${(err as Error).message}`);
+      flash(t("vault.addFailed", { error: (err as Error).message }));
     }
-  }, [flash, switchVault]);
+  }, [flash, switchVault, t]);
 
   const toggleTheme = useCallback(() => {
     const next = theme === "dark" ? "light" : "dark";
@@ -225,7 +233,7 @@ export function App() {
         for (const v of list) void refreshNotes(v.name);
         if (list.length > 0) setVault(list[0].name);
       } catch (err) {
-        flash(`เชื่อมต่อ server ไม่ได้: ${(err as Error).message}`);
+        flash(t("connect.failed", { error: (err as Error).message }));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -281,12 +289,9 @@ export function App() {
         <div className="onboard-card">
           <SamongMark size={44} />
           <h1>Samong</h1>
-          <p>
-            ชี้ไปที่โฟลเดอร์โน้ตหรือ root ของโปรเจกต์ แล้ว Samong จะทำแผนที่ความรู้ให้
-            โดยข้าม <code>node_modules</code> และไฟล์ที่ <code>.gitignore</code> กันไว้เอง
-          </p>
+          <p>{t("onboard.body")}</p>
           <button className="btn primary lg" onClick={() => void addVault()}>
-            เพิ่ม vault แรก
+            {t("vault.addFirst")}
           </button>
         </div>
       </div>
@@ -307,14 +312,14 @@ export function App() {
             onChange={(e) =>
               e.target.value === "__add" ? void addVault() : void switchVault(e.target.value)
             }
-            aria-label="เลือก vault"
+            aria-label={t("vault.select")}
           >
             {vaults.map((v) => (
               <option key={v.name} value={v.name}>
                 {v.name}
               </option>
             ))}
-            <option value="__add">+ เพิ่ม vault…</option>
+            <option value="__add">{t("vault.add")}</option>
           </select>
         </div>
 
@@ -334,15 +339,23 @@ export function App() {
           <button
             className={`btn ${allVaults ? "on" : ""}`}
             onClick={() => setAllVaults(!allVaults)}
-            title="รวมทุก vault ในแผนที่เดียว"
+            title={t("allVaults.title")}
           >
-            ทุก vault
+            {t("allVaults")}
           </button>
         )}
         <button className="btn" onClick={() => setHealthOpen(true)}>
-          สภาพ vault
+          {t("health.open")}
         </button>
-        <button className="btn icon" onClick={toggleTheme} aria-label="สลับธีม">
+        <button
+          className="btn icon lang"
+          onClick={() => setLocale(other.code)}
+          aria-label={t("lang.toggle")}
+          title={other.label}
+        >
+          {other.code.toUpperCase()}
+        </button>
+        <button className="btn icon" onClick={toggleTheme} aria-label={t("theme.toggle")}>
           {theme === "dark" ? "☀" : "☾"}
         </button>
       </header>
@@ -355,7 +368,7 @@ export function App() {
             aria-expanded={treeOpen}
           >
             <span aria-hidden>{treeOpen ? "‹" : "›"}</span>
-            <span className="rail-toggle-label">รายการโน้ต</span>
+            <span className="rail-toggle-label">{t("rail.notes")}</span>
           </button>
           {treeOpen && (
             <div className="rail-body">
@@ -375,9 +388,7 @@ export function App() {
             revision={revision}
           />
           {matched && (
-            <div className="stage-note">
-              เน้นเฉพาะ {matched.size} โน้ตที่ตรงกับคำค้น — กด Esc ในช่องค้นเพื่อกลับมาดูทั้งหมด
-            </div>
+            <div className="stage-note">{t("stage.matched", { count: matched.size })}</div>
           )}
         </main>
 
@@ -400,10 +411,10 @@ export function App() {
           <div className="reader-bar">
             <span className="reader-title">{title}</span>
             <span className="path">{noteKey}</span>
-            {dirty && <span className="reader-dirty">ยังไม่บันทึก</span>}
+            {dirty && <span className="reader-dirty">{t("reader.unsaved")}</span>}
             <span className="spacer" />
             <button className="btn" onClick={() => setReading(false)}>
-              กลับไปที่แผนที่ <kbd>Esc</kbd>
+              {t("reader.back")} <kbd>Esc</kbd>
             </button>
           </div>
           <Editor

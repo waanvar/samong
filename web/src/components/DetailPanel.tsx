@@ -1,5 +1,6 @@
 import { renderMarkdown } from "../markdown";
 import type { NoteLinks } from "../api";
+import { useT } from "../i18n";
 
 interface Props {
   vault: string;
@@ -34,14 +35,14 @@ export function DetailPanel({
   onExpand,
   onDelete,
 }: Props) {
+  const t = useT();
+
   if (!noteKey) {
     return (
       <aside className="detail">
         <div className="detail-empty">
-          <p>เลือกโน้ตจากแผนที่ หรือค้นหาด้านบน</p>
-          <p className="empty-hint">
-            แต่ละวงคือโน้ตหนึ่งไฟล์ · ขนาดวงบอกจำนวนลิงก์ · วงกลวงคือโน้ตอ่านเท่านั้น
-          </p>
+          <p>{t("detail.empty")}</p>
+          <p className="empty-hint">{t("detail.emptyHint")}</p>
         </div>
       </aside>
     );
@@ -57,8 +58,8 @@ export function DetailPanel({
         <div className="detail-title-row">
           <h2>{title}</h2>
           {readOnly && (
-            <span className="ref-badge" title="มาจาก scope.include — แก้ไม่ได้">
-              อ่านเท่านั้น
+            <span className="ref-badge" title={t("detail.readOnly.title")}>
+              {t("detail.readOnly")}
             </span>
           )}
         </div>
@@ -67,10 +68,10 @@ export function DetailPanel({
         </div>
         <div className="detail-actions">
           <button className="btn primary" onClick={onExpand}>
-            เปิดอ่านเต็มจอ
+            {t("detail.expand")}
           </button>
           <button className="btn danger" onClick={onDelete} disabled={readOnly}>
-            ลบ
+            {t("detail.delete")}
           </button>
         </div>
       </header>
@@ -78,7 +79,7 @@ export function DetailPanel({
       <div className="detail-links">
         {forward.length > 0 && (
           <div className="chip-row">
-            <span className="chip-label">ออกไป</span>
+            <span className="chip-label">{t("detail.outgoing")}</span>
             {forward.map((link) => (
               <button
                 key={link.target}
@@ -90,16 +91,21 @@ export function DetailPanel({
                 }
                 title={
                   link.keys.length === 0
-                    ? "ยังไม่มีโน้ตนี้ — กดเพื่อสร้าง"
+                    ? t("link.missing.title")
                     : link.keys.length > 1
-                      ? `ชื่อนี้ตรงกับ ${link.keys.length} ไฟล์: ${link.keys.join(", ")}`
+                      ? t("link.ambiguous.title", {
+                          count: link.keys.length,
+                          keys: link.keys.join(", "),
+                        })
                       : link.keys[0]
                 }
               >
                 {link.target}
-                {link.keys.length === 0 && <span className="chip-flag">ยังไม่มี</span>}
+                {link.keys.length === 0 && (
+                  <span className="chip-flag">{t("chip.missing")}</span>
+                )}
                 {link.keys.length > 1 && (
-                  <span className="chip-flag">{link.keys.length} ไฟล์</span>
+                  <span className="chip-flag">{t("chip.files", { count: link.keys.length })}</span>
                 )}
               </button>
             ))}
@@ -108,7 +114,7 @@ export function DetailPanel({
 
         {(backlinks.length > 0 || cross.length > 0) && (
           <div className="chip-row">
-            <span className="chip-label">เข้ามา</span>
+            <span className="chip-label">{t("detail.incoming")}</span>
             {backlinks.map((ref) => (
               <button
                 key={ref.key}
@@ -128,7 +134,7 @@ export function DetailPanel({
         )}
 
         {forward.length === 0 && backlinks.length === 0 && cross.length === 0 && (
-          <p className="empty-hint">โน้ตนี้ยังไม่เชื่อมกับใคร — ใส่ [[ลิงก์]] เพื่อต่อเข้าแผนที่</p>
+          <p className="empty-hint">{t("detail.noLinks")}</p>
         )}
       </div>
 

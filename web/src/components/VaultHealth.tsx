@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type DoctorReport } from "../api";
+import { useT } from "../i18n";
 
 interface Props {
   vault: string;
@@ -16,6 +17,7 @@ interface Props {
  * and would reasonably conclude that search was broken.
  */
 export function VaultHealth({ vault, onClose, onOpen }: Props) {
+  const t = useT();
   const [report, setReport] = useState<DoctorReport | null>(null);
   const [error, setError] = useState("");
 
@@ -41,72 +43,69 @@ export function VaultHealth({ vault, onClose, onOpen }: Props) {
       <aside
         className="sheet"
         role="dialog"
-        aria-label={`สภาพ vault ${vault}`}
+        aria-label={t("health.aria", { vault })}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="sheet-head">
-          <h2>สภาพของ vault</h2>
-          <button className="btn" onClick={onClose} aria-label="ปิด">
-            ปิด
+          <h2>{t("health.title")}</h2>
+          <button className="btn" onClick={onClose} aria-label={t("health.close")}>
+            {t("health.close")}
           </button>
         </header>
 
-        {error && <p className="empty-hint">อ่านรายงานไม่ได้: {error}</p>}
-        {!report && !error && <p className="empty-hint">กำลังตรวจ…</p>}
+        {error && <p className="empty-hint">{t("health.error", { error })}</p>}
+        {!report && !error && <p className="empty-hint">{t("health.loading")}</p>}
 
         {report && (
           <div className="sheet-body">
             <div className="stat-row">
               <div className="stat">
                 <span className="stat-num">{report.project_notes}</span>
-                <span className="stat-label">โน้ตของโปรเจกต์</span>
+                <span className="stat-label">{t("health.stat.project")}</span>
               </div>
               <div className="stat">
                 <span className="stat-num">{report.reference_notes}</span>
-                <span className="stat-label">อ้างอิง</span>
+                <span className="stat-label">{t("health.stat.reference")}</span>
               </div>
               <div className="stat">
                 <span className="stat-num">{report.skipped}</span>
-                <span className="stat-label">ข้ามไป</span>
+                <span className="stat-label">{t("health.stat.skipped")}</span>
               </div>
             </div>
 
             <dl className="health-list">
-              <dt>โฟลเดอร์</dt>
+              <dt>{t("health.folder")}</dt>
               <dd className="path">{report.vault}</dd>
-              <dt>สแกนจาก</dt>
+              <dt>{t("health.scannedFrom")}</dt>
               <dd className="path">{report.notes_dir}</dd>
               <dt>.gitignore</dt>
-              <dd>{report.follow_gitignore ? "เคารพ" : "ปิดไว้ใน samong.toml"}</dd>
+              <dd>{t(report.follow_gitignore ? "health.gitignore.on" : "health.gitignore.off")}</dd>
             </dl>
 
             {report.include_roots.length > 0 && (
               <section>
-                <div className="side-label">แหล่งอ้างอิง (scope.include)</div>
+                <div className="side-label">{t("health.includeRoots")}</div>
                 <ul className="plain-list">
                   {report.include_roots.map((root) => (
                     <li key={root.path}>
                       <code className="path">{root.path}</code>{" "}
                       {root.present ? (
-                        <span className="tag ok">พบ</span>
+                        <span className="tag ok">{t("health.present")}</span>
                       ) : (
-                        <span className="tag warn">ไม่มีในเครื่องนี้</span>
+                        <span className="tag warn">{t("health.absent")}</span>
                       )}
                     </li>
                   ))}
                 </ul>
                 {report.include_roots.some((r) => !r.present) && (
-                  <p className="empty-hint">
-                    แหล่งที่ไม่พบมักเป็นเพราะยังไม่ติดตั้ง dependency — โน้ตอ้างอิงจาก
-                    ที่นั่นจะกลับมาเองเมื่อติดตั้งแล้ว
-                  </p>
+                  <p className="empty-hint">{t("health.absentHint")}</p>
                 )}
               </section>
             )}
 
             {report.skipped > 0 && (
               <section>
-                <div className="side-label">ไฟล์ .md ที่ไม่ถูกนับเป็นโน้ต</div>
+                <div className="side-label">{t("health.skippedTitle")}</div>
                 <ul className="bar-list">
                   {report.skipped_by_dir.slice(0, 6).map(([dir, count]) => (
                     <li key={dir}>
@@ -126,20 +125,16 @@ export function VaultHealth({ vault, onClose, onOpen }: Props) {
                 </ul>
                 {report.skipped_dependency > 0 && (
                   <p className="empty-hint">
-                    {report.skipped_dependency} ไฟล์อยู่ในโฟลเดอร์ dependency —
-                    ถ้าอยากเรียนรู้จากเอกสารชุดไหน เพิ่ม path นั้นใน{" "}
-                    <code>scope.include</code>
+                    {t("health.skippedDependency", { count: report.skipped_dependency })}
                   </p>
                 )}
               </section>
             )}
 
             <section>
-              <div className="side-label">ชื่อโน้ตที่กำกวม</div>
+              <div className="side-label">{t("health.ambiguousTitle")}</div>
               {report.ambiguous_titles.length === 0 ? (
-                <p className="empty-hint">
-                  ไม่มีชื่อซ้ำในโน้ตของโปรเจกต์ — ทุก <code>[[ลิงก์]]</code> ชี้ได้ที่เดียว
-                </p>
+                <p className="empty-hint">{t("health.noAmbiguous")}</p>
               ) : (
                 <ul className="plain-list">
                   {report.ambiguous_titles.map((entry) => (
@@ -160,8 +155,7 @@ export function VaultHealth({ vault, onClose, onOpen }: Props) {
               )}
               {report.reference_only_collisions > 0 && (
                 <p className="empty-hint">
-                  อีก {report.reference_only_collisions} ชื่อซ้ำกันเฉพาะในโน้ตอ้างอิง
-                  ซึ่งปกติสำหรับเอกสารที่มาพร้อม dependency ไม่ต้องแก้
+                  {t("health.referenceOnly", { count: report.reference_only_collisions })}
                 </p>
               )}
             </section>

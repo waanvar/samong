@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { renderMarkdown } from "../markdown";
+import { useT } from "../i18n";
 
 type Mode = "edit" | "split" | "preview";
 
@@ -36,6 +37,7 @@ export function Editor({
   onFollow,
   onDelete,
 }: Props) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>("split");
   const [suggest, setSuggest] = useState<SuggestState | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -119,12 +121,12 @@ export function Editor({
           {title}
         </span>
         {readOnly && (
-          <span className="ref-badge" title="มาจาก scope.include — แก้ไม่ได้">
-            🔒 อ่านเท่านั้น
+          <span className="ref-badge" title={t("detail.readOnly.title")}>
+            🔒 {t("detail.readOnly")}
           </span>
         )}
         <span className="spacer" style={{ flex: 1 }} />
-        <div className="mode-switch" role="tablist" aria-label="โหมดแก้ไข">
+        <div className="mode-switch" role="tablist" aria-label={t("editor.mode")}>
           {(["edit", "split", "preview"] as Mode[]).map((m) => (
             <button
               key={m}
@@ -133,12 +135,12 @@ export function Editor({
               role="tab"
               aria-selected={mode === m}
             >
-              {m === "edit" ? "เขียน" : m === "split" ? "คู่กัน" : "อ่าน"}
+              {t(`editor.mode.${m}`)}
             </button>
           ))}
         </div>
         <button className="btn danger" onClick={onDelete} disabled={readOnly}>
-          ลบ
+          {t("detail.delete")}
         </button>
       </div>
 
@@ -150,7 +152,7 @@ export function Editor({
               className="editor-textarea"
               value={content}
               spellCheck={false}
-              aria-label="เนื้อหาโน้ต"
+              aria-label={t("editor.content")}
               // Better to block typing than to accept it and fail on save.
               readOnly={readOnly}
               onChange={(e) => {
@@ -167,7 +169,7 @@ export function Editor({
             />
             {suggest && suggestions.length > 0 && (
               <div className="wiki-suggest">
-                <header>ลิงก์ไปยังโน้ต — Enter เพื่อเลือก</header>
+                <header>{t("editor.suggest")}</header>
                 <ul>
                   {suggestions.map((s, i) => (
                     <li

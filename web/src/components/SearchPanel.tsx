@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type SearchHit } from "../api";
+import { useT } from "../i18n";
 
 interface Props {
   vault: string;
@@ -17,6 +18,7 @@ interface Props {
  * match, which turns a query into a place.
  */
 export function SearchPanel({ vault, allVaults, onMatches, onOpen, onCreate }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [open, setOpen] = useState(false);
@@ -112,17 +114,17 @@ export function SearchPanel({ vault, allVaults, onMatches, onOpen, onCreate }: P
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           onFocus={() => hits.length && setOpen(true)}
-          placeholder="ค้นความรู้ที่เคยบันทึกไว้"
-          aria-label="ค้นหาโน้ต"
+          placeholder={t("search.placeholder")}
+          aria-label={t("search.aria")}
           spellCheck={false}
         />
         {query && (
           <span className="search-meta">
-            {busy ? "…" : `${hits.length} ผล`}
+            {busy ? "…" : t("search.count", { count: hits.length })}
           </span>
         )}
         {query && (
-          <button className="search-clear" onClick={() => setQuery("")} aria-label="ล้างคำค้น">
+          <button className="search-clear" onClick={() => setQuery("")} aria-label={t("search.clear")}>
             ✕
           </button>
         )}
@@ -133,8 +135,8 @@ export function SearchPanel({ vault, allVaults, onMatches, onOpen, onCreate }: P
         <div className="search-results" role="listbox">
           {hits.length === 0 && !busy && (
             <p className="empty-hint">
-              ไม่พบโน้ตที่ตรงกับ “{query.trim()}”
-              {canCreate && " — สร้างใหม่ได้จากปุ่มด้านล่าง"}
+              {t("search.none", { query: query.trim() })}
+              {canCreate && t("search.noneCreate")}
             </p>
           )}
           {hits.map((hit, i) => (
@@ -168,7 +170,7 @@ export function SearchPanel({ vault, allVaults, onMatches, onOpen, onCreate }: P
               }}
             >
               <span className="hit-head">
-                <span className="hit-title">สร้างโน้ต “{query.trim()}”</span>
+                <span className="hit-title">{t("search.create", { query: query.trim() })}</span>
               </span>
             </button>
           )}

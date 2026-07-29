@@ -218,19 +218,26 @@ available (best-effort; never blocks, never fails offline).
 
 ## Web UI
 
-An original design — samong-tree identity, not an Obsidian clone — with
-first-class Thai typography (IBM Plex Sans Thai, bundled, works offline). The
-whole UI is **embedded into the `samong-server` binary** (rust-embed) — ships
-as one file, runs instantly.
+An original design, not an Obsidian clone. The whole UI is **embedded into the
+`samong-server` binary** (rust-embed) — ships as one file, runs instantly, and
+the fonts are bundled so it works offline.
 
-- Three-pane layout: notes / editor (write–split–read) / backlinks + outline
+- **The graph is the workspace**, painted to canvas (d3-force for layout) so it
+  survives a vault of several hundred notes. Node size is its link count,
+  colour is its vault.
+- **Search is the way in**: `Ctrl+K` focuses the field in the frame — there is
+  no palette to open. Typing dims every node that does not match, so a query
+  becomes a place; `Esc` brings the whole map back.
+- Selecting a node opens it beside the graph, with its links as chips that say
+  whether they resolve. Reading full screen is a state on top of the map.
 - Type `[[` for note autocomplete across vaults; click wikilinks to follow
   (missing notes are created on the spot)
-- `Ctrl+K` command palette: open, full-text search, create
-- Force-directed graph view (d3): click a node to open it, per-vault colors
-  in combined mode
+- **English or Thai**, from `?lang=`, your saved choice, or the browser, and
+  switchable in the header. English is the default.
 - Dark/light themes, autosave, real-time over WebSocket — edit a file in
   Obsidian or any editor and the page updates itself
+- **Vault health** reports what was indexed and what was skipped, so four notes
+  where you expected ninety is a visible answer rather than a mystery
 
 UI development: `cd web && npm run dev` (Vite proxies to samong-server on
 port 3000).

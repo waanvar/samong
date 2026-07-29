@@ -212,6 +212,14 @@ code,
   padding: 6px 9px;
 }
 
+/* A language code, not a word — set like the paths and keys elsewhere so it
+   reads as a switch position rather than as a label to be translated. */
+.btn.icon.lang {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
 kbd {
   padding: 1px 5px;
   background: var(--surface-3);

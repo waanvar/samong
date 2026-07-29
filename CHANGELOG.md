@@ -66,6 +66,10 @@ anyone outside the project.
   is context the agent pays for on every later turn.
 - The web UI puts the **graph** at the centre: a vault is a shape, and searching
   dims everything that does not match, so a query becomes a place.
+- The interface is in **English or Thai**, picked from `?lang=`, a saved choice,
+  or the browser, and switchable from the header. English is the default: Thai
+  segmentation is what Samong is good at, but it should not be what you have to
+  read to use it. The CLI and MCP server are English only.
 
 ### Licence
 

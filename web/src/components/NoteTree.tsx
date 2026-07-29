@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { NoteInfo } from "../api";
+import { useT } from "../i18n";
 
 interface Props {
   notes: NoteInfo[];
@@ -65,6 +66,7 @@ function initialCollapsed(root: Folder): Set<string> {
 }
 
 export function NoteTree({ notes, active, onOpen }: Props) {
+  const t = useT();
   // Reference notes are somebody else's documentation, so they sit in their own
   // group rather than mixed in with the notes you wrote.
   const [own, reference] = useMemo(() => {
@@ -121,7 +123,7 @@ export function NoteTree({ notes, active, onOpen }: Props) {
           >
             <span className="tree-name">{note.title}</span>
             {note.reference && (
-              <span className="tree-lock" aria-label="อ่านเท่านั้น">
+              <span className="tree-lock" aria-label={t("detail.readOnly")}>
                 🔒
               </span>
             )}
@@ -132,20 +134,20 @@ export function NoteTree({ notes, active, onOpen }: Props) {
   );
 
   if (notes.length === 0) {
-    return <p className="empty-hint">vault นี้ยังไม่มีโน้ต — กด “โน้ตใหม่” เพื่อเริ่ม</p>;
+    return <p className="empty-hint">{t("tree.empty")}</p>;
   }
 
   return (
     <div className="note-tree">
       <div className="side-label">
-        โน้ตของโปรเจกต์ <span className="tree-count">{own.length}</span>
+        {t("tree.own")} <span className="tree-count">{own.length}</span>
       </div>
       <ul className="tree-list">{renderFolder(ownTree, 0)}</ul>
 
       {reference.length > 0 && (
         <>
           <div className="side-label ref">
-            อ้างอิง (อ่านเท่านั้น) <span className="tree-count">{reference.length}</span>
+            {t("tree.reference")} <span className="tree-count">{reference.length}</span>
           </div>
           <ul className="tree-list">{renderFolder(referenceTree, 0)}</ul>
         </>

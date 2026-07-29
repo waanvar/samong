@@ -12,6 +12,7 @@ import {
   type SimulationNodeDatum,
 } from "d3-force";
 import { api, type GraphData } from "../api";
+import { useT } from "../i18n";
 
 /**
  * The graph is the workspace, not a novelty tab — so it has to survive a real
@@ -69,6 +70,7 @@ export function GraphCanvas({
   onSelect,
   revision,
 }: Props) {
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<Simulation<Node, Edge> | null>(null);
@@ -491,7 +493,7 @@ export function GraphCanvas({
         onClick={onClick}
         onWheel={onWheel}
         role="img"
-        aria-label={`แผนที่ความรู้ ${counts.nodes} โน้ต ${counts.edges} ลิงก์ — ใช้ช่องค้นหาหรือรายการด้านซ้ายเพื่อเปิดโน้ตด้วยคีย์บอร์ด`}
+        aria-label={t("graph.aria", { nodes: counts.nodes, edges: counts.edges })}
       />
 
       {hovered && (
@@ -504,8 +506,9 @@ export function GraphCanvas({
           <span className="path">{hovered.node.key}</span>
           <span className="graph-tip-meta">
             {hovered.node.missing
-              ? "ยังไม่มีโน้ตนี้"
-              : `${hovered.node.degree} ลิงก์${hovered.node.reference ? " · อ่านเท่านั้น" : ""}`}
+              ? t("graph.missing")
+              : t("graph.links", { count: hovered.node.degree }) +
+                (hovered.node.reference ? t("graph.readOnlySuffix") : "")}
           </span>
         </div>
       )}
@@ -527,9 +530,9 @@ export function GraphCanvas({
       )}
 
       <div className="graph-scale">
-        <span className="dot solid" aria-hidden /> โน้ตของคุณ
-        <span className="dot hollow" aria-hidden /> อ่านเท่านั้น
-        <span className="dot dashed" aria-hidden /> ยังไม่มีโน้ต
+        <span className="dot solid" aria-hidden /> {t("graph.legend.own")}
+        <span className="dot hollow" aria-hidden /> {t("graph.legend.reference")}
+        <span className="dot dashed" aria-hidden /> {t("graph.legend.missing")}
       </div>
     </div>
   );
