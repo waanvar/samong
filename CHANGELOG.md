@@ -6,6 +6,33 @@ The version starts at 0.3.0: two earlier generations of the index and API existe
 during development but were never published, and the numbering keeps their
 lineage rather than pretending this is the first shape the project took.
 
+## 0.3.1
+
+The 0.3.0 binaries were built from a commit that predates the brand work below,
+so this is the first build where what you download matches what the website
+shows. No data format changed: the index and `samong.toml` are unchanged, and
+0.3.0 vaults are read as-is.
+
+- **The wordmark is outlined.** The name used to be live text set in Bai
+  Jamjuree; it is now SVG paths, so it renders identically without the font
+  present and can be handed to a printer as-is. The letterforms are the same
+  ones — they were extracted from the font, not redrawn.
+- **The brand is bigger in the app**, and sized from cap height rather than
+  font-size so the mark and the name scale as one object.
+- Brand assets — mark, wordmark and lockup, in colour and one-colour versions —
+  with usage rules, at `site/brand.html`.
+- Fixed a rendering bug where the wordmark showed only a fragment of one letter
+  when referenced through an SVG `<use>`.
+
+### Fixed for contributors
+
+- `cargo test` no longer opens the real registry at `~/.config/samong`. Five test
+  files were using it, which made parallel runs fight over redb's exclusive lock
+  — and meant running the suite could modify vaults you actually use.
+- Replaced a wall-clock assertion in the incremental-reindex test with a check on
+  the work done, which is what the feature promises and does not depend on how
+  busy the machine is.
+
 ## 0.3.0 — first public release
 
 The first build published as a downloadable binary. Everything below is new to
