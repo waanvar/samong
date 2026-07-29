@@ -93,32 +93,34 @@ code, .mono { font-family: var(--mono); font-size: 0.88em; }
    Everything is sized from CAP HEIGHT, not font-size. Cap height is what the eye
    reads as "how big is that word", and it is the only number that stays
    comparable once the type became paths: the outline box is 911 units tall for
-   700 units of cap, so height = cap x 1.3.
+   700 units of cap, so height = cap x 1.3. The mark is 1.726 x cap.
 
-   The mark is 1.726 x cap, the ratio taken from the hero lockup, so the mark and
-   the name scale as one object everywhere. */
-.brand { display: flex; align-items: center; gap: .55rem; color: var(--ink); text-decoration: none; }
-.brand-mark { width: 29px; height: 29px; flex: none; }
-/* cap 17px (was 14.6px as 1.3rem live text) -> 17 x 1.3 = 22.1px */
-.wordmark { height: 22.1px; width: auto; flex: none; display: block; }
-
-.lockup { display: flex; align-items: center; gap: .85rem; margin: 0 0 1.6rem; }
-/* 1.726 x cap, tracking the wordmark's own clamp exactly (1.328 x its height)
-   so the ratio holds at every viewport width, not just at the two ends. */
-.lockup-mark { width: clamp(51.8px, 6.9vw, 69.1px); height: clamp(51.8px, 6.9vw, 69.1px); flex: none; }
-/* cap clamp(30px, 4vw, 40px) x 1.3 */
-.lockup-word { height: clamp(39px, 5.2vw, 52px); width: auto; flex: none; display: block; }
+   The brand lives ONLY in the header. It used to be repeated at hero size above
+   the headline, where the two were close enough in size to compete and the eye
+   could not tell which one was the message. The claim gets the hero; the name
+   gets the header, big enough to be read on the way past. */
+.brand { display: flex; align-items: center; gap: .6rem; color: var(--ink); text-decoration: none; }
+.brand-mark { width: 36px; height: 36px; flex: none; }
+/* cap 21px (14.6px before Phase 21, 17px in the first pass) -> 21 x 1.3 = 27.3px */
+.wordmark { height: 27.3px; width: auto; flex: none; display: block; }
 .nav-spacer { flex: 1; }
 .nav a:not(.btn) { color: var(--ink-2); text-decoration: none; font-size: .92rem; }
 .nav a:not(.btn):hover { color: var(--ink); }
 /* The brand is an anchor inside the nav, so it has to outrank the nav-link rule
    above — otherwise the name renders in the muted ink meant for navigation. */
 .nav a.brand { color: var(--ink); }
+/* The GitHub mark, at cap height of the button's own text so it sits on the line
+   rather than floating. GitHub's logo used to link to GitHub — nominative use, and
+   the only third-party mark on the page. */
+.btn-icon { width: 16px; height: 16px; flex: none; }
+
 @media (max-width: 700px) { .nav .hide-sm { display: none; } }
-/* Under ~430px the brand plus two buttons overflowed the nav — it did before the
-   wordmark grew, it was just clipped rather than scrolling, so nothing caught it.
-   Download is the only action worth the width here; GitHub is in the footer. */
-@media (max-width: 430px) { .nav .btn:not(.btn-primary) { display: none; } }
+/* The nav ran out of room before the wordmark grew — it was clipped rather than
+   scrolling, so nothing caught it. Rather than drop the GitHub link, let it fall
+   back to its icon; a repo link is worth 38px. Below ~390px even that has to go,
+   and it is still in the footer. */
+@media (max-width: 560px) { .nav .btn:not(.btn-primary) .btn-label { display: none; } }
+@media (max-width: 390px) { .nav .btn:not(.btn-primary) { display: none; } }
 
 .btn {
   display: inline-flex; align-items: center; gap: .5rem;
@@ -260,6 +262,10 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
     <circle cx="8.5" cy="22.5" r="2.3" fill="var(--ink-mute)"/>
     <circle cx="21.5" cy="21.5" r="5.2" fill="var(--found)"/>
   </symbol>
+  <!-- GitHub's own mark, used to link to GitHub. -->
+  <symbol id="gh" viewBox="0 0 16 16">
+    <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.05-.13-.36-.66.05-1.36 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.41.7.1 1.23.05 1.36.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0016 8c0-4.42-3.58-8-8-8Z"/>
+  </symbol>
 
   <!-- The wordmark, outlined. These are Bai Jamjuree 700 letterforms converted to
        paths, so the name no longer depends on a webfont arriving: it renders
@@ -287,7 +293,10 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
     <a href="#files" class="hide-sm">Your files</a>
     <a href="#agents" class="hide-sm">AI tools</a>
     <a href="#search" class="hide-sm">Search</a>
-    <a href="https://github.com/waanvar/samong" class="btn">GitHub</a>
+    <a href="https://github.com/waanvar/samong" class="btn" aria-label="Samong on GitHub">
+      <svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#gh"/></svg>
+      <span class="btn-label">GitHub</span>
+    </a>
     <a href="#download" class="btn btn-primary">Download</a>
   </div>
 </nav>
@@ -296,10 +305,6 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
   <canvas id="ambient" aria-hidden="true"></canvas>
   <div class="wrap hero-grid">
     <div>
-      <div class="lockup">
-        <svg class="lockup-mark" viewBox="0 0 32 32"><use href="#mark"/></svg>
-        <svg class="lockup-word" viewBox="0 0 3592 911" role="img" aria-label="Samong"><use href="#wordmark"/></svg>
-      </div>
       <h1>You <span class="hit">already</span> solved this once.</h1>
       <p class="lede">
         Six months ago you worked it out and wrote it down. The note is still in
@@ -308,7 +313,10 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
       </p>
       <div class="cta-row">
         <a href="#download" class="btn btn-primary btn-lg">Download</a>
-        <a href="https://github.com/waanvar/samong" class="btn btn-lg">Read the source</a>
+        <a href="https://github.com/waanvar/samong" class="btn btn-lg">
+          <svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#gh"/></svg>
+          Read the source
+        </a>
       </div>
       <p class="trust">
         <b>No account. No cloud. One binary.</b> Your notes never leave the machine —
