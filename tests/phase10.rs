@@ -12,8 +12,17 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-fn samong() -> Command {
-    Command::cargo_bin("samong").unwrap()
+/// Every invocation gets its own registry, inside the vault's own temp dir.
+/// Tests run in parallel and redb takes an exclusive lock, so sharing one
+/// registry makes them collide — which is exactly how CI failed while this
+/// passed locally. Pointing at the real `~/.config/samong` would also let a test
+/// mutate the registry someone actually uses. The dir is a dot-dir, so the scope
+/// walker never counts it as notes.
+fn samong(cwd: &Path) -> Command {
+    let mut cmd = Command::cargo_bin("samong").unwrap();
+    cmd.env("SAMONG_CONFIG_DIR", cwd.join(".samong-test-config"))
+        .current_dir(cwd);
+    cmd
 }
 
 fn write(root: &Path, rel: &str, body: &str) {
@@ -58,34 +67,27 @@ fn repo_shaped_vault() -> tempfile::TempDir {
 fn a_repo_root_vault_indexes_only_the_projects_own_notes() {
     let vault = repo_shaped_vault();
 
-    samong()
-        .current_dir(vault.path())
-        .arg("list")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("AGENTS")
-                .and(predicate::str::contains("CLAUDE"))
-                .and(predicate::str::contains("PROJECT_OVERVIEW"))
-                // Dependency and build-output notes are not notes.
-                .and(predicate::str::contains("CHANGELOG").not())
-                .and(predicate::str::contains("bundle-notes").not()),
-        );
+    samong(vault.path()).arg("list").assert().success().stdout(
+        predicate::str::contains("AGENTS")
+            .and(predicate::str::contains("CLAUDE"))
+            .and(predicate::str::contains("PROJECT_OVERVIEW"))
+            // Dependency and build-output notes are not notes.
+            .and(predicate::str::contains("CHANGELOG").not())
+            .and(predicate::str::contains("bundle-notes").not()),
+    );
 }
 
 #[test]
 fn search_is_not_flooded_by_dependency_readmes() {
     let vault = repo_shaped_vault();
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["search", "dependency"])
         .assert()
         .success()
         .stdout(predicate::str::contains("no results"));
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["search", "agents"])
         .assert()
         .success()
@@ -96,8 +98,7 @@ fn search_is_not_flooded_by_dependency_readmes() {
 fn doctor_reports_scope_and_what_it_skipped() {
     let vault = repo_shaped_vault();
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .arg("doctor")
         .assert()
         .success()
@@ -124,8 +125,7 @@ fn samongignore_can_re_include_notes_the_repo_gitignores() {
         "# local\n\nprivate research\n",
     );
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .args(["search", "research"])
         .assert()
         .success()
@@ -140,8 +140,7 @@ fn notes_dir_narrows_a_vault_to_one_subtree() {
     write(root, "docs/Guide.md", "# guide\n\nthe real docs\n");
     write(root, "README.md", "# repo readme\n");
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .arg("list")
         .assert()
         .success()
@@ -154,8 +153,7 @@ fn a_config_typo_fails_loudly_instead_of_widening_the_scope() {
     write(vault.path(), "samong.toml", "[scope]\nexcludes = [\"x\"]\n");
     write(vault.path(), "Note.md", "# note\n");
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .arg("list")
         .assert()
         .failure()
@@ -170,8 +168,7 @@ fn notes_sharing_a_title_stay_separate_and_are_reported() {
     write(root, "docs/README.md", "# README\n\ndocs readme text\n");
 
     // Both files are indexed, and each hit says which file it came from.
-    samong()
-        .current_dir(root)
+    samong(root)
         .args(["search", "readme text"])
         .assert()
         .success()
@@ -180,16 +177,11 @@ fn notes_sharing_a_title_stay_separate_and_are_reported() {
         );
 
     // And the ambiguity is named rather than hidden.
-    samong()
-        .current_dir(root)
-        .arg("doctor")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("1 ambiguous title(s) involving project notes")
-                .and(predicate::str::contains("README.md"))
-                .and(predicate::str::contains("docs/README.md")),
-        );
+    samong(root).arg("doctor").assert().success().stdout(
+        predicate::str::contains("1 ambiguous title(s) involving project notes")
+            .and(predicate::str::contains("README.md"))
+            .and(predicate::str::contains("docs/README.md")),
+    );
 }
 
 /// Reindexing the same untouched vault twice must be a no-op. With notes keyed
@@ -207,9 +199,8 @@ fn a_vault_with_duplicate_titles_settles_after_one_reindex() {
         );
     }
 
-    samong().current_dir(root).arg("reindex").assert().success();
-    samong()
-        .current_dir(root)
+    samong(root).arg("reindex").assert().success();
+    samong(root)
         .arg("reindex")
         .assert()
         .success()
@@ -221,21 +212,16 @@ fn rewriting_identical_bytes_does_not_reindex() {
     let vault = tempfile::tempdir().unwrap();
     let root = vault.path();
     write(root, "Note.md", "# Note\n\nsome content\n");
-    samong().current_dir(root).arg("reindex").assert().success();
+    samong(root).arg("reindex").assert().success();
 
     // Same bytes, new mtime — what a git checkout does to a whole tree.
     let content = fs::read_to_string(root.join("Note.md")).unwrap();
     fs::write(root.join("Note.md"), content).unwrap();
 
-    samong()
-        .current_dir(root)
-        .arg("reindex")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("reindexed 0 note(s)")
-                .and(predicate::str::contains("1 unchanged despite new mtime")),
-        );
+    samong(root).arg("reindex").assert().success().stdout(
+        predicate::str::contains("reindexed 0 note(s)")
+            .and(predicate::str::contains("1 unchanged despite new mtime")),
+    );
 }
 
 #[test]
@@ -249,8 +235,7 @@ fn renaming_works_when_the_linking_note_lives_in_a_subdirectory() {
         "# Source\n\nlinks [[Target]]\n",
     );
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .args(["rename", "Target", "Renamed"])
         .assert()
         .success()

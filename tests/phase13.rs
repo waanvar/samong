@@ -14,8 +14,17 @@ use std::process::Command;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-fn samong() -> Command {
-    Command::cargo_bin("samong").unwrap()
+/// Every invocation gets its own registry, inside the vault's own temp dir.
+/// Tests run in parallel and redb takes an exclusive lock, so sharing one
+/// registry makes them collide — which is exactly how CI failed while this
+/// passed locally. Pointing at the real `~/.config/samong` would also let a test
+/// mutate the registry someone actually uses. The dir is a dot-dir, so the scope
+/// walker never counts it as notes.
+fn samong(cwd: &Path) -> Command {
+    let mut cmd = Command::cargo_bin("samong").unwrap();
+    cmd.env("SAMONG_CONFIG_DIR", cwd.join(".samong-test-config"))
+        .current_dir(cwd);
+    cmd
 }
 
 fn write(root: &Path, rel: &str, body: &str) {
@@ -70,22 +79,16 @@ fn vault_with_vendored_docs() -> tempfile::TempDir {
 fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
     let vault = vault_with_vendored_docs();
 
-    samong()
-        .current_dir(vault.path())
-        .arg("list")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("PROJECT_OVERVIEW")
-                .and(predicate::str::contains("installation"))
-                .and(predicate::str::contains("routing"))
-                // Same dependency tree, outside the include root.
-                .and(predicate::str::contains("changelog").not()),
-        );
+    samong(vault.path()).arg("list").assert().success().stdout(
+        predicate::str::contains("PROJECT_OVERVIEW")
+            .and(predicate::str::contains("installation"))
+            .and(predicate::str::contains("routing"))
+            // Same dependency tree, outside the include root.
+            .and(predicate::str::contains("changelog").not()),
+    );
 
     // And they are searchable as part of the project's own brain.
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["search", "create-next-app"])
         .assert()
         .success()
@@ -94,8 +97,7 @@ fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
         ));
 
     // A project note linking to a reference note resolves — one brain, not two.
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["links", "installation"])
         .assert()
         .success()
@@ -106,8 +108,7 @@ fn vendored_docs_join_the_same_vault_without_the_surrounding_noise() {
 fn doctor_separates_project_notes_from_reference_notes() {
     let vault = vault_with_vendored_docs();
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .arg("doctor")
         .assert()
         .success()
@@ -151,18 +152,13 @@ fn doctor_separates_collisions_that_matter_from_vendored_noise() {
         "# index\n",
     );
 
-    samong()
-        .current_dir(root)
-        .arg("doctor")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("1 ambiguous title(s) involving project notes")
-                .and(predicate::str::contains("routing.md"))
-                .and(predicate::str::contains(
-                    "1 more title(s) collide only among reference notes",
-                )),
-        );
+    samong(root).arg("doctor").assert().success().stdout(
+        predicate::str::contains("1 ambiguous title(s) involving project notes")
+            .and(predicate::str::contains("routing.md"))
+            .and(predicate::str::contains(
+                "1 more title(s) collide only among reference notes",
+            )),
+    );
 }
 
 /// The failure this guard exists for: an agent saving what it learned under a
@@ -180,8 +176,7 @@ fn reference_notes_are_read_only() {
         (vec!["delete", "installation"], "delete"),
         (vec!["rename", "installation", "install-guide"], "rename"),
     ] {
-        samong()
-            .current_dir(vault.path())
+        samong(vault.path())
             .args(&args)
             .assert()
             .failure()
@@ -216,8 +211,7 @@ fn renaming_a_project_note_leaves_reference_notes_alone() {
         "# mentions\n\nrefers to [[Target]] as well\n",
     );
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .args(["rename", "Target", "Renamed"])
         .assert()
         .success()
@@ -253,25 +247,18 @@ fn a_missing_include_root_warns_but_never_fails() {
     write(root, "Own.md", "# Own\n\nthe project's own note\n");
 
     // Indexing succeeds, warns, and still finds the project's own notes.
-    samong()
-        .current_dir(root)
-        .arg("reindex")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("warning: scope.include")
-                .and(predicate::str::contains("node_modules/next/dist/docs")),
-        );
+    samong(root).arg("reindex").assert().success().stdout(
+        predicate::str::contains("warning: scope.include")
+            .and(predicate::str::contains("node_modules/next/dist/docs")),
+    );
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .args(["search", "own note"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Own.md"));
 
-    samong()
-        .current_dir(root)
+    samong(root)
         .arg("doctor")
         .assert()
         .success()
@@ -290,16 +277,11 @@ fn broken_explains_that_missing_reference_sources_may_resolve_later() {
     );
     write(root, "Own.md", "# Own\n\nfollows [[installation]]\n");
 
-    samong()
-        .current_dir(root)
-        .arg("broken")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("Own -> [[installation]]").and(predicate::str::contains(
-                "may resolve once they are installed",
-            )),
-        );
+    samong(root).arg("broken").assert().success().stdout(
+        predicate::str::contains("Own -> [[installation]]").and(predicate::str::contains(
+            "may resolve once they are installed",
+        )),
+    );
 }
 
 #[test]
@@ -313,13 +295,8 @@ fn doctor_points_at_include_when_dependency_docs_were_skipped() {
 
     // No include configured yet: doctor must name the right lever, since
     // .samongignore cannot reopen a pruned dependency directory.
-    samong()
-        .current_dir(root)
-        .arg("doctor")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("inside dependency directories")
-                .and(predicate::str::contains("scope.include")),
-        );
+    samong(root).arg("doctor").assert().success().stdout(
+        predicate::str::contains("inside dependency directories")
+            .and(predicate::str::contains("scope.include")),
+    );
 }

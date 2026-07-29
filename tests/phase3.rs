@@ -4,9 +4,12 @@ use std::path::Path;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
+/// Own registry per invocation — see the note in phase1.rs: a shared redb
+/// registry makes parallel tests fight over an exclusive lock.
 fn samong(cwd: &Path) -> Command {
     let mut cmd = Command::cargo_bin("samong").expect("binary should build");
-    cmd.current_dir(cwd);
+    cmd.env("SAMONG_CONFIG_DIR", cwd.join(".samong-test-config"))
+        .current_dir(cwd);
     cmd
 }
 

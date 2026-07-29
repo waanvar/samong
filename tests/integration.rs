@@ -1,27 +1,29 @@
 use std::fs;
+use std::path::Path;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-fn samong() -> Command {
-    Command::cargo_bin("samong").expect("binary should build")
+/// Every invocation gets its own registry, inside the vault's own temp dir.
+/// Tests run in parallel and redb takes an exclusive lock, so sharing one
+/// registry makes them collide — which is exactly how CI failed while this
+/// passed locally. Pointing at the real `~/.config/samong` would also let a test
+/// mutate the registry someone actually uses. The dir is a dot-dir, so the scope
+/// walker never counts it as notes.
+fn samong(cwd: &Path) -> Command {
+    let mut cmd = Command::cargo_bin("samong").expect("binary should build");
+    cmd.env("SAMONG_CONFIG_DIR", cwd.join(".samong-test-config"))
+        .current_dir(cwd);
+    cmd
 }
 
 #[test]
 fn full_lifecycle_new_links_search_graph_list() {
     let vault = tempfile::tempdir().unwrap();
 
-    samong()
-        .current_dir(vault.path())
-        .args(["new", "A"])
-        .assert()
-        .success();
+    samong(vault.path()).args(["new", "A"]).assert().success();
 
-    samong()
-        .current_dir(vault.path())
-        .args(["new", "B"])
-        .assert()
-        .success();
+    samong(vault.path()).args(["new", "B"]).assert().success();
 
     // Give both notes distinctive content, and make B link to A.
     fs::write(
@@ -31,40 +33,35 @@ fn full_lifecycle_new_links_search_graph_list() {
     .unwrap();
     fs::write(vault.path().join("B.md"), "# B\n\nSee [[A]] for details.\n").unwrap();
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .arg("reindex")
         .assert()
         .success()
         .stdout(predicate::str::contains("reindex complete"));
 
     // links: A should show a backlink from B
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["links", "A"])
         .assert()
         .success()
         .stdout(predicate::str::contains("<- B"));
 
     // search: content unique to A should be found, labelled with its path
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["search", "superposition"])
         .assert()
         .success()
         .stdout(predicate::str::contains("A.md:"));
 
     // graph: the B -> A edge should be listed
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .arg("graph")
         .assert()
         .success()
         .stdout(predicate::str::contains("B -> A"));
 
     // list: both notes should be present
-    let list_output = samong()
-        .current_dir(vault.path())
+    let list_output = samong(vault.path())
         .arg("list")
         .assert()
         .success()
@@ -80,31 +77,18 @@ fn full_lifecycle_new_links_search_graph_list() {
 fn new_rejects_duplicate_title() {
     let vault = tempfile::tempdir().unwrap();
 
-    samong()
-        .current_dir(vault.path())
-        .args(["new", "Dup"])
-        .assert()
-        .success();
+    samong(vault.path()).args(["new", "Dup"]).assert().success();
 
-    samong()
-        .current_dir(vault.path())
-        .args(["new", "Dup"])
-        .assert()
-        .failure();
+    samong(vault.path()).args(["new", "Dup"]).assert().failure();
 }
 
 #[test]
 fn search_with_no_notes_reports_no_results() {
     let vault = tempfile::tempdir().unwrap();
 
-    samong()
-        .current_dir(vault.path())
-        .arg("reindex")
-        .assert()
-        .success();
+    samong(vault.path()).arg("reindex").assert().success();
 
-    samong()
-        .current_dir(vault.path())
+    samong(vault.path())
         .args(["search", "nothing"])
         .assert()
         .success()
