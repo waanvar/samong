@@ -34,7 +34,7 @@ interface Node extends SimulationNodeDatum {
   /** Wikilink target with no note behind it. */
   missing: boolean;
   reference: boolean;
-  /** Top-level folder, used to cluster the layout. */
+  /** The folder the note sits in, used to cluster the layout. */
   group: string;
   degree: number;
 }
@@ -83,7 +83,17 @@ export function GraphCanvas({
   const frameRef = useRef(0);
 
   const [hovered, setHovered] = useState<{ node: Node; x: number; y: number } | null>(null);
-  const [counts, setCounts] = useState({ nodes: 0, edges: 0 });
+  const [counts, setCounts] = useState({ nodes: 0, edges: 0, hidden: 0 });
+  /**
+   * Reference notes are off by default.
+   *
+   * A vault that pulls in vendored documentation can hold 425 read-only notes
+   * against 5 of your own, and at that ratio the graph stops being a map: it is a
+   * uniform field of rings with your actual knowledge lost inside it. The map
+   * answers "what do I know" — somebody else's docs are a lookup resource, and
+   * they are one click away when you want them.
+   */
+  const [showReference, setShowReference] = useState(false);
 
   const colorOf = useCallback(
     (node: Node) => {
@@ -137,6 +147,11 @@ export function GraphCanvas({
     const alphaOf = (node: Node) => {
       if (matched && !matched.has(node.key)) return DIMMED;
       if (selectedKey && node.key !== selectedKey && !neighbours.has(node.key)) return 0.35;
+      // When reference notes are shown they are ground, not figure: they still
+      // outnumber your own notes by a lot, and at equal weight they are all you
+      // see. A match or a selection overrides this — being found outranks being
+      // background.
+      if (node.reference) return 0.45;
       return 1;
     };
 
@@ -164,8 +179,14 @@ export function GraphCanvas({
       const alpha = alphaOf(node);
       const isMatch = !!matched?.has(node.key);
       const isSelected = node.key === selectedKey;
-      // Size carries the connection count: a hub looks like a hub.
-      const radius = (node.missing ? 3.5 : 4 + Math.min(node.degree, 12) * 0.75) / 1;
+      // Size carries the connection count: a hub looks like a hub. Reference
+      // notes are drawn smaller as well as fainter — two channels saying the same
+      // thing, because one was not enough at a ratio of 85 to 1.
+      const radius = node.missing
+        ? 3.5
+        : node.reference
+          ? 2.8 + Math.min(node.degree, 12) * 0.3
+          : 4 + Math.min(node.degree, 12) * 0.75;
 
       ctx.globalAlpha = alpha;
 
@@ -252,7 +273,41 @@ export function GraphCanvas({
         degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
       }
 
-      const nodes: Node[] = data.nodes.map((n) => {
+      /**
+       * Your notes, plus one hop.
+       *
+       * Dropping every reference note outright was too blunt: this vault's only
+       * two outgoing links go from a note of yours *to* a vendored doc page, and
+       * its six "not created yet" targets are all named by reference notes. Cut
+       * them all and the map is 11 unconnected dots — technically the right
+       * filter, uselessly wrong as a picture.
+       *
+       * So: keep your own notes, and keep whatever they touch directly. A
+       * borrowed page you actually cite is part of your map. A missing target is
+       * only meaningful beside the note that names it, so it comes along only if
+       * that note is here.
+       */
+      const keep = new Set<string>();
+      if (showReference) {
+        for (const n of data.nodes) keep.add(n.id);
+      } else {
+        for (const n of data.nodes) {
+          if (!n.reference && !n.missing) keep.add(n.id);
+        }
+        // Snapshot the seed so this stays exactly one hop, not a flood fill.
+        const seed = new Set(keep);
+        for (const e of data.edges) {
+          if (seed.has(e.from)) keep.add(e.to);
+          if (seed.has(e.to)) keep.add(e.from);
+        }
+      }
+
+      const visible = data.nodes.filter((n) => keep.has(n.id));
+      // Counted against the legend entry it sits next to, so it says how many
+      // read-only notes are off the map — not how many nodes of any kind are.
+      const hidden = data.nodes.filter((n) => n.reference && !keep.has(n.id)).length;
+
+      const nodes: Node[] = visible.map((n) => {
         let nodeVault = vault;
         let key = n.id;
         if (allVaults) {
@@ -262,7 +317,11 @@ export function GraphCanvas({
             key = n.id.slice(slash + 1);
           }
         }
-        const folder = key.includes("/") ? key.slice(0, key.indexOf("/")) : "";
+        // The *deepest* folder, not the top-level one. Vendored docs all live
+        // under `node_modules`, so a top-level key collapsed every reference note
+        // into a single group and the clustering could not say anything. The
+        // directory a note actually sits in is what distinguishes it.
+        const slash = key.lastIndexOf("/");
         return {
           id: n.id,
           key,
@@ -270,7 +329,7 @@ export function GraphCanvas({
           label: n.label,
           missing: n.missing,
           reference: n.reference,
-          group: allVaults ? nodeVault : folder,
+          group: allVaults ? nodeVault : slash > 0 ? key.slice(0, slash) : "",
           degree: degree.get(n.id) ?? 0,
         };
       });
@@ -283,10 +342,23 @@ export function GraphCanvas({
       // Anchor each folder (or vault) at its own point on a ring. Without this a
       // few hundred notes settle into one indistinguishable ball; with it the
       // layout shows the structure the paths already describe.
-      const groups = [...new Set(nodes.map((n) => n.group))].sort();
+      // Only the populous folders get an anchor. Grouping by the deepest folder
+      // can produce dozens of groups, and a ring of dozens of anchors is a ring,
+      // not a structure — so the biggest clusters get a position and the long tail
+      // is left to the centre, where it reads as "everything else".
+      const population = new Map<string, number>();
+      for (const node of nodes) {
+        if (node.group) population.set(node.group, (population.get(node.group) ?? 0) + 1);
+      }
+      const groups = [...population.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 10)
+        .map(([name]) => name)
+        .sort();
       const anchor = (node: Node) => {
         const index = groups.indexOf(node.group);
-        const angle = (index / Math.max(groups.length, 1)) * Math.PI * 2;
+        if (index < 0) return { x: 0, y: 0 };
+        const angle = (index / groups.length) * Math.PI * 2;
         const spread = groups.length > 1 ? 190 : 0;
         return { x: Math.cos(angle) * spread, y: Math.sin(angle) * spread };
       };
@@ -294,7 +366,7 @@ export function GraphCanvas({
       simRef.current?.stop();
       nodesRef.current = nodes;
       edgesRef.current = edges;
-      setCounts({ nodes: nodes.length, edges: edges.length });
+      setCounts({ nodes: nodes.length, edges: edges.length, hidden });
 
       const simulation = forceSimulation(nodes)
         .force("charge", forceManyBody().strength(-90))
@@ -319,7 +391,7 @@ export function GraphCanvas({
       cancelled = true;
       simRef.current?.stop();
     };
-  }, [vault, vaults, allVaults, revision, schedulePaint, paintNow]);
+  }, [vault, vaults, allVaults, showReference, revision, schedulePaint, paintNow]);
 
   // Repaint when state that only affects appearance changes (selection, search
   // dimming, theme). Direct, so it works in a tab that is not compositing.
@@ -529,9 +601,22 @@ export function GraphCanvas({
         </div>
       )}
 
+      {/* The legend is also the filter. There is no second place to look for a
+          control that means exactly what the legend entry already says. */}
       <div className="graph-scale">
         <span className="dot solid" aria-hidden /> {t("graph.legend.own")}
-        <span className="dot hollow" aria-hidden /> {t("graph.legend.reference")}
+        <button
+          type="button"
+          className={`legend-toggle ${showReference ? "on" : ""}`}
+          onClick={() => setShowReference((on) => !on)}
+          aria-pressed={showReference}
+          title={t("graph.legend.referenceToggle")}
+        >
+          <span className="dot hollow" aria-hidden /> {t("graph.legend.reference")}
+          {!showReference && counts.hidden > 0 && (
+            <span className="legend-count">{counts.hidden}</span>
+          )}
+        </button>
         <span className="dot dashed" aria-hidden /> {t("graph.legend.missing")}
       </div>
     </div>

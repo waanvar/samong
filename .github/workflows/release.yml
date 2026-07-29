@@ -22,11 +22,15 @@ jobs:
           - os: macos-latest
             target: aarch64-macos
             archive: tar
-          # Intel Macs are still a meaningful share, and macos-latest is arm64,
-          # so this needs its own natively-x86_64 runner.
-          - os: macos-13
+          # Intel Macs are still a meaningful share. This used to ask for a
+          # `macos-13` runner to build natively; that image has been retired, so
+          # the job sat queued forever — v0.3.0 waited nearly six hours and never
+          # produced this archive. Cross-compiling from the arm64 runner needs no
+          # special image: macOS ships both slices of the SDK.
+          - os: macos-latest
             target: x86_64-macos
             archive: tar
+            rust_target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,20 +49,33 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
 
       - uses: Swatinem/rust-cache@v2
 
       - name: Build binaries
+        shell: bash
         # --locked: a release must build from the committed Cargo.lock, not from
         # whatever resolved newest today.
-        run: cargo build --release --bins --locked
+        run: |
+          if [ -n "${{ matrix.rust_target }}" ]; then
+            cargo build --release --bins --locked --target "${{ matrix.rust_target }}"
+          else
+            cargo build --release --bins --locked
+          fi
 
       - name: Package
         shell: bash
         run: |
           name="samong-${{ github.ref_name }}-${{ matrix.target }}"
+          # A cross build lands under target/<triple>/release instead.
+          bin="target/release"
+          if [ -n "${{ matrix.rust_target }}" ]; then
+            bin="target/${{ matrix.rust_target }}/release"
+          fi
           mkdir -p "stage/$name"
-          cp target/release/samong* "stage/$name/" 2>/dev/null || true
+          cp "$bin"/samong* "stage/$name/" 2>/dev/null || true
           rm -f "stage/$name/"*.d "stage/$name/"*.pdb
           # The web UI is embedded into samong-server, so the archive is just
           # the binaries + docs. NOTICE and THIRD-PARTY.md must travel with the

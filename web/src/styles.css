@@ -607,6 +607,41 @@ kbd {
   gap: 7px;
 }
 
+/* The legend entry for reference notes is the control that shows or hides them.
+   It has to read as a legend first and a button second, so it borrows the row's
+   type and colour and only gains a hit area. */
+.legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-mute);
+  font: inherit;
+  cursor: pointer;
+}
+
+.legend-toggle:hover {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.legend-toggle.on {
+  color: var(--ink-2);
+}
+
+.legend-count {
+  padding-inline: 5px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
 .dot {
   inline-size: 9px;
   block-size: 9px;

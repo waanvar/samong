@@ -28,6 +28,32 @@ function emptyFolder(name: string, path: string): Folder {
  * alphabetical list of those is unusable. The paths already describe a shape;
  * this just shows it.
  */
+/**
+ * Collapse chains of folders that hold nothing but one another.
+ *
+ * Vendored documentation arrives as `node_modules/next/dist/docs/01-app/…`,
+ * which as a literal tree is five rows deep before the first thing you can read,
+ * each row a single child, and the indentation pushes leaf names so far right
+ * that they truncate to `0…`. Joining those into one `node_modules/next/dist/docs`
+ * row costs nothing — no information is in the intermediate steps — and gives the
+ * width back to the names. File browsers have done this for years.
+ */
+function compressBranch(folder: Folder): Folder {
+  let current = folder;
+  while (current.notes.length === 0 && current.folders.length === 1) {
+    const only = current.folders[0];
+    // Keep the child's `path`, so the collapsed row still addresses a real
+    // directory — it is what the expand/collapse state is keyed on.
+    current = { ...only, name: `${current.name}/${only.name}` };
+  }
+  return { ...current, folders: current.folders.map(compressBranch) };
+}
+
+/** The root is the vault, so it is never merged into a child — only branches are. */
+function compress(root: Folder): Folder {
+  return { ...root, folders: root.folders.map(compressBranch) };
+}
+
 function buildTree(notes: NoteInfo[]): Folder {
   const root = emptyFolder("", "");
   for (const note of notes) {
@@ -76,12 +102,16 @@ export function NoteTree({ notes, active, onOpen }: Props) {
     return [own, reference];
   }, [notes]);
 
-  const ownTree = useMemo(() => buildTree(own), [own]);
-  const referenceTree = useMemo(() => buildTree(reference), [reference]);
+  const ownTree = useMemo(() => compress(buildTree(own)), [own]);
+  const referenceTree = useMemo(() => compress(buildTree(reference)), [reference]);
 
-  const [collapsed, setCollapsed] = useState<Set<string>>(() =>
-    initialCollapsed(buildTree(notes)),
-  );
+  // Seeded from the compressed trees: compression rewrites which rows exist, so
+  // paths collected from the raw tree would key collapse state on rows that are
+  // no longer rendered.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    const seed = initialCollapsed(compress(buildTree(notes)));
+    return seed;
+  });
   const toggle = (path: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);

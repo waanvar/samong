@@ -88,6 +88,7 @@ const en = {
   "graph.readOnlySuffix": " · read-only",
   "graph.legend.own": "Your notes",
   "graph.legend.reference": "Read-only",
+  "graph.legend.referenceToggle": "Show or hide read-only notes on the map",
   "graph.legend.missing": "Not created yet",
   "stage.matched": {
     one: "Highlighting the one note that matches — press Esc in the search field to see them all",
@@ -216,6 +217,7 @@ const th: Record<MessageKey, Message> = {
   "graph.readOnlySuffix": " · อ่านเท่านั้น",
   "graph.legend.own": "โน้ตของคุณ",
   "graph.legend.reference": "อ่านเท่านั้น",
+  "graph.legend.referenceToggle": "แสดงหรือซ่อนโน้ตอ่านเท่านั้นบนแผนที่",
   "graph.legend.missing": "ยังไม่มีโน้ต",
   "stage.matched": "เน้นเฉพาะ {count} โน้ตที่ตรงกับคำค้น — กด Esc ในช่องค้นเพื่อกลับมาดูทั้งหมด",
 
