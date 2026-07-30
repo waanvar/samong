@@ -230,6 +230,69 @@ fn degree_boost(degree: usize) -> f32 {
     1.0 + DEGREE_WEIGHT * scaled.min(1.0)
 }
 
+/// Fetch specific notes from the index by key, as hits.
+///
+/// For candidates that another ranking found and full-text search did not — a
+/// semantic match on a note that shares no words with the query. Without this,
+/// hybrid search could only reorder what BM25 already returned, which is useless
+/// in exactly the case semantic search exists for: not remembering the words you
+/// wrote.
+///
+/// Snippets are the opening of the note, because no query term matched anything to
+/// highlight. Keys absent from the index are skipped rather than reported: they
+/// are notes the text index does not know about, and returning one would hand back
+/// a result that cannot be opened.
+pub fn hits_for_keys(
+    vault: &Path,
+    keys: &[String],
+    snippet_chars: usize,
+) -> Result<Vec<SearchHit>> {
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let dir = index_dir(vault);
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let index = Index::open_in_dir(&dir).context("opening tantivy index")?;
+    register_tokenizers(&index);
+    let schema = index.schema();
+    let path_field = schema.get_field("path")?;
+    let title_field = schema.get_field("title")?;
+    let body_field = schema.get_field("body")?;
+    let searcher = index.reader().context("creating index reader")?.searcher();
+
+    let mut out = Vec::with_capacity(keys.len());
+    for key in keys {
+        let term = Term::from_field_text(path_field, key);
+        let query = tantivy::query::TermQuery::new(term, IndexRecordOption::Basic);
+        let found = searcher.search(&query, &TopDocs::with_limit(1).order_by_score())?;
+        let Some((_, address)) = found.first() else {
+            continue;
+        };
+        let retrieved: TantivyDocument = searcher.doc(*address)?;
+        let stored = |field| {
+            retrieved
+                .get_first(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string()
+        };
+        out.push(SearchHit {
+            key: key.clone(),
+            title: stored(title_field),
+            snippet: stored(body_field)
+                .chars()
+                .take(snippet_chars.max(20))
+                .collect(),
+            // Filled in by whoever fuses the rankings; on its own this hit has no
+            // relevance score, because relevance is not why it is here.
+            score: 0.0,
+        });
+    }
+    Ok(out)
+}
+
 /// Search, then rank by relevance *and* connectedness.
 ///
 /// Fetches a larger pool than asked for, multiplies each BM25 score by the

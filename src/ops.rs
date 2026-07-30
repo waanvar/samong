@@ -118,16 +118,44 @@ pub fn search_vault(
         return Ok(hits);
     }
 
-    let rank_of: std::collections::HashMap<&str, usize> = semantic_order
+    let lexical_rank: std::collections::HashMap<String, usize> = hits
+        .iter()
+        .enumerate()
+        .map(|(index, hit)| (hit.key.clone(), index))
+        .collect();
+
+    // Candidates the words missed entirely.
+    //
+    // This is the whole point, and the first version of this function got it
+    // wrong: it started from the lexical hits and let meaning only reorder them,
+    // so a query whose words appear nowhere returned nothing at all — proved by
+    // asking a Thai question of an English vault and getting "no results" with
+    // embeddings switched on. Hybrid retrieval has to be a union of the two
+    // candidate sets, not one filtered by the other.
+    let unmatched: Vec<String> = semantic_order
+        .iter()
+        .filter(|key| !lexical_rank.contains_key(*key))
+        .cloned()
+        .collect();
+    hits.extend(crate::search::hits_for_keys(
+        vault,
+        &unmatched,
+        options.snippet_chars,
+    )?);
+
+    let semantic_rank: std::collections::HashMap<&str, usize> = semantic_order
         .iter()
         .enumerate()
         .map(|(index, key)| (key.as_str(), index))
         .collect();
-    for (index, hit) in hits.iter_mut().enumerate() {
-        let lexical = 1.0 / (RRF_K + index as f32 + 1.0);
-        // A hit the semantic ranking never returned contributes nothing from that
-        // side rather than being pushed down: it was still a lexical match.
-        let meaning = rank_of
+    for hit in hits.iter_mut() {
+        // Missing from one ranking contributes nothing from that side rather than
+        // a penalty: being found by one of two methods is not evidence against.
+        let lexical = lexical_rank
+            .get(&hit.key)
+            .map(|rank| 1.0 / (RRF_K + *rank as f32 + 1.0))
+            .unwrap_or(0.0);
+        let meaning = semantic_rank
             .get(hit.key.as_str())
             .map(|rank| 1.0 / (RRF_K + *rank as f32 + 1.0))
             .unwrap_or(0.0);
@@ -139,6 +167,8 @@ pub fn search_vault(
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| a.key.cmp(&b.key))
     });
+    // The union is larger than what was asked for.
+    hits.truncate(options.limit.clamp(1, crate::search::MAX_LIMIT));
     Ok(hits)
 }
 
