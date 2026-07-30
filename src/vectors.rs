@@ -313,7 +313,7 @@ mod tests {
             "h3",
             "hash follows the content"
         );
-        assert!(hashes.get("B.md").is_none(), "removal took effect");
+        assert!(!hashes.contains_key("B.md"), "removal took effect");
     }
 
     /// Mixing two models' vectors would produce cosine numbers that mean nothing,
