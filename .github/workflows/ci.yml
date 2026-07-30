@@ -21,14 +21,18 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # --locked everywhere: CI has to judge the dependency set we actually ship,
+      # not whatever resolved newest this morning. Without it a green CI says
+      # nothing about the binaries the release workflow builds, and an upstream
+      # release can turn main red with no change of ours.
       - name: Build
-        run: cargo build --all --verbose
+        run: cargo build --all --locked --verbose
 
       - name: Test
-        run: cargo test --all --verbose
+        run: cargo test --all --locked --verbose
 
       - name: Clippy
-        run: cargo clippy --all -- -D warnings
+        run: cargo clippy --all --locked -- -D warnings
 
       - name: Format check
         run: cargo fmt --all -- --check
