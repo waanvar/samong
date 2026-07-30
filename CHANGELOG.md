@@ -6,6 +6,18 @@ The version starts at 0.3.0: two earlier generations of the index and API existe
 during development but were never published, and the numbering keeps their
 lineage rather than pretending this is the first shape the project took.
 
+## Unreleased
+
+- **Semantic search, optional and local.** Build with `--features semantic` and
+  run `samong embed` to rank by meaning as well as by words, using a multilingual
+  model so it works on Thai notes — not just English ones. Off by default: it
+  pulls in ONNX Runtime and downloads a 465 MB model, and "one binary, nothing to
+  fetch" is a promise worth protecting for everyone who does not need this.
+  Reference notes from `scope.include` are excluded unless you pass `--reference`,
+  because on a 430-note vault they were 95% of an 11-minute embed.
+- **Search ranks by connectedness as well as relevance.** When the words cannot
+  tell two notes apart, the one the rest of your notes point at comes first.
+
 ## 0.3.2
 
 The first release with an archive for every platform — see the last item.
