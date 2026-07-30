@@ -47,7 +47,16 @@ enum Command {
     /// model on disk, which the first run downloads, and it takes real time per
     /// note. Run it when you want semantic search; search picks it up on its own.
     /// Only available in builds compiled with the `semantic` feature.
-    Embed,
+    Embed {
+        /// Also embed read-only reference notes from `scope.include`
+        ///
+        /// Off by default because it is where the time goes: on a vault of 430
+        /// notes, 425 of them vendored documentation, embedding everything took
+        /// 11m25s and the vendored files were 95% of it. They stay searchable by
+        /// words either way.
+        #[arg(long)]
+        reference: bool,
+    },
     /// Show forward links and backlinks for a note
     Links {
         title: String,
@@ -396,17 +405,26 @@ fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
 /// or an old script should be told *why* it is unavailable and how to get it, not
 /// left guessing whether they typed it wrong.
 #[cfg(feature = "semantic")]
-fn cmd_embed(vault: &std::path::Path) -> Result<()> {
+fn cmd_embed(vault: &std::path::Path, reference: bool) -> Result<()> {
     let scope = Scope::load(vault)?;
     // Vectors are keyed on the hashes the text index recorded, so the text index
     // has to be current first.
     indexer::reindex_in(&scope, false)?;
     println!("embedding with {} …", crate::semantic::MODEL_NAME);
-    let report = crate::semantic::embed_vault(&scope, true)?;
+    let report = crate::semantic::embed_vault(&scope, reference, true)?;
     println!(
         "embedded {} note(s), {} already current, {} removed ({} in scope)",
         report.embedded, report.unchanged, report.removed, report.total
     );
+    // Say what was declined and how to get it, rather than leaving someone to
+    // wonder why semantic search never surfaces the documentation they installed.
+    if report.skipped_reference > 0 {
+        println!(
+            "skipped {} read-only reference note(s) — they stay searchable by words; \
+             `samong embed --reference` embeds them too (slow)",
+            report.skipped_reference
+        );
+    }
     if report.embedded == 0 && report.unchanged == 0 {
         println!("nothing to embed — run `samong reindex` first if this vault has notes");
     }
@@ -414,7 +432,7 @@ fn cmd_embed(vault: &std::path::Path) -> Result<()> {
 }
 
 #[cfg(not(feature = "semantic"))]
-fn cmd_embed(_vault: &std::path::Path) -> Result<()> {
+fn cmd_embed(_vault: &std::path::Path, _reference: bool) -> Result<()> {
     anyhow::bail!(
         "this build has no semantic search: it is an opt-in feature because it pulls in \
          ONNX Runtime and downloads an embedding model on first use.\n\
@@ -588,7 +606,7 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
             reference_only.len()
         );
     }
-    report_embeddings(vault, &report)?;
+    report_embeddings(&scope)?;
     Ok(())
 }
 
@@ -598,32 +616,47 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
 /// look identical from the outside — the same class of mystery as a vault that
 /// indexed four notes when you expected ninety.
 #[cfg(feature = "semantic")]
-fn report_embeddings(vault: &Path, report: &indexer::ReindexReport) -> Result<()> {
+fn report_embeddings(scope: &Scope) -> Result<()> {
+    let vault = scope.root();
     if !crate::vectors::exists(vault) {
         println!("embeddings: none — run `samong embed` for meaning-based search");
         return Ok(());
     }
     let store = crate::vectors::Store::open(vault)?;
-    let count = store.count()?;
+    let stored = store.stored_hashes()?;
     let model = store
         .meta()?
         .map(|(name, dim)| format!("{name} ({dim}d)"))
         .unwrap_or_else(|| "unknown model".to_string());
-    println!("embeddings: {count} note(s) with {model}");
-    // The indexer counts what is in scope; a gap means notes changed since the
-    // last embed run, and search silently falls back to words for those.
-    let indexed = report.indexed + report.untouched;
-    if count < indexed {
+    println!("embeddings: {} note(s) with {model}", stored.len());
+
+    // Counted against *project* notes only. Reference notes are excluded from
+    // `samong embed` by default, so counting them as missing would report a
+    // permanent shortfall on every healthy vault — the kind of warning people
+    // learn to ignore, which then hides the real one.
+    let notes = vault::list_notes_in(scope)?;
+    let missing_own = notes
+        .iter()
+        .filter(|note| !note.reference && !stored.contains_key(&note.key))
+        .count();
+    if missing_own > 0 {
+        println!("  {missing_own} project note(s) have no vector — run `samong embed` to catch up");
+    }
+    let missing_reference = notes
+        .iter()
+        .filter(|note| note.reference && !stored.contains_key(&note.key))
+        .count();
+    if missing_reference > 0 {
         println!(
-            "  {} note(s) have no current vector — run `samong embed` to catch up",
-            indexed - count
+            "  {missing_reference} reference note(s) are not embedded (by default); \
+             they are still searchable by words"
         );
     }
     Ok(())
 }
 
 #[cfg(not(feature = "semantic"))]
-fn report_embeddings(_vault: &Path, _report: &indexer::ReindexReport) -> Result<()> {
+fn report_embeddings(_scope: &Scope) -> Result<()> {
     Ok(())
 }
 
@@ -691,7 +724,7 @@ pub fn run() -> Result<()> {
             println!("{report}");
             println!("reindex complete");
         }
-        Command::Embed => cmd_embed(&vault)?,
+        Command::Embed { reference } => cmd_embed(&vault, reference)?,
         Command::Links { title, all_vaults } => cmd_links(&vault, &title, all_vaults)?,
         Command::Orphans => cmd_orphans(&vault)?,
         Command::Broken => cmd_broken(&vault)?,

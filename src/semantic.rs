@@ -150,6 +150,8 @@ pub struct EmbedReport {
     pub unchanged: usize,
     /// Notes whose vectors were dropped because the file is gone or left scope.
     pub removed: usize,
+    /// Reference notes passed over because the run did not ask for them.
+    pub skipped_reference: usize,
     pub total: usize,
 }
 
@@ -162,7 +164,22 @@ pub struct EmbedReport {
 ///
 /// Notes are compared by the blake3 hash the indexer already computes, so a second
 /// run over an unchanged vault embeds nothing.
-pub fn embed_vault(scope: &crate::scope::Scope, show_progress: bool) -> Result<EmbedReport> {
+///
+/// `include_reference` decides whether vendored documentation is embedded too. It
+/// defaults to off in the CLI, from a measurement: embedding this project's own
+/// test vault took 11m25s, and 425 of its 430 notes were Next.js documentation —
+/// 95% of the wait for material that is somebody else's reference manual, still
+/// fully searchable by words. Same judgement the graph makes when it hides
+/// reference notes by default, for the same reason.
+///
+/// Turning it off never *deletes* vectors it previously wrote: reference notes are
+/// still in scope, and silently throwing away eleven minutes of work because a
+/// flag moved would be its own kind of rude.
+pub fn embed_vault(
+    scope: &crate::scope::Scope,
+    include_reference: bool,
+    show_progress: bool,
+) -> Result<EmbedReport> {
     let vault = scope.root();
     let notes = crate::vault::list_notes_in(scope)?;
     let graph = crate::graph::Graph::open(vault)?;
@@ -176,6 +193,7 @@ pub fn embed_vault(scope: &crate::scope::Scope, show_progress: bool) -> Result<E
 
     let mut pending = Vec::new();
     let mut unchanged = 0usize;
+    let mut skipped_reference = 0usize;
     for note in &notes {
         let Some(state) = indexed.get(&note.key) else {
             // Not in the text index yet: `samong reindex` owns that, and embedding
@@ -183,10 +201,20 @@ pub fn embed_vault(scope: &crate::scope::Scope, show_progress: bool) -> Result<E
             // hit that cannot be opened.
             continue;
         };
-        match stored.get(&note.key) {
-            Some(hash) if hash == &state.hash => unchanged += 1,
-            _ => pending.push((note.key.clone(), note.title.clone(), state.hash.clone())),
+        let current = stored
+            .get(&note.key)
+            .is_some_and(|hash| hash == &state.hash);
+        if current {
+            unchanged += 1;
+            continue;
         }
+        // Counted only when there is work being declined, so the number means
+        // "this is what asking for reference notes would add".
+        if note.reference && !include_reference {
+            skipped_reference += 1;
+            continue;
+        }
+        pending.push((note.key.clone(), note.title.clone(), state.hash.clone()));
     }
 
     let live: std::collections::HashSet<&String> = notes.iter().map(|n| &n.key).collect();
@@ -202,6 +230,7 @@ pub fn embed_vault(scope: &crate::scope::Scope, show_progress: bool) -> Result<E
             embedded: 0,
             unchanged,
             removed: removals.len(),
+            skipped_reference,
             total: notes.len(),
         });
     }
@@ -221,6 +250,7 @@ pub fn embed_vault(scope: &crate::scope::Scope, show_progress: bool) -> Result<E
         embedded,
         unchanged,
         removed: removals.len(),
+        skipped_reference,
         total: notes.len(),
     })
 }

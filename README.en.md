@@ -231,16 +231,23 @@ oversight.
 
 ```bash
 cargo install --path . --features semantic
-samong embed        # once, and again after you write a lot
+samong embed              # your notes; run it again after you write a lot
+samong embed --reference  # also the vendored docs from scope.include (slow)
 samong search "how do we stop repeated requests"
 ```
 
 **What it costs you.** The feature pulls in ONNX Runtime, and the first `embed`
-downloads `intfloat/multilingual-e5-small` (~120 MB) from Hugging Face into
-`~/.config/samong/models`. Your notes and your queries still never leave the
-machine, and nothing needs a network after that download. But "one binary,
-nothing to fetch" stops being true, and that promise is why people choose this
-over a cloud tool — so it is yours to opt into, not ours to impose.
+downloads `intfloat/multilingual-e5-small` from Hugging Face into
+`~/.config/samong/models` — **465 MB on disk**, measured, not estimated: a 470 MB
+float32 ONNX graph plus a 17 MB tokenizer. Your notes and your queries still never
+leave the machine, and nothing needs a network after that download. But "one
+binary, nothing to fetch" stops being true, and that promise is why people choose
+this over a cloud tool — so it is yours to opt into, not ours to impose.
+
+Embedding is the slowest thing the program does. A real measurement: 430 notes,
+most of them vendored Next.js documentation, took **11m 25s** on a laptop CPU.
+That is also why reference notes are excluded unless you ask for them — they were
+95% of that time.
 
 **The model is multilingual on purpose.** Thai lexical search is the thing Samong
 does that comparable projects do not, and the nearest one embeds with an
