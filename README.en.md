@@ -31,6 +31,9 @@ the single source of truth.
 - 🧭 **Ranked by relevance *and* connectedness** — when the words cannot tell two
   notes apart, the one the rest of your notes point at comes first. Capped at a
   25% boost, so a popular note never outranks one that plainly matches better.
+- 🧠 **Semantic search, optional and local** — build with
+  `--features semantic` and `samong embed` to also rank by meaning, using a
+  multilingual model that reads Thai. Off by default on purpose: see below.
 - ⚡ **Fast** — link graph in [redb](https://github.com/cberner/redb),
   search by [tantivy](https://github.com/quickwit-oss/tantivy), and
   incremental reindexing that only touches changed files.
@@ -218,6 +221,46 @@ available (best-effort; never blocks, never fails offline).
 > A published GitHub release is required first
 > (`git tag v0.1.0 && git push origin v0.1.0` triggers the workflow that builds
 > binaries for all three OSes) before `samong update` can find anything.
+
+## Semantic search (optional)
+
+Lexical search only finds notes that use the words you typed. When you cannot
+remember the words you wrote, it finds nothing. Semantic search fixes that by
+comparing meaning — and it is **off by default**, which is a decision, not an
+oversight.
+
+```bash
+cargo install --path . --features semantic
+samong embed        # once, and again after you write a lot
+samong search "how do we stop repeated requests"
+```
+
+**What it costs you.** The feature pulls in ONNX Runtime, and the first `embed`
+downloads `intfloat/multilingual-e5-small` (~120 MB) from Hugging Face into
+`~/.config/samong/models`. Your notes and your queries still never leave the
+machine, and nothing needs a network after that download. But "one binary,
+nothing to fetch" stops being true, and that promise is why people choose this
+over a cloud tool — so it is yours to opt into, not ours to impose.
+
+**The model is multilingual on purpose.** Thai lexical search is the thing Samong
+does that comparable projects do not, and the nearest one embeds with an
+English-only model. Semantic search that could not read Thai would hand that
+advantage away exactly where it matters most.
+
+**How the two rankings combine.** Reciprocal Rank Fusion, not a weighted sum of
+scores: BM25 is unbounded and cosine similarity is −1 to 1, so mixing the raw
+numbers needs a calibration that drifts with every vault. Fusing *positions*
+needs none. A note ranked well by both wins; a note ranked first by only one still
+places.
+
+Notes are chunked (~900 characters, split at paragraph breaks) so a long document
+is matched by its relevant section rather than its first page, and each note
+scores as its best chunk. Vectors live in `<vault>/.brain/vectors.redb`, stamped
+with the same content hash the reindexer uses, so re-embedding skips unchanged
+notes. Delete that file and the vault is exactly what it was.
+
+`samong doctor` reports how many notes have vectors, so "semantic search did not
+help" can be told apart from "nothing was embedded".
 
 ## Web UI
 

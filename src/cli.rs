@@ -41,6 +41,13 @@ enum Command {
         #[arg(long)]
         full: bool,
     },
+    /// Embed notes locally so search can rank by meaning as well as by words
+    ///
+    /// Separate from `reindex` because it is not free: it needs an embedding
+    /// model on disk, which the first run downloads, and it takes real time per
+    /// note. Run it when you want semantic search; search picks it up on its own.
+    /// Only available in builds compiled with the `semantic` feature.
+    Embed,
     /// Show forward links and backlinks for a note
     Links {
         title: String,
@@ -382,6 +389,39 @@ fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
 /// Results are labelled with the note's path, not its bare title: search is
 /// exactly where two files called `README` have to be told apart, and the path
 /// contains the title anyway.
+/// Build or refresh the vault's embeddings.
+///
+/// In a build without the `semantic` feature this is still a real command that
+/// explains itself, rather than an unknown subcommand: someone reading the docs
+/// or an old script should be told *why* it is unavailable and how to get it, not
+/// left guessing whether they typed it wrong.
+#[cfg(feature = "semantic")]
+fn cmd_embed(vault: &std::path::Path) -> Result<()> {
+    let scope = Scope::load(vault)?;
+    // Vectors are keyed on the hashes the text index recorded, so the text index
+    // has to be current first.
+    indexer::reindex_in(&scope, false)?;
+    println!("embedding with {} …", crate::semantic::MODEL_NAME);
+    let report = crate::semantic::embed_vault(&scope, true)?;
+    println!(
+        "embedded {} note(s), {} already current, {} removed ({} in scope)",
+        report.embedded, report.unchanged, report.removed, report.total
+    );
+    if report.embedded == 0 && report.unchanged == 0 {
+        println!("nothing to embed — run `samong reindex` first if this vault has notes");
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "semantic"))]
+fn cmd_embed(_vault: &std::path::Path) -> Result<()> {
+    anyhow::bail!(
+        "this build has no semantic search: it is an opt-in feature because it pulls in \
+         ONNX Runtime and downloads an embedding model on first use.\n\
+         Build it with: cargo install --path . --features semantic"
+    )
+}
+
 fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool {
     let found = !hits.is_empty();
     for hit in hits {
@@ -548,6 +588,42 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
             reference_only.len()
         );
     }
+    report_embeddings(vault, &report)?;
+    Ok(())
+}
+
+/// Say how much of the vault is embedded.
+///
+/// Without this, "semantic search did not help" and "nothing was ever embedded"
+/// look identical from the outside — the same class of mystery as a vault that
+/// indexed four notes when you expected ninety.
+#[cfg(feature = "semantic")]
+fn report_embeddings(vault: &Path, report: &indexer::ReindexReport) -> Result<()> {
+    if !crate::vectors::exists(vault) {
+        println!("embeddings: none — run `samong embed` for meaning-based search");
+        return Ok(());
+    }
+    let store = crate::vectors::Store::open(vault)?;
+    let count = store.count()?;
+    let model = store
+        .meta()?
+        .map(|(name, dim)| format!("{name} ({dim}d)"))
+        .unwrap_or_else(|| "unknown model".to_string());
+    println!("embeddings: {count} note(s) with {model}");
+    // The indexer counts what is in scope; a gap means notes changed since the
+    // last embed run, and search silently falls back to words for those.
+    let indexed = report.indexed + report.untouched;
+    if count < indexed {
+        println!(
+            "  {} note(s) have no current vector — run `samong embed` to catch up",
+            indexed - count
+        );
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "semantic"))]
+fn report_embeddings(_vault: &Path, _report: &indexer::ReindexReport) -> Result<()> {
     Ok(())
 }
 
@@ -615,6 +691,7 @@ pub fn run() -> Result<()> {
             println!("{report}");
             println!("reindex complete");
         }
+        Command::Embed => cmd_embed(&vault)?,
         Command::Links { title, all_vaults } => cmd_links(&vault, &title, all_vaults)?,
         Command::Orphans => cmd_orphans(&vault)?,
         Command::Broken => cmd_broken(&vault)?,

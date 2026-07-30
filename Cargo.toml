@@ -12,11 +12,30 @@ categories = ["command-line-utilities", "text-processing"]
 [profile.dev]
 debug = false
 
+[features]
+default = []
+# Semantic search: embed notes locally and rank by meaning as well as by words.
+#
+# Off by default, and the published binaries are built without it, because it
+# changes what the program *is*: it pulls in ONNX Runtime, and the first run has
+# to fetch a model from Hugging Face. Notes still never leave the machine — but
+# "one binary, nothing to download" stops being true, and that promise is the
+# reason people pick this over a cloud tool. Anyone who wants meaning-based
+# search can opt in and accept the trade; nobody has it imposed.
+semantic = ["dep:fastembed"]
+
 [dependencies]
 anyhow = "1.0.103"
 axum = { version = "0.8.9", features = ["ws"] }
 blake3 = "1.8.5"
 clap = { version = "4.6.1", features = ["derive"] }
+# rustls, not native-tls: the rest of the tree already speaks rustls, and
+# native-tls would drag OpenSSL into a binary that currently needs no system
+# library. `image-models` is off — this indexes Markdown.
+fastembed = { version = "5.17.4", optional = true, default-features = false, features = [
+    "hf-hub-rustls-tls",
+    "ort-download-binaries-rustls-tls",
+] }
 ignore = "0.4.31"
 nlpo3 = "1.4.0"
 notify = "8.2.0"

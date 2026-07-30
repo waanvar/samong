@@ -37,6 +37,34 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+  # The `semantic` feature is off by default and the release binaries never carry
+  # it, so nothing else in this file would ever compile it. It still has to be
+  # kept working, and it cannot be checked on every machine: the prebuilt ONNX
+  # Runtime that `ort` downloads is compiled against a newer MSVC STL than some
+  # Windows toolchains ship, which links with 40 unresolved `__std_*_element`
+  # symbols. Linux links it cleanly, so this is where the feature gets verified.
+  #
+  # The model download is deliberately not exercised — it is ~120 MB from Hugging
+  # Face and would make CI slow and network-dependent. What runs here is
+  # everything up to the model: compile, link, the vector store, and chunking.
+  semantic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test with semantic search compiled in
+        run: cargo test --features semantic --locked --verbose
+
+      - name: Clippy
+        run: cargo clippy --features semantic --all-targets --locked -- -D warnings
+
   web:
     runs-on: ubuntu-latest
     steps:

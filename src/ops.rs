@@ -70,16 +70,31 @@ pub fn reject_reference_write(scope: &crate::scope::Scope, key: &str, action: &s
     )
 }
 
-/// Search one vault, ranked by relevance *and* how connected each hit is.
+/// Reciprocal Rank Fusion constant, from the paper the method comes from.
+///
+/// Large enough that the top few results do not dwarf everything below them, so a
+/// note ranked second by both rankings can beat one ranked first by only one.
+const RRF_K: f32 = 60.0;
+
+/// Search one vault: lexical relevance, connectedness, and — when the vault has
+/// embeddings and this build has them compiled in — meaning.
 ///
 /// The single entry point for every front-end, so a query typed in the terminal,
 /// sent to the HTTP API and asked by an agent all come back in the same order.
-/// Composing the two indexes here rather than inside `search` keeps that module
-/// about full text and nothing else.
+/// Composing the indexes here rather than inside `search` keeps that module about
+/// full text and nothing else.
 ///
 /// A vault with no graph yet — or a graph that cannot be opened, which is a
 /// stale-index problem, not a search problem — degrades to plain relevance rather
-/// than failing the query.
+/// than failing the query. A vault nobody has embedded stays purely lexical.
+///
+/// # Why the score is a fused rank, always
+///
+/// `SearchHit::score` comes back on the RRF scale even when there is only one
+/// ranking to fuse. Callers that merge several vaults sort on this field, and if
+/// one vault answered in BM25 units and another in fused units the merge would be
+/// meaningless. Fusing a single ranking preserves its order exactly, so the
+/// lexical-only case is unchanged in everything but the numbers.
 pub fn search_vault(
     vault: &std::path::Path,
     query: &str,
@@ -88,7 +103,75 @@ pub fn search_vault(
     let degrees = Graph::open(vault)
         .and_then(|graph| graph.degrees())
         .unwrap_or_default();
-    crate::search::query_ranked(vault, query, options, &degrees)
+    // Degree is folded into the lexical score here, not into the fused score:
+    // fused scores sit within a percent or two of each other, where the 25% boost
+    // would leap many positions instead of settling near-ties. Connectedness gets
+    // one bite, on the ranking whose gaps it was tuned against.
+    let mut hits = crate::search::query_ranked(vault, query, options, &degrees)?;
+
+    let semantic_order = semantic_ranking(vault, query, options);
+    if semantic_order.is_empty() {
+        // Nothing to fuse with; still emit fused-scale scores.
+        for (index, hit) in hits.iter_mut().enumerate() {
+            hit.score = 1.0 / (RRF_K + index as f32 + 1.0);
+        }
+        return Ok(hits);
+    }
+
+    let rank_of: std::collections::HashMap<&str, usize> = semantic_order
+        .iter()
+        .enumerate()
+        .map(|(index, key)| (key.as_str(), index))
+        .collect();
+    for (index, hit) in hits.iter_mut().enumerate() {
+        let lexical = 1.0 / (RRF_K + index as f32 + 1.0);
+        // A hit the semantic ranking never returned contributes nothing from that
+        // side rather than being pushed down: it was still a lexical match.
+        let meaning = rank_of
+            .get(hit.key.as_str())
+            .map(|rank| 1.0 / (RRF_K + *rank as f32 + 1.0))
+            .unwrap_or(0.0);
+        hit.score = lexical + meaning;
+    }
+    hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.key.cmp(&b.key))
+    });
+    Ok(hits)
+}
+
+/// Keys ordered by meaning, or empty when semantic search is not available here.
+///
+/// Fails soft on purpose: a missing model download or a half-written vector store
+/// must degrade the ranking, never break the query. Search is the one thing that
+/// has to keep working.
+#[cfg(feature = "semantic")]
+fn semantic_ranking(
+    vault: &std::path::Path,
+    query: &str,
+    options: &crate::search::SearchOptions,
+) -> Vec<String> {
+    if !crate::vectors::exists(vault) {
+        return Vec::new();
+    }
+    match crate::semantic::rank_by_similarity(vault, query, options.limit * 3) {
+        Ok(order) => order,
+        Err(error) => {
+            eprintln!("warning: semantic ranking unavailable, using words only: {error}");
+            Vec::new()
+        }
+    }
+}
+
+#[cfg(not(feature = "semantic"))]
+fn semantic_ranking(
+    _vault: &std::path::Path,
+    _query: &str,
+    _options: &crate::search::SearchOptions,
+) -> Vec<String> {
+    Vec::new()
 }
 
 /// Note keys arrive from untrusted callers — URL segments, MCP tool arguments —

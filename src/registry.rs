@@ -16,7 +16,7 @@ pub struct Registry {
 
 /// Registry location: `~/.config/samong/`. `SAMONG_CONFIG_DIR` overrides it
 /// (used by tests to avoid touching the real registry).
-fn config_dir() -> Result<PathBuf> {
+pub fn config_dir() -> Result<PathBuf> {
     if let Ok(dir) = env::var("SAMONG_CONFIG_DIR") {
         return Ok(PathBuf::from(dir));
     }
