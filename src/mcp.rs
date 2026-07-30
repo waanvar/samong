@@ -291,7 +291,7 @@ fn tool_search_notes(args: &Value) -> Result<String> {
     let mut hits = Vec::new();
     for (name, root) in targets {
         indexer::reindex(&root, false)?;
-        for hit in search::query_with(&root, query, &options)? {
+        for hit in ops::search_vault(&root, query, &options)? {
             hits.push((name.clone(), hit));
         }
     }

@@ -279,6 +279,43 @@ impl Graph {
         Ok(out)
     }
 
+    /// How many links touch each note, by key.
+    ///
+    /// Counts both directions: a link out of a note and a link into it each add
+    /// one. Targets are raw `[[...]]` text, so they are resolved through the
+    /// title table — a target naming no note (or another vault) contributes only
+    /// to the source's count, which is right: nothing was connected.
+    ///
+    /// One read transaction for the whole graph. Resolving each target with a
+    /// separate `keys_for_title` call would open a transaction per edge, and this
+    /// runs on every search.
+    pub fn degrees(&self) -> Result<HashMap<String, usize>> {
+        let txn = self.db.begin_read().context("beginning read transaction")?;
+        let forward = match txn.open_multimap_table(FORWARD) {
+            Ok(t) => t,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(HashMap::new()),
+            Err(e) => return Err(e.into()),
+        };
+        let titles = txn.open_multimap_table(TITLES).ok();
+
+        let mut out: HashMap<String, usize> = HashMap::new();
+        for entry in forward.iter()? {
+            let (from, targets) = entry?;
+            let from = from.value().to_string();
+            for target in targets {
+                let target = target?;
+                *out.entry(from.clone()).or_insert(0) += 1;
+                let Some(titles) = titles.as_ref() else {
+                    continue;
+                };
+                for key in titles.get(target.value())? {
+                    *out.entry(key?.value().to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        Ok(out)
+    }
+
     /// Every `(source key, raw target)` pair in the graph.
     pub fn all_edges(&self) -> Result<Vec<(String, String)>> {
         let txn = self.db.begin_read().context("beginning read transaction")?;
@@ -331,6 +368,42 @@ mod tests {
             vec!["B.md".to_string(), "C.md".to_string()]
         );
         assert!(graph.backlinks("B").unwrap().is_empty());
+    }
+
+    /// Degrees feed search ranking, so what counts and what does not is the whole
+    /// contract: both directions count, and a link to nothing counts only for the
+    /// note that wrote it.
+    #[test]
+    fn degrees_count_both_directions_and_ignore_dangling_targets() {
+        let dir = tempfile::tempdir().unwrap();
+        let graph = Graph::open(dir.path()).unwrap();
+        graph
+            .rebuild(&[
+                update("A.md", &["B"]),
+                update("B.md", &["C"]),
+                update("Lonely.md", &[]),
+            ])
+            .unwrap();
+
+        let degrees = graph.degrees().unwrap();
+        assert_eq!(degrees.get("A.md"), Some(&1), "one link out");
+        assert_eq!(
+            degrees.get("B.md"),
+            Some(&2),
+            "one link in from A, one out to C"
+        );
+        // "C" names no note, so nothing was connected and nothing is credited.
+        assert_eq!(degrees.get("C.md"), None);
+        assert_eq!(degrees.get("C"), None);
+        // A note with no links at all is simply absent, which callers read as 0.
+        assert_eq!(degrees.get("Lonely.md"), None);
+    }
+
+    #[test]
+    fn degrees_on_an_empty_graph_is_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let graph = Graph::open(dir.path()).unwrap();
+        assert!(graph.degrees().unwrap().is_empty());
     }
 
     #[test]

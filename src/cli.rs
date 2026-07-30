@@ -407,7 +407,7 @@ fn cmd_search(
         for (name, path) in registry.list()? {
             indexer::reindex(&path, false)?;
             found |= print_hits(
-                crate::search::query_with(&path, query, &options)?,
+                crate::ops::search_vault(&path, query, &options)?,
                 Some(&name),
             );
         }
@@ -417,10 +417,10 @@ fn cmd_search(
             .get(name)?
             .with_context(|| format!("vault \"{name}\" is not registered"))?;
         indexer::reindex(&path, false)?;
-        found = print_hits(crate::search::query_with(&path, query, &options)?, None);
+        found = print_hits(crate::ops::search_vault(&path, query, &options)?, None);
     } else {
         indexer::reindex(vault, false)?;
-        found = print_hits(crate::search::query_with(vault, query, &options)?, None);
+        found = print_hits(crate::ops::search_vault(vault, query, &options)?, None);
     }
     if !found {
         println!("no results");

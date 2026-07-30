@@ -28,6 +28,9 @@ the single source of truth.
   `samong reindex`.
 - 🔗 **Multi-vault** — link across projects with `[[vault-name/note-title]]`;
   cross-vault backlinks are fully tracked.
+- 🧭 **Ranked by relevance *and* connectedness** — when the words cannot tell two
+  notes apart, the one the rest of your notes point at comes first. Capped at a
+  25% boost, so a popular note never outranks one that plainly matches better.
 - ⚡ **Fast** — link graph in [redb](https://github.com/cberner/redb),
   search by [tantivy](https://github.com/quickwit-oss/tantivy), and
   incremental reindexing that only touches changed files.

@@ -27,6 +27,34 @@ pub const MAX_LIMIT: usize = 100;
 /// Characters of surrounding context shown per hit.
 pub const DEFAULT_SNIPPET_CHARS: usize = 150;
 
+/// How much a well-connected note may be boosted, at most: +25%.
+///
+/// Deliberately small. A note many others link to is probably the one you want,
+/// but that is a hint, not an argument — a note that barely matches the words
+/// must never outrank one that matches them well just because it is popular.
+/// At this weight connectedness only reorders results that were already close,
+/// which is exactly the job.
+const DEGREE_WEIGHT: f32 = 0.25;
+/// Degree at which the boost is already at its maximum. Shared with the graph
+/// view, which stops growing node radius at the same count, so a node that looks
+/// like a hub ranks like one.
+const DEGREE_SATURATION: f32 = 12.0;
+/// Candidates fetched per requested hit before re-ranking.
+///
+/// Re-ranking only the hits you were going to return can reorder them but can
+/// never promote a well-connected note that BM25 put just outside the cut, which
+/// is the case worth catching.
+const RERANK_POOL_FACTOR: usize = 3;
+/// Ceiling on the candidate pool — the same `MAX_LIMIT` that caps callers, so
+/// there is exactly one number for "most documents this code will ever fetch"
+/// and no internal back door around it. Each candidate costs a stored-document
+/// fetch and a snippet, so it is a real budget.
+///
+/// The consequence is that a caller asking for the maximum gets no overfetch and
+/// so no promotion from outside the cut, only re-ordering within it. Asking for
+/// a hundred hits is already asking to see everything.
+const RERANK_POOL_MAX: usize = MAX_LIMIT;
+
 /// How much a search should return.
 ///
 /// Worth controlling because the caller is often an AI agent, where every hit
@@ -90,8 +118,12 @@ pub struct SearchHit {
     pub key: String,
     pub title: String,
     pub snippet: String,
-    /// Relevance score. Kept so callers merging hits from several vaults can
-    /// rank them together instead of just concatenating per-vault lists.
+    /// Ranking score. Kept so callers merging hits from several vaults can rank
+    /// them together instead of just concatenating per-vault lists.
+    ///
+    /// From [`query_with`] this is BM25 relevance. From [`query_ranked`] it also
+    /// carries the connectedness boost, which is why the cross-vault merge in
+    /// `mcp` sorts on it and gets a consistent order.
     pub score: f32,
 }
 
@@ -183,6 +215,53 @@ pub fn rebuild(vault: &Path, notes: &[IndexedNote]) -> Result<()> {
 /// Run a full-text query against the vault's index with default limits.
 pub fn query(vault: &Path, text: &str) -> Result<Vec<SearchHit>> {
     query_with(vault, text, &SearchOptions::default())
+}
+
+/// The multiplier a note's connectedness earns it: `1.0` when nothing links to
+/// it, rising to `1 + DEGREE_WEIGHT` and no further.
+///
+/// Logarithmic, so the first few links matter most and a note with fifty does not
+/// bury one with five. Saturating, so a hub cannot dominate every query.
+fn degree_boost(degree: usize) -> f32 {
+    if degree == 0 {
+        return 1.0;
+    }
+    let scaled = (1.0 + degree as f32).ln() / (1.0 + DEGREE_SATURATION).ln();
+    1.0 + DEGREE_WEIGHT * scaled.min(1.0)
+}
+
+/// Search, then rank by relevance *and* connectedness.
+///
+/// Fetches a larger pool than asked for, multiplies each BM25 score by the
+/// note's [`degree_boost`], re-sorts and truncates. `degrees` comes from
+/// [`crate::graph::Graph::degrees`]; a key that is absent scores as unconnected.
+///
+/// `SearchHit::score` carries the boosted value, because callers merging several
+/// vaults sort on it and must compare like with like.
+pub fn query_ranked(
+    vault: &Path,
+    text: &str,
+    options: &SearchOptions,
+    degrees: &std::collections::HashMap<String, usize>,
+) -> Result<Vec<SearchHit>> {
+    let wanted = options.limit();
+    let pool = SearchOptions {
+        limit: (wanted * RERANK_POOL_FACTOR).min(RERANK_POOL_MAX),
+        snippet_chars: options.snippet_chars,
+    };
+    let mut hits = query_with(vault, text, &pool)?;
+    for hit in &mut hits {
+        hit.score *= degree_boost(degrees.get(&hit.key).copied().unwrap_or(0));
+    }
+    // Ties broken by key so the order is stable across runs and machines.
+    hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.key.cmp(&b.key))
+    });
+    hits.truncate(wanted);
+    Ok(hits)
 }
 
 /// Run a full-text query, returning matches with a highlighted snippet.
@@ -383,6 +462,124 @@ mod tests {
             hits[0].score >= hits[1].score,
             "results already arrive ranked"
         );
+    }
+
+    fn degrees(pairs: &[(&str, usize)]) -> std::collections::HashMap<String, usize> {
+        pairs
+            .iter()
+            .map(|(key, degree)| ((*key).to_string(), *degree))
+            .collect()
+    }
+
+    /// The boost has to be bounded and monotonic, or one hub note answers every
+    /// query in the vault.
+    #[test]
+    fn degree_boost_is_bounded_and_monotonic() {
+        assert_eq!(degree_boost(0), 1.0, "unconnected notes are not penalised");
+        let ceiling = 1.0 + DEGREE_WEIGHT;
+        for degree in [1usize, 3, 12, 40, 1000, usize::MAX] {
+            let boost = degree_boost(degree);
+            assert!(
+                (1.0..=ceiling).contains(&boost),
+                "degree {degree} produced {boost}, outside 1.0..={ceiling}"
+            );
+        }
+        assert!(degree_boost(1) < degree_boost(3));
+        assert!(degree_boost(3) < degree_boost(12));
+        // Saturated: fifty links must not beat twelve by a meaningful margin.
+        assert_eq!(degree_boost(12), degree_boost(50));
+    }
+
+    /// The point of the feature: among notes the query cannot tell apart, the one
+    /// the rest of the vault points at wins — even from outside the cut. Ranked
+    /// last by tie-break, it comes back first.
+    #[test]
+    fn connectedness_decides_between_equally_relevant_notes() {
+        let dir = tempfile::tempdir().unwrap();
+        let notes: Vec<IndexedNote> = ["A", "B", "C", "D", "E", "F"]
+            .iter()
+            .map(|n| note(n, "identical body mentioning keyword once"))
+            .collect();
+        rebuild(dir.path(), &notes).unwrap();
+
+        let plain = query_with(dir.path(), "keyword", &SearchOptions::with_limit(2)).unwrap();
+        assert_eq!(plain.len(), 2);
+        assert!(
+            !plain.iter().any(|h| h.key == "F.md"),
+            "F must be outside the cut before ranking: {:?}",
+            plain.iter().map(|h| &h.key).collect::<Vec<_>>()
+        );
+
+        let ranked = query_ranked(
+            dir.path(),
+            "keyword",
+            &SearchOptions::with_limit(2),
+            &degrees(&[("F.md", 30)]),
+        )
+        .unwrap();
+        assert_eq!(ranked.len(), 2, "the limit is still the limit");
+        assert_eq!(ranked[0].key, "F.md", "the connected note is promoted");
+    }
+
+    /// And the guard on the other side: connectedness is a hint, not a veto. A
+    /// note that plainly matches the words beats a popular one that barely does.
+    #[test]
+    fn relevance_still_outranks_connectedness() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
+            &[
+                note("Strong", &"keyword ".repeat(10)),
+                note(
+                    "Popular",
+                    &format!("keyword {}", "unrelated filler words ".repeat(20)),
+                ),
+            ],
+        )
+        .unwrap();
+
+        let ranked = query_ranked(
+            dir.path(),
+            "keyword",
+            &SearchOptions::with_limit(2),
+            &degrees(&[("Popular.md", 500)]),
+        )
+        .unwrap();
+        assert_eq!(
+            ranked[0].key,
+            "Strong.md",
+            "a weak match cannot win on popularity: {:?}",
+            ranked.iter().map(|h| (&h.key, h.score)).collect::<Vec<_>>()
+        );
+    }
+
+    /// An empty degree map is the "graph not built yet" case, and must behave
+    /// exactly like plain relevance rather than erroring or reordering.
+    #[test]
+    fn ranking_without_degrees_matches_plain_relevance() {
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(
+            dir.path(),
+            &[
+                note("One", "keyword keyword keyword"),
+                note("Two", "keyword mentioned once here"),
+                note("Three", "keyword keyword"),
+            ],
+        )
+        .unwrap();
+
+        let options = SearchOptions::with_limit(3);
+        let plain: Vec<String> = query_with(dir.path(), "keyword", &options)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.key)
+            .collect();
+        let ranked: Vec<String> = query_ranked(dir.path(), "keyword", &options, &degrees(&[]))
+            .unwrap()
+            .into_iter()
+            .map(|h| h.key)
+            .collect();
+        assert_eq!(plain, ranked);
     }
 
     #[test]

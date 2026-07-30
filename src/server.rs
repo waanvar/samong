@@ -38,6 +38,7 @@ fn has_embedded_ui() -> bool {
 
 use crate::graph::Graph;
 use crate::indexer;
+use crate::ops;
 use crate::registry::Registry;
 use crate::scope::Scope;
 use crate::search;
@@ -519,7 +520,7 @@ async fn search_notes(
         let mut out = Vec::new();
         for (name, root) in targets {
             indexer::reindex(&root, false)?;
-            for hit in search::query_with(&root, &params.q, &options)? {
+            for hit in ops::search_vault(&root, &params.q, &options)? {
                 out.push(SearchResult {
                     vault: name.clone(),
                     title: hit.title,

@@ -70,6 +70,27 @@ pub fn reject_reference_write(scope: &crate::scope::Scope, key: &str, action: &s
     )
 }
 
+/// Search one vault, ranked by relevance *and* how connected each hit is.
+///
+/// The single entry point for every front-end, so a query typed in the terminal,
+/// sent to the HTTP API and asked by an agent all come back in the same order.
+/// Composing the two indexes here rather than inside `search` keeps that module
+/// about full text and nothing else.
+///
+/// A vault with no graph yet — or a graph that cannot be opened, which is a
+/// stale-index problem, not a search problem — degrades to plain relevance rather
+/// than failing the query.
+pub fn search_vault(
+    vault: &std::path::Path,
+    query: &str,
+    options: &crate::search::SearchOptions,
+) -> Result<Vec<crate::search::SearchHit>> {
+    let degrees = Graph::open(vault)
+        .and_then(|graph| graph.degrees())
+        .unwrap_or_default();
+    crate::search::query_ranked(vault, query, options, &degrees)
+}
+
 /// Note keys arrive from untrusted callers — URL segments, MCP tool arguments —
 /// and unlike a bare title they are *supposed* to contain slashes, so every
 /// other way of escaping a vault has to be closed explicitly.
