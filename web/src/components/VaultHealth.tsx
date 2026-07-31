@@ -131,6 +131,38 @@ export function VaultHealth({ vault, onClose, onOpen }: Props) {
               </section>
             )}
 
+            {/* Only rendered when the server can do semantic search at all: a
+                build without it should not advertise a feature it does not have. */}
+            {report.embeddings && (
+              <section>
+                <div className="side-label">{t("health.semantic")}</div>
+                {report.embeddings.notes === 0 ? (
+                  <p className="empty-hint">{t("health.semantic.none")}</p>
+                ) : (
+                  <>
+                    <p className="empty-hint">
+                      {t("health.semantic.count", { count: report.embeddings.notes })}
+                      {report.embeddings.model ? ` · ${report.embeddings.model}` : ""}
+                    </p>
+                    {report.embeddings.missing_project > 0 && (
+                      <p className="empty-hint">
+                        {t("health.semantic.missingProject", {
+                          count: report.embeddings.missing_project,
+                        })}
+                      </p>
+                    )}
+                    {report.embeddings.missing_reference > 0 && (
+                      <p className="empty-hint">
+                        {t("health.semantic.missingReference", {
+                          count: report.embeddings.missing_reference,
+                        })}
+                      </p>
+                    )}
+                  </>
+                )}
+              </section>
+            )}
+
             <section>
               <div className="side-label">{t("health.ambiguousTitle")}</div>
               {report.ambiguous_titles.length === 0 ? (

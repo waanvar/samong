@@ -1,0 +1,59 @@
+Samong brand assets — NOT covered by Apache-2.0
+===============================================
+
+Copyright 2026 Samong contributors. All rights reserved.
+
+The files in this directory — samong-mark.svg, samong-mark-mono.svg,
+samong-wordmark.svg, samong-wordmark-mono.svg, samong-lockup.svg,
+samong-lockup-mono.svg — and the name "Samong" are **excluded from the
+Apache-2.0 licence that covers the rest of this repository**.
+
+This file exists because the exclusion needs to be where the files are. The
+repository's root LICENSE is Apache-2.0, which grants broad rights to copy and
+redistribute; Apache-2.0 section 6 withholds trademark rights but says nothing
+about artwork as a copyrighted work. Someone cloning this repository has no
+reason to guess that these six files are different unless it is stated here.
+
+
+What you may do without asking
+------------------------------
+
+Use these marks to refer to Samong: writing about it, linking to it, a
+screenshot, a talk slide, a "works with Samong" badge on your own tool,
+packaging Samong for a distribution. This is nominative use and it is welcome.
+
+Keep the shapes and proportions as published, and follow the usage rules in
+site/brand.html: the clear space, the minimum size, exactly one lit node, and no
+outlines, shadows, gradients, rotation, stretching or re-spacing of the letters.
+Recolour only by using a -mono file, which draws in currentColor.
+
+
+What you may not do
+-------------------
+
+Use these marks, or the name "Samong", as the identity of your own product or
+service, or on a fork you distribute under a different name. Fork the code
+freely — Apache-2.0 means it — but ship it under your own name and your own
+mark. A user who sees this logo should be able to conclude they are looking at
+Samong.
+
+Do not register these marks, or anything confusingly similar, as a trademark.
+
+
+Fonts
+-----
+
+The wordmark files contain outlined letterforms extracted from Bai Jamjuree
+(Cadson Demak), which is licensed under the SIL Open Font License 1.1. The OFL
+governs redistribution of *font software*; outlined artwork is not font
+software, and the font itself is not modified or redistributed here. Licence
+copies for every bundled font are in site/fonts/.
+
+Nothing in this file restricts your rights to the font under the OFL.
+
+
+Asking
+------
+
+For anything not covered above, open an issue at
+https://github.com/waanvar/samong.

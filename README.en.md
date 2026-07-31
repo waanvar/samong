@@ -13,7 +13,7 @@ the single source of truth.
 
 *[เวอร์ชันภาษาไทย →](README.md)*
 
-![Samong editor](docs/editor-dark.png)
+![Samong — the graph is the workspace, with note titles, hub sizing and folder clusters](docs/graph-dark.png)
 
 ## Why Samong
 
@@ -53,7 +53,7 @@ platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
 Verify what you downloaded against the `.sha256` published beside it:
 
 ```sh
-sha256sum -c samong-v0.3.0-x86_64-linux.tar.gz.sha256
+sha256sum -c samong-v0.3.2-x86_64-linux.tar.gz.sha256
 ```
 
 #### ⚠️ The binaries are not code-signed
@@ -106,7 +106,7 @@ samong-server start               # opens http://127.0.0.1:3000 in your browser
 files needed alongside it. Change the port with `--port 8080`, skip the browser
 with `--no-open` (the old `samong-server --port 8080` form still works).
 
-![Graph view](docs/graph-dark.png)
+![The same vault in the light theme](docs/graph-light.png)
 
 ## CLI commands
 
@@ -122,6 +122,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong graph [--all-vaults]` | Link-graph edges |
 | `samong list` | List every note |
 | `samong reindex [--full]` | Sync the index (changed files only / everything) |
+| `samong embed [--reference]` | Embed notes for semantic search (needs `--features semantic`) |
 | `samong watch` | Watch the vault, keep the index fresh |
 | `samong vault add/list/remove` | Manage the central registry |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
@@ -369,10 +370,22 @@ latest `web/dist` — much faster than reinstalling on every change.
 
 ## Roadmap
 
-- Go public + publish release binaries (download and run, no Rust/Node needed)
-- User dictionary for newer Thai loanwords newmm doesn't know yet
-- "Add vault" button in the web UI (no terminal); package as a desktop app via Tauri
-- Cross-device sync / AI features (note summaries, ask-your-vault) — later, as an open-core layer
+Done since the first public release: binaries for four platforms, an "add vault"
+button in the web UI, connectedness-aware ranking, and optional local semantic
+search.
+
+- **A similarity floor for semantic search.** Rank fusion currently admits the
+  top semantic hit unconditionally, so an unremarkable match can still reach
+  position two. The threshold has to be measured against real vaults, not guessed.
+- **A smaller embedding model.** 465 MB is a lot to ask; a quantised build of the
+  same model would cut it substantially.
+- User dictionary for Thai loanwords newmm does not know yet.
+- Package as a desktop app via Tauri.
+- **A central server that indexes git** — a team's vaults, searchable together,
+  ingested from repositories rather than synced. Never a sync protocol of our own:
+  git already solved conflicts, history, offline and auth.
+- Cross-device sync and AI features (note summaries, ask-your-vault) — later, as
+  an open-core layer.
 
 ## License
 
@@ -391,3 +404,10 @@ it, sell it — but please pick a different name for anything you ship separatel
 so users are never confused about who maintains which version. Referring to this
 project, comparing against it, or saying you are compatible with Samong needs no
 permission.
+
+The exclusion is written out in **[site/brand/LICENSE](site/brand/LICENSE)**,
+beside the files it applies to, because the root LICENSE would otherwise read as
+covering them: Apache-2.0 withholds trademark rights but grants broad rights over
+artwork, and a clone of this repository has no way to guess that those six SVGs
+are different. That file also lists what you may do without asking — which is
+most things.

@@ -81,6 +81,16 @@ export function GraphCanvas({
   const dragRef = useRef<Node | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
   const frameRef = useRef(0);
+  /**
+   * Set the moment the reader pans, zooms or drags a node.
+   *
+   * Auto-framing runs on every tick until then, which is what makes it reliable:
+   * fitting once when the simulation reports "end" measured a layout that was
+   * still contracting, so the camera locked to a spread the graph no longer had
+   * and the map came out smaller than before. After the first deliberate move the
+   * camera belongs to the reader and nothing may override it.
+   */
+  const userMovedRef = useRef(false);
 
   const [hovered, setHovered] = useState<{ node: Node; x: number; y: number } | null>(null);
   const [counts, setCounts] = useState({ nodes: 0, edges: 0, hidden: 0 });
@@ -236,6 +246,50 @@ export function GraphCanvas({
     ctx.globalAlpha = 1;
   }, [colorOf, matched, neighbours, selectedKey]);
 
+  /**
+   * Move the camera so every node is on screen, with room to breathe.
+   *
+   * Zooming *in* is the whole point for a small vault, so the upper clamp has to
+   * be above 1 — capped at 2.5x because a three-note vault magnified to fill a
+   * 27-inch display looks like a mistake. The lower bound lets a few hundred
+   * notes shrink to fit rather than spill off the edges.
+   */
+  const fitToNodes = useCallback(() => {
+    const canvas = canvasRef.current;
+    const nodes = nodesRef.current.filter((n) => n.x !== undefined && n.y !== undefined);
+    if (!canvas || nodes.length === 0) return;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (width === 0 || height === 0) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const node of nodes) {
+      minX = Math.min(minX, node.x!);
+      minY = Math.min(minY, node.y!);
+      maxX = Math.max(maxX, node.x!);
+      maxY = Math.max(maxY, node.y!);
+    }
+    // Padding covers the node radius and its label, neither of which is in the
+    // bounding box of the centres.
+    const pad = 60;
+    const spanX = Math.max(maxX - minX, 1) + pad * 2;
+    const spanY = Math.max(maxY - minY, 1) + pad * 2;
+    const k = Math.max(0.2, Math.min(2.5, Math.min(width / spanX, height / spanY)));
+    // The paint transform is translate(centre + cam) then scale(k), so the offset
+    // that centres the cloud is its midpoint scaled by k, negated.
+    cameraRef.current = {
+      k,
+      x: -((minX + maxX) / 2) * k,
+      y: -((minY + maxY) / 2) * k,
+    };
+    paintNow();
+    // paintNow is stable; nodesRef/canvasRef are refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Coalesce repaints while the layout is settling. */
   const schedulePaint = useCallback(() => {
     cancelAnimationFrame(frameRef.current);
@@ -382,7 +436,14 @@ export function GraphCanvas({
         .force("groupX", forceX<Node>((n) => anchor(n).x).strength(0.07))
         .force("groupY", forceY<Node>((n) => anchor(n).y).strength(0.07))
         .alphaDecay(0.035);
-      simulation.on("tick", schedulePaint);
+      userMovedRef.current = false;
+      simulation.on("tick", () => {
+        // Without this the camera sits at 1:1 around the origin and a vault of
+        // twenty notes occupies a sixth of the workspace, the rest empty — the
+        // map read as a rounding error.
+        if (!userMovedRef.current) fitToNodes();
+        schedulePaint();
+      });
       simRef.current = simulation;
       // First paint must not wait for a frame that a hidden tab never gives.
       paintNow();
@@ -481,9 +542,11 @@ export function GraphCanvas({
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const node = nodeAt(e.clientX, e.clientY);
     if (node) {
+      userMovedRef.current = true;
       dragRef.current = node;
       simRef.current?.alphaTarget(0.2).restart();
     } else {
+      userMovedRef.current = true;
       panRef.current = { x: e.clientX - cameraRef.current.x, y: e.clientY - cameraRef.current.y };
     }
     (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
@@ -540,6 +603,7 @@ export function GraphCanvas({
     e.preventDefault();
     const cam = cameraRef.current;
     const k = Math.min(4, Math.max(0.25, cam.k * (e.deltaY < 0 ? 1.12 : 0.9)));
+    userMovedRef.current = true;
     cameraRef.current = { ...cam, k };
     schedulePaint();
   };

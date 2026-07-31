@@ -156,6 +156,18 @@ const en = {
     other:
       "{count} files sit inside dependency directories — to learn from a set of docs, add its path to scope.include",
   },
+  "health.semantic": "Semantic search",
+  "health.semantic.none": "Nothing embedded yet — run `samong embed` to search by meaning",
+  "health.semantic.count": { one: "{count} note embedded", other: "{count} notes embedded" },
+  "health.semantic.missingProject": {
+    one: "1 of your notes has no vector — run `samong embed` to catch up",
+    other: "{count} of your notes have no vector — run `samong embed` to catch up",
+  },
+  "health.semantic.missingReference": {
+    one: "1 reference note is not embedded, which is the default; it is still searchable by words",
+    other:
+      "{count} reference notes are not embedded, which is the default; they are still searchable by words",
+  },
   "health.ambiguousTitle": "Ambiguous note titles",
   "health.noAmbiguous":
     "No duplicate titles among your project notes — every [[link]] points to exactly one file",
@@ -269,6 +281,13 @@ const th: Record<MessageKey, Message> = {
   "health.skippedTitle": "ไฟล์ .md ที่ไม่ถูกนับเป็นโน้ต",
   "health.skippedDependency":
     "{count} ไฟล์อยู่ในโฟลเดอร์ dependency — ถ้าอยากเรียนรู้จากเอกสารชุดไหน เพิ่ม path นั้นใน scope.include",
+  "health.semantic": "ค้นด้วยความหมาย",
+  "health.semantic.none": "ยังไม่ได้ embed อะไรเลย — สั่ง `samong embed` เพื่อค้นด้วยความหมาย",
+  "health.semantic.count": "embed แล้ว {count} โน้ต",
+  "health.semantic.missingProject":
+    "โน้ตของคุณ {count} ไฟล์ยังไม่มี vector — สั่ง `samong embed` เพื่อตามให้ทัน",
+  "health.semantic.missingReference":
+    "โน้ตอ้างอิง {count} ไฟล์ไม่ได้ embed ซึ่งเป็นค่าเริ่มต้น · ยังค้นด้วยคำได้ปกติ",
   "health.ambiguousTitle": "ชื่อโน้ตที่กำกวม",
   "health.noAmbiguous": "ไม่มีชื่อซ้ำในโน้ตของโปรเจกต์ — ทุก [[ลิงก์]] ชี้ได้ที่เดียว",
   "health.referenceOnly":

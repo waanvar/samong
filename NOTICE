@@ -12,4 +12,8 @@ Version 2.0.
 
 Full attribution for every third-party component is in THIRD-PARTY.md.
 
-"Samong" and the Samong logo are not licensed under Apache-2.0.
+"Samong" and the Samong logo are not licensed under Apache-2.0. The brand assets
+in site/brand/ are excluded from it, with the terms and the permitted nominative
+uses spelled out in site/brand/LICENSE. Apache-2.0 section 6 withholds trademark
+rights; that file covers the artwork as well, because a clone of this repository
+would otherwise read the root LICENSE as applying to those files too.

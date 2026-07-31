@@ -12,7 +12,7 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 
 *[English version →](README.en.md)*
 
-![Samong editor](docs/editor-dark.png)
+![Samong — กราฟคือพื้นที่ทำงาน เห็นชื่อโน้ต ขนาด hub และการจับกลุ่มตามโฟลเดอร์](docs/graph-dark.png)
 
 ## ทำไมต้อง Samong
 
@@ -49,7 +49,7 @@ full-text search ที่**ตัดคำไทยได้**, ลิงก์
 ตรวจไฟล์ที่โหลดมาได้จาก `.sha256` ที่แนบมาคู่กัน:
 
 ```sh
-sha256sum -c samong-v0.3.0-x86_64-linux.tar.gz.sha256
+sha256sum -c samong-v0.3.2-x86_64-linux.tar.gz.sha256
 ```
 
 #### ⚠️ ไบนารียังไม่ได้เซ็นดิจิทัล
@@ -101,7 +101,7 @@ samong-server start               # เปิดเบราว์เซอร�
 ไม่ต้องมีไฟล์ UI ข้างๆ ปรับพอร์ตด้วย `--port 8080`, ไม่ให้เปิดเบราว์เซอร์ด้วย
 `--no-open` (รูปแบบเดิม `samong-server --port 8080` ยังใช้ได้)
 
-![Graph view](docs/graph-dark.png)
+![vault เดียวกันในธีมสว่าง](docs/graph-light.png)
 
 ## คำสั่ง CLI
 
@@ -117,6 +117,7 @@ samong-server start               # เปิดเบราว์เซอร�
 | `samong graph [--all-vaults]` | edges ของ link graph |
 | `samong list` | รายชื่อโน้ตทั้งหมด |
 | `samong reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
+| `samong embed [--reference]` | embed โน้ตเพื่อค้นด้วยความหมาย (ต้อง build ด้วย `--features semantic`) |
 | `samong watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
 | `samong vault add/list/remove` | จัดการ registry กลาง |
 | `samong doctor` | สรุปว่า vault นับไฟล์ไหนเป็นโน้ต ข้ามอะไรไป และ title ไหนกำกวม |
@@ -349,10 +350,20 @@ cargo install --path . --force
 
 ## แผนต่อไป
 
-- เปิด public + เผยแพร่ release binary (โหลดไปรันได้โดยไม่ต้องมี Rust/Node)
+ทำเสร็จแล้วหลังปล่อยรุ่นแรก: ไบนารี 4 แพลตฟอร์ม, ปุ่มเพิ่ม vault ในหน้าเว็บ,
+การจัดอันดับที่คิดความเชื่อมโยง, และการค้นด้วยความหมายแบบ local ที่เป็นตัวเลือก
+
+- **เกณฑ์ความคล้ายขั้นต่ำสำหรับการค้นด้วยความหมาย** — ตอนนี้ rank fusion ยอมรับผล
+  อันดับ 1 ของฝ่าย semantic เสมอ ผลที่ไม่โดดเด่นจึงยังขึ้นมาอันดับ 2 ได้
+  ค่านี้ต้องวัดจาก vault จริง ไม่ใช่เดา
+- **โมเดลที่เล็กลง** — 465 MB เยอะเกินไปที่จะขอจากผู้ใช้ · โมเดลเดียวกันแบบ
+  quantized จะลดได้มาก
 - พจนานุกรมคำศัพท์ผู้ใช้ (คำทับศัพท์ใหม่ๆ ที่ newmm ไม่รู้จัก)
-- ปุ่มเพิ่ม vault ในหน้าเว็บ (ไม่ต้องใช้ terminal), แพ็กเป็น desktop app ด้วย Tauri
-- Sync ข้ามเครื่อง / AI features (สรุปโน้ต, ถามตอบกับ vault) — เป็น open-core layer ภายหลัง
+- แพ็กเป็น desktop app ด้วย Tauri
+- **server กลางที่ index จาก git** — vault ของทั้งทีม ค้นรวมกันได้ โดยดูดจาก
+  repository ไม่ใช่ sync · **ไม่เขียน sync protocol เอง** เพราะ git แก้เรื่อง
+  conflict / history / offline / auth ไว้ครบแล้ว
+- Sync ข้ามเครื่อง / AI features (สรุปโน้ต, ถามตอบกับ vault) — open-core layer ภายหลัง
 
 ## License
 
@@ -369,3 +380,9 @@ cargo install --path . --force
 เต็มที่ แต่กรุณาใช้ชื่ออื่นกับผลงานที่แยกไปแล้ว เพื่อไม่ให้ผู้ใช้สับสนว่าใครดูแล
 เวอร์ชันไหน (พูดถึงโปรเจกต์นี้ เปรียบเทียบ หรือบอกว่าเข้ากันได้กับ Samong —
 ทำได้เสมอ ไม่ต้องขออนุญาต)
+
+ข้อยกเว้นนี้เขียนไว้ใน **[site/brand/LICENSE](site/brand/LICENSE)** วางไว้ข้างไฟล์
+ที่มันบังคับใช้ เพราะไม่งั้น LICENSE ที่รากจะอ่านได้ว่าครอบไฟล์พวกนั้นด้วย —
+Apache-2.0 ไม่ให้สิทธิ์เครื่องหมายการค้า แต่ให้สิทธิ์ลิขสิทธิ์เหนือ artwork
+อย่างกว้าง และคนที่ clone repo นี้ไปไม่มีทางเดาได้ว่า SVG 6 ไฟล์นั้นต่างออกไป
+ในไฟล์นั้นบอกด้วยว่าอะไรทำได้เลยไม่ต้องขอ ซึ่งเป็นเกือบทุกอย่าง

@@ -3,9 +3,27 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Rebuild an existing tag by hand.
+  #
+  # Without this, a tag push is the only way to run a release build, so a single
+  # failed or stranded job means the only fix is burning a new version number —
+  # which is exactly what happened to v0.3.0 and v0.3.1, both of which are still
+  # missing their Intel Mac archive because the runner they asked for had been
+  # retired. Assets with the same name are replaced, which is the point.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, e.g. v0.3.2"
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  # A manual run is given the tag; a tag push already is one. Everything below
+  # reads this, so the two paths cannot drift.
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   build:
@@ -34,6 +52,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A manual run would otherwise build the default branch and label the
+          # archives with a tag they were not built from.
+          ref: ${{ env.TAG }}
 
       - uses: actions/setup-node@v4
         with:
@@ -68,7 +90,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          name="samong-${{ github.ref_name }}-${{ matrix.target }}"
+          name="samong-${TAG}-${{ matrix.target }}"
           # A cross build lands under target/<triple>/release instead.
           bin="target/release"
           if [ -n "${{ matrix.rust_target }}" ]; then
@@ -101,6 +123,9 @@ jobs:
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
+          # Explicit, because a manual run is not triggered by a tag and the
+          # action would otherwise have nothing to attach the files to.
+          tag_name: ${{ env.TAG }}
           files: |
             samong-*.zip
             samong-*.tar.gz

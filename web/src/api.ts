@@ -70,6 +70,16 @@ export interface DoctorReport {
   truncated: boolean;
   ambiguous_titles: { title: string; keys: string[] }[];
   reference_only_collisions: number;
+  /// `null` when the server was built without semantic search, which is a
+  /// different answer from "built with it and nothing embedded yet".
+  embeddings: EmbeddingStatus | null;
+}
+
+export interface EmbeddingStatus {
+  model: string | null;
+  notes: number;
+  missing_project: number;
+  missing_reference: number;
 }
 
 async function json<T>(response: Response): Promise<T> {

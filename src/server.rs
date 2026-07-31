@@ -430,6 +430,60 @@ struct DoctorResponse {
     ambiguous_titles: Vec<AmbiguousTitle>,
     /// Collisions confined to reference notes: normal for vendored docs.
     reference_only_collisions: usize,
+    /// Semantic search coverage, or `null` in a build without the feature.
+    ///
+    /// Nullable rather than zeroed so the UI can tell "this build cannot do
+    /// semantic search" apart from "it can, and nothing is embedded yet" — two
+    /// situations with completely different answers.
+    embeddings: Option<EmbeddingStatus>,
+}
+
+#[derive(Serialize)]
+struct EmbeddingStatus {
+    /// `None` when a store exists but was never claimed by a model.
+    model: Option<String>,
+    notes: usize,
+    /// Project notes with no vector: what `samong embed` would fix.
+    missing_project: usize,
+    /// Reference notes with no vector — the default, not a problem.
+    missing_reference: usize,
+}
+
+/// Coverage for the doctor response.
+#[cfg(feature = "semantic")]
+fn embedding_status(scope: &Scope) -> Result<Option<EmbeddingStatus>, anyhow::Error> {
+    let vault = scope.root();
+    if !crate::vectors::exists(vault) {
+        return Ok(Some(EmbeddingStatus {
+            model: None,
+            notes: 0,
+            missing_project: vault::list_notes_in(scope)?
+                .iter()
+                .filter(|n| !n.reference)
+                .count(),
+            missing_reference: 0,
+        }));
+    }
+    let store = crate::vectors::Store::open(vault)?;
+    let stored = store.stored_hashes()?;
+    let notes = vault::list_notes_in(scope)?;
+    Ok(Some(EmbeddingStatus {
+        model: store.meta()?.map(|(name, dim)| format!("{name} ({dim}d)")),
+        notes: stored.len(),
+        missing_project: notes
+            .iter()
+            .filter(|n| !n.reference && !stored.contains_key(&n.key))
+            .count(),
+        missing_reference: notes
+            .iter()
+            .filter(|n| n.reference && !stored.contains_key(&n.key))
+            .count(),
+    }))
+}
+
+#[cfg(not(feature = "semantic"))]
+fn embedding_status(_scope: &Scope) -> Result<Option<EmbeddingStatus>, anyhow::Error> {
+    Ok(None)
 }
 
 #[derive(Serialize)]
@@ -479,6 +533,7 @@ async fn get_doctor(
                 .map(|(title, keys)| AmbiguousTitle { title, keys })
                 .collect(),
             reference_only_collisions: reference_only.len(),
+            embeddings: embedding_status(&scope)?,
         })
     })
     .await?;
