@@ -102,7 +102,7 @@ jobs:
           # The web UI is embedded into samong-server, so the archive is just
           # the binaries + docs. NOTICE and THIRD-PARTY.md must travel with the
           # binaries: Apache-2.0 requires attribution to survive redistribution.
-          cp README.md README.en.md LICENSE NOTICE THIRD-PARTY.md "stage/$name/"
+          cp README.md README.th.md LICENSE NOTICE THIRD-PARTY.md "stage/$name/"
           cd stage
           if [ "${{ matrix.archive }}" = "zip" ]; then
             7z a "../$name.zip" "$name"

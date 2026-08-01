@@ -3,137 +3,153 @@
 [![CI](https://github.com/waanvar/samong/actions/workflows/ci.yml/badge.svg)](https://github.com/waanvar/samong/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**มันสมองที่สองแบบ local-first เขียนด้วย Rust — ค้นหาภาษาไทยแบบตัดคำได้จริง**
+**A local-first knowledge base for the notes already in your repositories**
 
-โน้ตของคุณคือไฟล์ Markdown ธรรมดา เข้ากันได้กับ [Obsidian](https://obsidian.md)
-(`[[wikilink]]` / `[[wikilink|alias]]`) — Samong เพิ่ม link graph ที่เร็ว,
-full-text search ที่**ตัดคำไทยได้**, ลิงก์ข้าม vault, API และ Web UI
-โดยไฟล์ `.md` เป็น source of truth เพียงแหล่งเดียวเสมอ
+You solved it once and wrote it down. Six months later the note is still in the
+repo and you cannot find it. Point Samong at a project root and the `.md` files
+you would commit become searchable and linked — and readable by the AI tools you
+already work with. Plain Markdown,
+[Obsidian](https://obsidian.md)-compatible (`[[wikilink]]` /
+`[[wikilink|alias]]`), no account, no cloud, one binary.
 
-*[English version →](README.en.md)*
+*[อ่านเป็นภาษาไทย →](README.th.md)*
 
-![Samong — กราฟคือพื้นที่ทำงาน เห็นชื่อโน้ต ขนาด hub และการจับกลุ่มตามโฟลเดอร์](docs/graph-dark.png)
+![Samong — the graph is the workspace, with note titles, hub sizing and folder clusters](docs/graph-dark.png)
 
-## ทำไมต้อง Samong
+## Why Samong
 
-- 🇹🇭 **ค้นคำไทยกลางประโยคเจอ** — "ตลาดหลักทรัพย์แห่งประเทศไทยเปิดทำการ"
-  ค้นด้วย "ตลาดหลักทรัพย์" หรือ "ประเทศไทย" เจอทันทีพร้อมไฮไลต์
-  (ตัดคำด้วยพจนานุกรม newmm ผ่าน [nlpo3](https://github.com/PyThaiNLP/nlpo3) —
-  สิ่งที่ Obsidian ทำไม่ได้)
-- 📁 **ไฟล์ของคุณ เครื่องของคุณ** — โน้ต = Markdown ธรรมดา ไม่มี lock-in
-  index ทั้งหมดอยู่ใน `<vault>/.brain/` และสร้างใหม่ได้เสมอด้วย `samong reindex`
-- 🔗 **Multi-vault** — ลิงก์ข้ามโปรเจกต์ด้วย `[[ชื่อ-vault/ชื่อโน้ต]]`
-  backlinks ข้าม vault แสดงครบ
-- 🧭 **จัดอันดับด้วยความตรงคำ *และ* ความเชื่อมโยง** — เมื่อคำค้นแยกสองโน้ตไม่ออก
-  โน้ตที่โน้ตอื่นชี้มามากจะขึ้นก่อน จำกัดที่ +25% เพื่อให้โน้ตที่คนลิงก์มาเยอะ
-  ไม่มีทางชนะโน้ตที่ตรงคำกว่าชัดๆ
-- 🧠 **ค้นด้วยความหมาย เป็นตัวเลือก และรันในเครื่อง** — build ด้วย
-  `--features semantic` แล้วสั่ง `samong embed` จะได้อันดับที่คิดความหมายด้วย
-  ใช้โมเดล multilingual ที่อ่านไทยได้ · ปิดไว้เป็นค่าเริ่มต้นโดยมีเหตุผล (ดูด้านล่าง)
-- ⚡ **เร็ว** — link graph ใน [redb](https://github.com/cberner/redb),
-  ค้นหาด้วย [tantivy](https://github.com/quickwit-oss/tantivy),
-  incremental reindex แตะเฉพาะไฟล์ที่เปลี่ยน
-- 🤖 **เป็นมันสมองของ AI agent ได้** — `samong-mcp` เสียบเข้า Claude Code /
-  Claude Desktop ผ่าน MCP ให้ agent ค้น-อ่าน-บันทึกความรู้เองได้
-  ([วิธีตั้งค่า](docs/AI-AGENT.md))
+- 📁 **A note is a `.md` file you would commit.** Point it at a repository, not
+  at a special notes folder. `.gitignore` is respected and dependency
+  directories are always skipped, so a project root indexes your ADRs, runbooks
+  and design docs without dragging in `node_modules` — and `samong doctor` tells
+  you exactly what counted and what did not.
+- 🤖 **Your notes become an agent's memory.** `samong-mcp` speaks MCP, so Claude
+  Code and Claude Desktop search, read and write the same knowledge base you do.
+  No pasting context back in every session ([setup](docs/AI-AGENT.md)).
+- 🗺 **The graph is the workspace, not a novelty tab.** A vault is a shape;
+  typing dims everything that does not match, so a query becomes a place.
+- 🔎 **Notes are addressed by path, not by title.** One repository holds twenty
+  files called `README.md`. A title cannot tell them apart, and an index keyed on
+  titles silently collapses them — so search results, the API and the MCP tools
+  all carry the real path.
+- 📚 **Learn from documentation you never commit.** `.gitignore` answers "what do
+  I distribute?"; a knowledge base has to answer "what do I learn from?".
+  `scope.include` pulls a dependency's own docs in as read-only reference notes —
+  one project, one brain, no second vault.
+- 🔗 **One repository per vault, links across all of them.** `[[other-vault/note]]`
+  resolves across every registered vault, and backlinks come back the other way
+  without any cross-vault index to keep in sync.
+- 🧭 **Ranked by relevance *and* connectedness.** When the words cannot tell two
+  notes apart, the one the rest of your notes point at comes first. Capped at a
+  25% boost, so a popular note never outranks one that plainly matches better.
+- 🧠 **Semantic search, optional and local.** Build with `--features semantic`
+  and run `samong embed` to rank by meaning as well as by words, with a
+  multilingual model that never leaves your machine. Off by default on purpose:
+  see below.
+- ⚡ **Fast, and yours.** Link graph in [redb](https://github.com/cberner/redb),
+  search in [tantivy](https://github.com/quickwit-oss/tantivy), incremental
+  reindexing that only touches changed files. Every index lives in
+  `<vault>/.brain/` and can be rebuilt from the `.md` files at any time — there
+  is nothing to lock you in.
 
-## ติดตั้ง
+## Install
 
-### ดาวน์โหลดไบนารี (แนะนำ)
+### Download a binary (recommended)
 
-โหลดจาก [หน้า Releases](https://github.com/waanvar/samong/releases) แตกไฟล์ แล้วรัน
-**ไม่ต้องลง Rust หรือ Node** — หน้าเว็บฝังอยู่ในไบนารีแล้ว มีให้ 4 แพลตฟอร์ม:
-`x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
-`x86_64-macos` (Intel)
+Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
+run. **No Rust or Node needed** — the web UI is already inside the binary. Four
+platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
+`x86_64-macos` (Intel).
 
-ตรวจไฟล์ที่โหลดมาได้จาก `.sha256` ที่แนบมาคู่กัน:
+Verify what you downloaded against the `.sha256` published beside it:
 
 ```sh
 sha256sum -c samong-v0.3.2-x86_64-linux.tar.gz.sha256
 ```
 
-#### ⚠️ ไบนารียังไม่ได้เซ็นดิจิทัล
+#### ⚠️ The binaries are not code-signed
 
-Samong ยังไม่มีใบรับรองสำหรับ code signing ฉะนั้นระบบปฏิบัติการจะขัดขวางไว้:
+Samong has no code-signing certificate yet, so the OS will get in the way:
 
-**macOS** — Gatekeeper จะ*ปฏิเสธ*ไม่ให้เปิด (ไม่ใช่แค่เตือน) ปลดด้วยคำสั่งเดียว
-หลังแตกไฟล์:
+**macOS** — Gatekeeper *refuses* to open it (not merely a warning). One command
+after extracting clears it:
 
 ```sh
 xattr -d com.apple.quarantine samong samong-server samong-mcp
 ```
 
-**Windows** — SmartScreen จะขึ้นเตือน กด **More info → Run anyway**
+**Windows** — SmartScreen warns; choose **More info → Run anyway**.
 
-> ทั้งสองกรณีเกิดกับซอฟต์แวร์โอเพนซอร์สที่ไม่มีงบซื้อใบรับรอง ไม่ใช่สัญญาณว่าไฟล์
-> ผิดปกติ — แต่คุณควรตรวจ checksum ข้างบนเสมอ และโหลดจากหน้า Releases ทางการเท่านั้น
+> Both happen to any open-source project without a paid certificate and are not a
+> sign that something is wrong with the file — but do check the checksum above,
+> and only download from the official Releases page.
 
-### หรือ build จาก source
+### Or build from source
 
-ต้องมี [**Rust**](https://rustup.rs) (stable) และ [**Node.js**](https://nodejs.org) 20+
-(Node จำเป็นถ้าต้องการหน้าเว็บ เพราะ UI ถูกฝังลงในไบนารีตอน build — ไม่ลง Node
-จะได้เฉพาะ CLI + API)
+Needs [**Rust**](https://rustup.rs) (stable) and [**Node.js**](https://nodejs.org)
+20+ (Node only if you want the web UI, which is embedded into the binary at build
+time — without it you get the CLI + API).
 
 ```sh
 git clone https://github.com/waanvar/samong.git
 cd samong
-cd web && npm install && npm run build   # build Web UI ก่อน (จะถูกฝังในไบนารี)
-cd .. && cargo install --path .          # ติดตั้ง samong / samong-server / samong-mcp ลงเครื่อง
+cd web && npm install && npm run build   # build the web UI first (it gets embedded)
+cd .. && cargo install --path .          # installs samong / samong-server / samong-mcp
 ```
 
-> **ลำดับสำคัญ**: build Web UI ก่อน `cargo build`/`cargo install` เสมอ เพราะ
-> `samong-server` จะ**ฝังหน้าเว็บไว้ในตัวไบนารี** ทำให้แจกไฟล์เดียวจบ
-> ไม่ต้องมีโฟลเดอร์ UI ข้างๆ (ถ้าอยากลอง build เฉยๆ ไม่ติดตั้ง ใช้ `cargo build --release`
-> ได้ไบนารีใน `target/release/`)
+> **Order matters**: build the web UI before `cargo build`/`cargo install` —
+> `samong-server` **embeds the web UI into the binary**, so it ships as a single
+> file with no UI folder alongside it. (To build without installing, use
+> `cargo build --release`; binaries land in `target/release/`.)
 
-อัปเดตเป็นเวอร์ชันล่าสุดภายหลังด้วย `samong update` (ดูหัวข้อ *อัปเดตเวอร์ชัน* ด้านล่าง)
+Update to the latest version later with `samong update` (see *Updating* below).
 
-## เริ่มใช้งาน
+## Quickstart
 
 ```sh
 mkdir my-vault && cd my-vault
-samong new "โน้ตแรกของฉัน"        # สร้างโน้ต + index อัตโนมัติ
-samong vault add my-vault .        # ลงทะเบียนเข้า registry (~/.config/samong)
-samong-server start               # เปิดเบราว์เซอร์ที่ http://127.0.0.1:3000 ให้อัตโนมัติ
+samong new "My First Note"         # create + index
+samong vault add my-vault .        # register in ~/.config/samong
+samong-server start               # opens http://127.0.0.1:3000 in your browser
 ```
 
-`samong-server start` เสิร์ฟหน้าเว็บที่ฝังในตัว แล้วเปิดเบราว์เซอร์ให้เอง —
-ไม่ต้องมีไฟล์ UI ข้างๆ ปรับพอร์ตด้วย `--port 8080`, ไม่ให้เปิดเบราว์เซอร์ด้วย
-`--no-open` (รูปแบบเดิม `samong-server --port 8080` ยังใช้ได้)
+`samong-server start` serves the embedded web UI and opens your browser — no UI
+files needed alongside it. Change the port with `--port 8080`, skip the browser
+with `--no-open` (the old `samong-server --port 8080` form still works).
 
-![vault เดียวกันในธีมสว่าง](docs/graph-light.png)
+![The same vault in the light theme](docs/graph-light.png)
 
-## คำสั่ง CLI
+## CLI commands
 
-| คำสั่ง | หน้าที่ |
+| Command | What it does |
 |---|---|
-| `samong new <ชื่อ>` | สร้างโน้ตใหม่ + index |
-| `samong edit <ชื่อ>` | เปิดใน `$EDITOR` แล้ว reindex เมื่อปิด |
-| `samong rename <เก่า> <ใหม่>` | เปลี่ยนชื่อ + แก้ `[[wikilink]]` ทุกโน้ตที่ลิงก์มา |
-| `samong delete <ชื่อ>` | ลบโน้ต + เตือน backlinks ที่จะค้าง |
-| `samong links <ชื่อ> [--all-vaults]` | forward links + backlinks (รวมข้าม vault) |
-| `samong orphans` / `samong broken` | โน้ตที่ไม่มีใครลิงก์ / ลิงก์ที่ชี้ไปโน้ตที่ไม่มี |
-| `samong search <คำ> [--vault <ชื่อ>\|--all-vaults] [--limit N]` | ค้นหา full-text (ไทย/อังกฤษ) |
-| `samong graph [--all-vaults]` | edges ของ link graph |
-| `samong list` | รายชื่อโน้ตทั้งหมด |
-| `samong reindex [--full]` | sync index (เฉพาะไฟล์ที่เปลี่ยน / ทั้งหมด) |
-| `samong embed [--reference]` | embed โน้ตเพื่อค้นด้วยความหมาย (ต้อง build ด้วย `--features semantic`) |
-| `samong watch` | เฝ้า vault แล้วอัปเดต index อัตโนมัติ |
-| `samong vault add/list/remove` | จัดการ registry กลาง |
-| `samong doctor` | สรุปว่า vault นับไฟล์ไหนเป็นโน้ต ข้ามอะไรไป และ title ไหนกำกวม |
-| `samong update [--check]` | อัปเดตเป็นเวอร์ชันล่าสุดจาก GitHub release (--check = เช็คเฉยๆ) |
+| `samong new <title>` | Create a note + index it |
+| `samong edit <title>` | Open in `$EDITOR`, reindex on close |
+| `samong rename <old> <new>` | Rename + rewrite every `[[wikilink]]` pointing at it |
+| `samong delete <title>` | Delete + warn about dangling backlinks |
+| `samong links <title> [--all-vaults]` | Forward links + backlinks (incl. cross-vault) |
+| `samong orphans` / `samong broken` | Unlinked notes / links to missing notes |
+| `samong search <q> [--vault <name>\|--all-vaults] [--limit N]` | Full-text search |
+| `samong graph [--all-vaults]` | Link-graph edges |
+| `samong list` | List every note |
+| `samong reindex [--full]` | Sync the index (changed files only / everything) |
+| `samong embed [--reference]` | Embed notes for semantic search (needs `--features semantic`) |
+| `samong watch` | Watch the vault, keep the index fresh |
+| `samong vault add/list/remove` | Manage the central registry |
+| `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
+| `samong update [--check]` | Update to the latest GitHub release (--check only reports) |
 
-### ไฟล์ไหนนับเป็นโน้ต (vault scope)
+### What counts as a note (vault scope)
 
-กฎเดียวที่ต้องจำ: **โน้ต = ไฟล์ `.md` ที่คุณจะ commit** ชี้ `samong vault add` ที่
-root ของโปรเจกต์ได้เลย ไม่ต้องตั้งค่าอะไร — Samong จะ:
+One rule: **a note is a `.md` file you would commit.** Point `samong vault add`
+straight at a project root — no configuration needed. Samong will:
 
-- เคารพ `.gitignore` (จึงไม่ดูด `node_modules/`, `dist/`, `target/` เข้ามา)
-- ข้ามโฟลเดอร์ dependency ที่ไม่มีทางเป็นโน้ตเสมอ แม้ไม่ได้ gitignore
+- respect `.gitignore`, so `node_modules/`, `dist/` and `target/` never get indexed
+- always skip dependency directories even when they are not gitignored
   (`node_modules`, `vendor`, `site-packages`, `__pycache__`, `Pods`, `bower_components`)
-- ข้ามโฟลเดอร์ที่ขึ้นต้นด้วยจุดทั้งหมด (`.git`, `.obsidian`, `.brain`)
+- skip every dot-directory (`.git`, `.obsidian`, `.brain`)
 
-`samong doctor` บอกว่าตอนนี้นับได้กี่โน้ตและข้ามไปกี่ไฟล์:
+`samong doctor` shows what that adds up to:
 
 ```sh
 samong doctor
@@ -143,185 +159,198 @@ samong doctor
 # skipped 90 .md file(s) not tracked as notes (web 90)
 ```
 
-อยากปรับ สร้าง `samong.toml` ที่ root ของ vault (**commit ไปกับ repo** เพื่อให้
-ทุกเครื่องและ server เห็นกฎเดียวกัน — ทุกฟิลด์ optional):
+To adjust it, add `samong.toml` at the vault root — **commit it**, so every
+machine and any central server reads the same rules. Every field is optional:
 
 ```toml
 [vault]
-name = "myproject"        # ชื่อที่ใช้ใน [[myproject/โน้ต]] (ไม่ใส่ = ใช้จาก registry)
+name = "myproject"        # the name used in [[myproject/note]] links
 
 [scope]
-notes_dir = "docs"        # จำกัดให้ scan แค่โฟลเดอร์นี้ (default = ".")
-exclude = ["archive/**"]  # กฎเพิ่ม (gitignore syntax)
-include = []              # โฟลเดอร์ที่ให้ index เพิ่ม แม้ gitignore กันไว้ (ดูหัวข้อถัดไป)
-follow_gitignore = true   # ปิดได้ถ้าอยาก index ไฟล์ที่ gitignore ไว้
-max_depth = 0             # 0 = ไม่จำกัดความลึก
+notes_dir = "docs"        # only scan this subtree (default ".")
+exclude = ["archive/**"]  # extra rules, gitignore syntax
+include = []              # directories to index anyway (see below)
+follow_gitignore = true   # turn off to index gitignored files too
+max_depth = 0             # 0 = unlimited
 ```
 
-ถ้า repo ของคุณ gitignore โน้ตของตัวเองไว้ (เช่นโน้ต local ใน `notes/`) ใช้
-`.samongignore` ดึงกลับมาได้ — ไฟล์นี้ใช้ syntax เดียวกับ gitignore และ negate ได้:
+If your repo gitignores its own notes, `.samongignore` brings them back. Same
+syntax as gitignore, negation included:
 
 ```
 !notes/
 drafts/
 ```
 
-### เรียนรู้จากเอกสารที่ไม่ได้ commit (`scope.include`)
+### Learning from documentation you never commit (`scope.include`)
 
-`.gitignore` ตอบคำถามว่า **"จะแจกจ่ายอะไร"** แต่ฐานความรู้ต้องตอบว่า
-**"จะเรียนรู้จากอะไร"** — สองอย่างนี้ไม่ใช่คำถามเดียวกัน ตัวอย่างชัดสุดคือเอกสารที่มา
-พร้อม dependency เช่น Next.js ที่ ship ไฟล์ Markdown 400+ ไฟล์ไว้ใน `node_modules`
+`.gitignore` answers **"what do I distribute?"**. A knowledge base has to answer
+**"what do I learn from?"** — not the same question. The clearest case is
+documentation shipped inside a dependency: Next.js puts 400-odd Markdown files
+in `node_modules`.
 
 ```toml
 [scope]
 include = ["node_modules/next/dist/docs"]
 ```
 
-โน้ตที่ได้มาทางนี้เรียกว่า **reference notes** อยู่ใน vault เดียวกัน index เดียวกัน
-ลิงก์ `[[installation]]` จากโน้ตของคุณถึงกันได้ — **หนึ่งโปรเจกต์ หนึ่งสมอง** ไม่ต้องแยก vault
+Those become **reference notes** — same vault, same index, so `[[installation]]`
+from your own note resolves. One project, one brain; no second vault.
 
-> `.samongignore` กับ `!node_modules/...` **ใช้แทนกันไม่ได้** เพราะโฟลเดอร์ dependency
-> ถูกตัดกิ่งทิ้งก่อน walker เดินเข้าไป จึงไม่มีรายการให้ negate และกฎ gitignore เองก็
-> re-include ไฟล์ใต้ parent ที่ถูก exclude ไม่ได้ — `scope.include` คือคานงัดที่ถูก
+> `.samongignore` with `!node_modules/...` cannot do this. Dependency
+> directories are pruned before the walker looks inside them, so there is nothing
+> for a negation to match, and gitignore itself cannot re-include a path whose
+> parent is excluded. `scope.include` is the right lever.
 
-**สองข้อที่ต้องรู้:**
+**Two things to know:**
 
-1. **reference notes เป็นของเฉพาะเครื่อง** — `samong.toml` เดินทางไปกับ git แต่
-   `node_modules` ไม่ ฉะนั้นเครื่องที่ยังไม่ `npm install` หรือ server ที่มีแต่ git
-   history จะหาไม่เจอ ซึ่ง**ไม่ใช่ error** — Samong ข้ามแล้วเตือน 1 บรรทัด และ
-   `samong doctor` บอกว่า root ไหนมี root ไหนไม่มี
-2. **reference notes เป็น read-only** — `save_note` / `PUT` / `delete` / `rename` จะ
-   ปฏิเสธ เพราะไฟล์เป็นของ dependency ถ้าเขียนลงไปจะหายตอน install ครั้งถัดไป
-   (สำคัญกับ agent มาก: `save_note("installation")` ไม่ควรไปทับหน้าเอกสารของ framework)
+1. **Reference notes are machine-local.** `samong.toml` travels with git;
+   `node_modules` does not. A machine that has not installed dependencies — or a
+   server holding only git history — will not find them. That is *not* an error:
+   Samong skips them and prints one warning line, and `samong doctor` reports
+   which roots are present.
+2. **Reference notes are read-only.** `save_note` / `PUT` / `delete` / `rename`
+   refuse them: the file belongs to a dependency and any edit would be erased on
+   the next install. This matters most for agents — `save_note("installation")`
+   must not overwrite a framework's own docs page.
 
-`exclude` มีผลกับการ scan หลักเท่านั้น — ถ้าต้องการตัดบางส่วนของ include root
-ให้ชี้ `include` ให้แคบลง
+`exclude` applies to the main scan only. To leave part of an include root out,
+point `include` at a narrower directory.
 
-> ตั้งใจไม่อ่าน global gitignore (`~/.config/git/ignore`), `.git/info/exclude`
-> และ `.gitignore` ของโฟลเดอร์เหนือ vault — ของพวกนี้เป็นของเฉพาะเครื่อง ถ้าเอามา
-> ใช้ repo เดียวกันจะ index ไม่เหมือนกันบนสองเครื่อง
+> Deliberately ignored: the global gitignore (`~/.config/git/ignore`),
+> `.git/info/exclude`, and `.gitignore` files above the vault. Those are
+> per-machine, and honoring them would make one repo index differently on two
+> laptops.
 
-### อัปเดตเวอร์ชัน
+### Updating
 
-`samong update` ดาวน์โหลด release ล่าสุดจาก GitHub แล้วแทนที่ไบนารีทั้งสาม
-(samong / samong-server / samong-mcp) ให้อัตโนมัติ — รวมหน้าเว็บที่ฝังในตัวด้วย
-`samong update --check` เช็คว่ามีเวอร์ชันใหม่ไหมโดยไม่ติดตั้ง และ `samong-server start`
-จะแจ้งบรรทัดเดียวถ้ามีเวอร์ชันใหม่ (best-effort ไม่บล็อก ไม่ล้มถ้าออฟไลน์)
+`samong update` downloads the latest GitHub release and replaces all three
+binaries (samong / samong-server / samong-mcp) in place — including the embedded
+web UI. `samong update --check` reports whether a newer version exists without
+installing, and `samong-server start` prints a one-line notice when an update is
+available (best-effort; never blocks, never fails offline).
 
-> วิธีออก release: `git tag v0.3.0 && git push origin v0.3.0` แล้ว
-> [release.yml](.github/workflows/release.yml) จะ build ไบนารีทั้ง 4 แพลตฟอร์ม
-> พร้อม checksum และแนบเข้า GitHub Release ให้เอง
+> A published GitHub release is required first
+> (`git tag v0.1.0 && git push origin v0.1.0` triggers the workflow that builds
+> binaries for all three OSes) before `samong update` can find anything.
 
-## ค้นด้วยความหมาย (เป็นตัวเลือก)
+## Semantic search (optional)
 
-การค้นด้วยคำหาเจอเฉพาะโน้ตที่ใช้คำเดียวกับที่คุณพิมพ์ ถ้าจำคำที่เคยเขียนไม่ได้
-ก็หาไม่เจอเลย การค้นด้วยความหมายแก้ตรงนี้ — และมัน **ปิดไว้เป็นค่าเริ่มต้น**
-ซึ่งเป็นการตัดสินใจ ไม่ใช่ความหลงลืม
+Lexical search only finds notes that use the words you typed. When you cannot
+remember the words you wrote, it finds nothing. Semantic search fixes that by
+comparing meaning — and it is **off by default**, which is a decision, not an
+oversight.
 
 ```bash
 cargo install --path . --features semantic
-samong embed              # โน้ตของคุณ · ทำซ้ำเมื่อเขียนเพิ่มเยอะ
-samong embed --reference  # เอาเอกสารจาก scope.include ด้วย (ช้า)
-samong search "จะกันคนยิงซ้ำๆ ยังไง"
+samong embed              # your notes; run it again after you write a lot
+samong embed --reference  # also the vendored docs from scope.include (slow)
+samong search "how do we stop repeated requests"
 ```
 
-**สิ่งที่ต้องแลก**: ฟีเจอร์นี้ลาก ONNX Runtime เข้ามา และ `embed` ครั้งแรกจะ
-ดาวน์โหลด `intfloat/multilingual-e5-small` จาก Hugging Face ไปเก็บที่
-`~/.config/samong/models` — **465 MB บนดิสก์** (วัดจริง ไม่ใช่ประมาณ: ONNX float32
-470 MB + tokenizer 17 MB) · **โน้ตกับคำค้นยังไม่ออกจากเครื่อง** และหลังโหลดเสร็จ
-ไม่ต้องใช้เน็ตอีก แต่คำสัญญาว่า "ไฟล์เดียว ไม่ต้องโหลดอะไร" จะไม่จริงอีกต่อไป
-และคำสัญญานั้นคือเหตุผลที่คนเลือกเราแทนของบนคลาวด์ จึงให้เป็นสิทธิ์ของคุณที่จะเปิด
-ไม่ใช่สิ่งที่เรายัดเยียด
+**What it costs you.** The feature pulls in ONNX Runtime, and the first `embed`
+downloads `intfloat/multilingual-e5-small` from Hugging Face into
+`~/.config/samong/models` — **465 MB on disk**, measured, not estimated: a 470 MB
+float32 ONNX graph plus a 17 MB tokenizer. Your notes and your queries still never
+leave the machine, and nothing needs a network after that download. But "one
+binary, nothing to fetch" stops being true, and that promise is why people choose
+this over a cloud tool — so it is yours to opt into, not ours to impose.
 
-การ embed เป็นสิ่งที่ช้าที่สุดในโปรแกรมนี้ วัดจริง: 430 โน้ต (ส่วนใหญ่เป็นเอกสาร
-Next.js ที่มาพร้อม dependency) ใช้ **11 นาที 25 วินาที** บน CPU ของโน้ตบุ๊ก
-และนั่นคือเหตุผลที่โน้ตอ้างอิงจะไม่ถูก embed จนกว่าคุณจะสั่ง — มันกินเวลา 95%
-ของทั้งหมด
+Embedding is the slowest thing the program does. A real measurement: 430 notes,
+most of them vendored Next.js documentation, took **11m 25s** on a laptop CPU.
+That is also why reference notes are excluded unless you ask for them — they were
+95% of that time.
 
-**โมเดลเป็น multilingual โดยเจตนา**: การค้นคำไทยคือสิ่งที่ Samong ทำได้แต่คนอื่นทำไม่ได้
-และโปรเจกต์ที่ใกล้เราที่สุดใช้โมเดลอังกฤษล้วน — ถ้าการค้นด้วยความหมายอ่านไทยไม่ได้
-ก็เท่ากับยกจุดแข็งให้เขาในจุดที่สำคัญที่สุด
+**The model is multilingual on purpose.** The nearest comparable project embeds
+with an English-only model, which quietly makes its semantic search useless for
+anyone whose notes are not in English. This one covers 100+ languages.
 
-**รวมสองอันดับด้วย Reciprocal Rank Fusion** ไม่ใช่ถ่วงน้ำหนักคะแนน เพราะ BM25
-ไม่มีขอบเขตส่วน cosine อยู่ที่ −1 ถึง 1 การผสมเลขดิบต้อง calibrate และค่านั้น
-เลื่อนไปตาม vault แต่การผสม*อันดับ*ไม่ต้อง — โน้ตที่ดีทั้งสองด้านชนะ
-โน้ตที่ดีด้านเดียวก็ยังติด
+**How the two rankings combine.** Reciprocal Rank Fusion, not a weighted sum of
+scores: BM25 is unbounded and cosine similarity is −1 to 1, so mixing the raw
+numbers needs a calibration that drifts with every vault. Fusing *positions*
+needs none. A note ranked well by both wins; a note ranked first by only one still
+places.
 
-โน้ตถูกซอยเป็นชิ้น ~900 ตัวอักษรโดยตัดที่ย่อหน้า เอกสารยาวจึงถูกจับด้วย*ส่วนที่ตรง*
-ไม่ใช่แค่หน้าแรก และให้คะแนนตามชิ้นที่ดีที่สุด · vector อยู่ใน
-`<vault>/.brain/vectors.redb` ตราด้วย content hash ตัวเดียวกับที่ reindexer ใช้
-จึงไม่ embed ซ้ำโน้ตที่ไม่เปลี่ยน · ลบไฟล์นั้นแล้ว vault กลับเป็นเหมือนเดิมเป๊ะ
+Notes are chunked (~900 characters, split at paragraph breaks) so a long document
+is matched by its relevant section rather than its first page, and each note
+scores as its best chunk. Vectors live in `<vault>/.brain/vectors.redb`, stamped
+with the same content hash the reindexer uses, so re-embedding skips unchanged
+notes. Delete that file and the vault is exactly what it was.
 
-`samong doctor` บอกว่ามีโน้ตกี่ไฟล์ที่มี vector แล้ว เพื่อแยก "ค้นด้วยความหมาย
-ไม่ช่วย" ออกจาก "ยังไม่ได้ embed อะไรเลย"
+`samong doctor` reports how many notes have vectors, so "semantic search did not
+help" can be told apart from "nothing was embedded".
 
 ## Web UI
 
-ดีไซน์ต้นฉบับ (ไม่ลอก Obsidian) — typography ไทยด้วย
-IBM Plex Sans Thai ฝังในตัว ใช้ offline ได้ และหน้าเว็บทั้งชุดถูก**ฝังในไบนารี**
-`samong-server` (rust-embed) แจกไฟล์เดียวเปิดใช้ได้ทันที
+An original design, not an Obsidian clone. The whole UI is **embedded into the
+`samong-server` binary** (rust-embed) — ships as one file, runs instantly, and
+the fonts are bundled so it works offline.
 
-- **กราฟคือพื้นที่ทำงาน** วาดด้วย canvas (ใช้ d3-force คิด layout) จึงรอด vault
-  ที่มีโน้ตหลายร้อยไฟล์ — ขนาด node คือจำนวนลิงก์ สีคือ vault
-- **การค้นคือทางเข้า**: `Ctrl+K` โฟกัสช่องค้นที่อยู่บนกรอบอยู่แล้ว ไม่มี palette
-  ให้เปิด พิมพ์แล้ว node ที่ไม่ตรงจะหมองลง คำค้นจึงกลายเป็นสถานที่ · `Esc`
-  เรียกแผนที่ทั้งใบกลับมา
-- เลือก node แล้วโน้ตเปิดข้างกราฟ ลิงก์แสดงเป็น chip ที่บอกว่าชี้ถึงจริงหรือไม่
-  การอ่านเต็มจอเป็นสถานะที่ทับบนแผนที่ ไม่ใช่หน้าอื่น
-- พิมพ์ `[[` แล้ว autocomplete ชื่อโน้ตรวมข้าม vault — คลิก wikilink เพื่อกระโดด
-  ถ้าโน้ตยังไม่มีจะสร้างให้
-- **เลือกภาษาอังกฤษหรือไทย** จาก `?lang=` ค่าที่เคยเลือก หรือภาษาของเบราว์เซอร์
-  และสลับได้จากปุ่มบนหัว — **ค่าเริ่มต้นเป็นอังกฤษ**
-- ธีมมืด/สว่าง, บันทึกอัตโนมัติ, real-time ผ่าน WebSocket —
-  แก้ไฟล์จาก Obsidian หรือ editor อื่นแล้วหน้าจออัปเดตเอง
-- **สภาพ vault** บอกว่าอะไรถูก index และอะไรถูกข้าม — เจอโน้ต 4 ไฟล์ทั้งที่คาดว่า
-  มี 90 จะเป็นคำตอบที่มองเห็น ไม่ใช่ปริศนา
+- **The graph is the workspace**, painted to canvas (d3-force for layout) so it
+  survives a vault of several hundred notes. Node size is its link count,
+  colour is its vault.
+- **Search is the way in**: `Ctrl+K` focuses the field in the frame — there is
+  no palette to open. Typing dims every node that does not match, so a query
+  becomes a place; `Esc` brings the whole map back.
+- Selecting a node opens it beside the graph, with its links as chips that say
+  whether they resolve. Reading full screen is a state on top of the map.
+- Type `[[` for note autocomplete across vaults; click wikilinks to follow
+  (missing notes are created on the spot)
+- **English or Thai**, from `?lang=`, your saved choice, or the browser, and
+  switchable in the header. English is the default.
+- Dark/light themes, autosave, real-time over WebSocket — edit a file in
+  Obsidian or any editor and the page updates itself
+- **Vault health** reports what was indexed and what was skipped, so four notes
+  where you expected ninety is a visible answer rather than a mystery
 
-พัฒนา UI: `cd web && npm run dev` (Vite proxy ไป samong-server พอร์ต 3000)
+UI development: `cd web && npm run dev` (Vite proxies to samong-server on
+port 3000).
 
 ## API (samong-server)
 
-Bind เฉพาะ `127.0.0.1` เท่านั้น (local-first ไม่มี auth)
+Binds to `127.0.0.1` only (local-first, no auth).
 
-| Endpoint | หน้าที่ |
+| Endpoint | Purpose |
 |---|---|
-| `GET /api/vaults` | รายชื่อ vault ที่ลงทะเบียน |
-| `POST /api/vaults` | ลงทะเบียน vault ใหม่ (`{name, path}`) — เพิ่มจากหน้าเว็บได้ |
-| `GET /api/vaults/{vault}/notes` | โน้ตใน vault: `{key, title, reference}` |
-| `GET /api/vaults/{vault}/doctor` | รายงาน scope แบบเดียวกับ `samong doctor` |
-| `GET/PUT/DELETE /api/notes/{vault}/{path}` | อ่าน / เขียน / ลบ markdown (อ้างด้วย **path** ไม่ใช่ title) |
-| `GET /api/links/{vault}/{path}` | forward + backlinks + cross-vault |
-| `GET /api/search?q=&vault=&limit=` | ค้นหา (ละ `vault` = ทุก vault) — ผลลัพธ์มี `path` ของไฟล์ |
-| `GET /api/graph?vault=` | nodes + edges เป็น JSON |
-| `WS /ws` | event เมื่อไฟล์ .md เปลี่ยน |
+| `GET /api/vaults` | Registered vaults |
+| `POST /api/vaults` | Register a vault (`{name, path}`) — no terminal needed |
+| `GET /api/vaults/{vault}/notes` | Notes in a vault: `{key, title, reference}` |
+| `GET /api/vaults/{vault}/doctor` | The same scope report as `samong doctor` |
+| `GET/PUT/DELETE /api/notes/{vault}/{path}` | Read / write / delete markdown, addressed by **path** |
+| `GET /api/links/{vault}/{path}` | Forward + backlinks + cross-vault |
+| `GET /api/search?q=&vault=&limit=` | Search (omit `vault` for all vaults) — results include the file `path` |
+| `GET /api/graph?vault=` | Nodes + edges as JSON |
+| `WS /ws` | Events when .md files change |
 
-## AI agent (samong-mcp)
+## AI agents (samong-mcp)
 
-`samong-mcp` เป็น MCP server บน stdio — agent ได้ tools: `search_notes`
-(ค้นไทยตัดคำ), `read_note`, `save_note`, `get_links`, `list_notes`,
-`list_vaults` (จงใจไม่มี delete — การลบเป็นเรื่องของมนุษย์)
+`samong-mcp` is an MCP server over stdio. Agents get these tools:
+`search_notes`, `read_note`, `save_note`, `get_links`,
+`list_notes`, `list_vaults` — deliberately no delete tool; erasing knowledge
+stays a human action.
 
 ```json
-// .mcp.json ใน repo ของคุณ
+// .mcp.json in your repo
 { "mcpServers": { "samong": { "command": "samong-mcp" } } }
 ```
 
-ดูวิธีตั้งค่าเต็มและ recipe สำหรับ `CLAUDE.md` ที่ [docs/AI-AGENT.md](docs/AI-AGENT.md)
+Full setup and a `CLAUDE.md` recipe: [docs/AI-AGENT.md](docs/AI-AGENT.md)
 
-## สถาปัตยกรรม
+## Architecture
 
 ```
 <vault>/
   *.md            ← source of truth (Obsidian-compatible)
   .brain/
     graph.redb    ← forward/backlinks + mtimes + index version (redb)
-    tantivy/      ← full-text index, tokenizer ไทย newmm (tantivy)
+    tantivy/      ← full-text index (tantivy), dictionary-segmented
 ~/.config/samong/
-  registry.redb   ← ชื่อ vault -> path สำหรับลิงก์ข้าม vault
+  registry.redb   ← vault name -> path, for cross-vault links
 ```
 
-ลบ `.brain/` ทิ้งเมื่อไหร่ก็ได้ — `samong reindex` สร้างใหม่จากไฟล์ .md ทั้งหมด
-เมื่อ schema/tokenizer เปลี่ยนเวอร์ชัน index เก่าจะถูก rebuild อัตโนมัติ
+Delete `.brain/` any time — `samong reindex` rebuilds everything from the
+Markdown files. When the schema/tokenizer version changes, stale indexes are
+rebuilt automatically.
 
 ## Development
 
@@ -331,58 +360,64 @@ cargo clippy --all --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
-> หมายเหตุ: ต้อง `cd web && npm run build` ก่อน `cargo test` ครั้งแรก เพื่อให้
-> เทสต์ที่เกี่ยวกับ UI ที่ฝังในไบนารีทำงานครบ (ถ้าไม่ build เทสต์จะข้ามส่วน UI ให้เอง)
+> Note: run `cd web && npm run build` before the first `cargo test` so the
+> embedded-UI tests exercise a real build (they self-skip the UI part otherwise).
 
-### แก้ Web UI แล้วต้องติดตั้งใหม่
+### Changing the web UI means reinstalling
 
-หน้าเว็บถูก**ฝังลงในไบนารีตอน compile** (rust-embed) ฉะนั้นแก้ไฟล์ใน `web/` แล้ว
-รัน `samong-server` ตัวที่ติดตั้งไว้ จะยังเห็น UI เก่า — ต้อง build แล้วติดตั้งทับ:
+The UI is **embedded into the binary at compile time** (rust-embed), so editing
+anything under `web/` and then running an already-installed `samong-server` still
+serves the old UI. Build, then install over it:
 
 ```sh
 cd web && npm run build && cd ..
 cargo install --path . --force
 ```
 
-ตอนพัฒนา UI ใช้ `cd web && npm run dev` (hot reload, proxy ไปที่ API) หรือรัน
-`cargo run --bin samong-server -- start` ซึ่งใช้ `web/dist` ที่ build ล่าสุดเสมอ
-จะเร็วกว่าการ `cargo install` ทุกครั้ง
+While working on the UI, use `cd web && npm run dev` (hot reload, proxied to the
+API) or `cargo run --bin samong-server -- start`, which always picks up the
+latest `web/dist` — much faster than reinstalling on every change.
 
-## แผนต่อไป
+## Roadmap
 
-ทำเสร็จแล้วหลังปล่อยรุ่นแรก: ไบนารี 4 แพลตฟอร์ม, ปุ่มเพิ่ม vault ในหน้าเว็บ,
-การจัดอันดับที่คิดความเชื่อมโยง, และการค้นด้วยความหมายแบบ local ที่เป็นตัวเลือก
+Done since the first public release: binaries for four platforms, an "add vault"
+button in the web UI, connectedness-aware ranking, and optional local semantic
+search.
 
-- **เกณฑ์ความคล้ายขั้นต่ำสำหรับการค้นด้วยความหมาย** — ตอนนี้ rank fusion ยอมรับผล
-  อันดับ 1 ของฝ่าย semantic เสมอ ผลที่ไม่โดดเด่นจึงยังขึ้นมาอันดับ 2 ได้
-  ค่านี้ต้องวัดจาก vault จริง ไม่ใช่เดา
-- **โมเดลที่เล็กลง** — 465 MB เยอะเกินไปที่จะขอจากผู้ใช้ · โมเดลเดียวกันแบบ
-  quantized จะลดได้มาก
-- พจนานุกรมคำศัพท์ผู้ใช้ (คำทับศัพท์ใหม่ๆ ที่ newmm ไม่รู้จัก)
-- แพ็กเป็น desktop app ด้วย Tauri
-- **server กลางที่ index จาก git** — vault ของทั้งทีม ค้นรวมกันได้ โดยดูดจาก
-  repository ไม่ใช่ sync · **ไม่เขียน sync protocol เอง** เพราะ git แก้เรื่อง
-  conflict / history / offline / auth ไว้ครบแล้ว
-- Sync ข้ามเครื่อง / AI features (สรุปโน้ต, ถามตอบกับ vault) — open-core layer ภายหลัง
+- **A similarity floor for semantic search.** Rank fusion currently admits the
+  top semantic hit unconditionally, so an unremarkable match can still reach
+  position two. The threshold has to be measured against real vaults, not guessed.
+- **A smaller embedding model.** 465 MB is a lot to ask; a quantised build of the
+  same model would cut it substantially.
+- A user dictionary, for words the bundled segmentation dictionary does not know.
+- Package as a desktop app via Tauri.
+- **A central server that indexes git** — a team's vaults, searchable together,
+  ingested from repositories rather than synced. Never a sync protocol of our own:
+  git already solved conflicts, history, offline and auth.
+- Cross-device sync and AI features (note summaries, ask-your-vault) — later, as
+  an open-core layer.
 
 ## License
 
-[Apache-2.0](LICENSE) — ใช้ฟรี แก้ได้ นำไปใช้ในเชิงพาณิชย์ได้ รวมถึงฝังใน
-ซอฟต์แวร์ปิดของคุณเอง ขอแค่คงประกาศลิขสิทธิ์และระบุที่มา
+[Apache-2.0](LICENSE) — free to use, modify, and ship commercially, including
+inside your own closed-source software. Keep the copyright notice and give
+attribution.
 
-ที่มาของส่วนประกอบภายนอกทั้งหมดอยู่ใน [THIRD-PARTY.md](THIRD-PARTY.md) —
-พจนานุกรมตัดคำ `words_th.txt` มาจาก
-[PyThaiNLP](https://github.com/PyThaiNLP/pythainlp) (Apache-2.0)
+All third-party components are credited in [THIRD-PARTY.md](THIRD-PARTY.md) —
+the `words_th.txt` segmentation dictionary comes from
+[PyThaiNLP](https://github.com/PyThaiNLP/pythainlp) (Apache-2.0).
 
-### ชื่อและโลโก้
+### Name and logo
 
-**"Samong" กับโลโก้ไม่ได้อยู่ใต้ Apache-2.0** — โค้ดเอาไป fork ดัดแปลง หรือขายได้
-เต็มที่ แต่กรุณาใช้ชื่ออื่นกับผลงานที่แยกไปแล้ว เพื่อไม่ให้ผู้ใช้สับสนว่าใครดูแล
-เวอร์ชันไหน (พูดถึงโปรเจกต์นี้ เปรียบเทียบ หรือบอกว่าเข้ากันได้กับ Samong —
-ทำได้เสมอ ไม่ต้องขออนุญาต)
+**"Samong" and the logo are not covered by Apache-2.0.** Fork the code, change
+it, sell it — but please pick a different name for anything you ship separately,
+so users are never confused about who maintains which version. Referring to this
+project, comparing against it, or saying you are compatible with Samong needs no
+permission.
 
-ข้อยกเว้นนี้เขียนไว้ใน **[site/brand/LICENSE](site/brand/LICENSE)** วางไว้ข้างไฟล์
-ที่มันบังคับใช้ เพราะไม่งั้น LICENSE ที่รากจะอ่านได้ว่าครอบไฟล์พวกนั้นด้วย —
-Apache-2.0 ไม่ให้สิทธิ์เครื่องหมายการค้า แต่ให้สิทธิ์ลิขสิทธิ์เหนือ artwork
-อย่างกว้าง และคนที่ clone repo นี้ไปไม่มีทางเดาได้ว่า SVG 6 ไฟล์นั้นต่างออกไป
-ในไฟล์นั้นบอกด้วยว่าอะไรทำได้เลยไม่ต้องขอ ซึ่งเป็นเกือบทุกอย่าง
+The exclusion is written out in **[site/brand/LICENSE](site/brand/LICENSE)**,
+beside the files it applies to, because the root LICENSE would otherwise read as
+covering them: Apache-2.0 withholds trademark rights but grants broad rights over
+artwork, and a clone of this repository has no way to guess that those six SVGs
+are different. That file also lists what you may do without asking — which is
+most things.
