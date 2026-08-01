@@ -134,6 +134,12 @@ code, .mono { font-family: var(--mono); font-size: 0.88em; }
 .btn-primary:hover { background: #e3fb63; }
 .btn-lg { padding: .8rem 1.5rem; font-size: 1rem; }
 
+/* The segmentation demo is supporting evidence, not a headline claim, so it gets
+   one narrower column instead of the two-column spread the core sections use.
+   Its content was already framed generally ("languages without spaces"); what made
+   it read as a pitch for one language was sitting third of five at full width. */
+.seg-block { display: grid; gap: 1.2rem; max-inline-size: 62ch; }
+
 /* ---------- hero ---------- */
 
 .hero { position: relative; padding: clamp(2.2rem, 6vw, 4.5rem) 0 0; }
@@ -292,7 +298,6 @@ footer { padding: 2.5rem 0 3.5rem; border-top: 1px solid var(--line); color: var
     <span class="nav-spacer"></span>
     <a href="#files" class="hide-sm">Your files</a>
     <a href="#agents" class="hide-sm">AI tools</a>
-    <a href="#search" class="hide-sm">Search</a>
     <a href="https://github.com/waanvar/samong" class="btn" aria-label="Samong on GitHub">
       <svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#gh"/></svg>
       <span class="btn-label">GitHub</span>
@@ -418,18 +423,37 @@ no ambiguous titles among project notes</pre>
   </div>
 </section>
 
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What you actually get</p>
+    <h2>A knowledge base that behaves like a tool, not a service.</h2>
+    <div class="tbl-wrap" style="margin-top:1.6rem">
+      <table>
+        <tr><th>Where notes live</th><td><span class="yes">Plain <code>.md</code> in your repositories.</span> The index is disposable and rebuildable.</td></tr>
+        <tr><th>What it runs on</th><td><span class="yes">One binary on your machine.</span> No account, no vendor, works offline.</td></tr>
+        <tr><th>Editing</th><td>Obsidian-compatible <code>[[wikilinks]]</code>. Use Obsidian, your editor, or the built-in web UI — same files.</td></tr>
+        <tr><th>Finding</th><td>Full-text search with dictionary word segmentation, a link graph, backlinks across projects.</td></tr>
+        <tr><th>Seeing</th><td>The web UI opens on a map of the vault; typing dims everything that does not answer you.</td></tr>
+        <tr><th>Licence</th><td>Apache-2.0. Fork it, ship it commercially, embed it. The name and logo are not covered — rename what you ship.</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
 <section id="search">
   <div class="wrap">
-    <p class="eyebrow">Search that reads the language</p>
-    <h2>Some languages don't put spaces between words.</h2>
+    <p class="eyebrow">One more thing, if it applies to you</p>
+    <h2>Search that does not break on languages without spaces.</h2>
     <p class="section-lede">
-      Thai, Japanese and Chinese run words together. Most search engines see one
-      long token and find nothing, or match a fragment that means something else.
-      Samong segments with a real dictionary, so a word buried mid-sentence is
-      still a word. Thai ships today, using the
+      If your notes are in English this changes nothing for you. If they are in
+      Thai, Japanese or Chinese, words run together with no spaces: most engines
+      see one long token and find nothing, or match a fragment that means
+      something else. Samong cuts with a dictionary, so a word buried mid-sentence
+      is still a word. Thai ships today, via the
       <a href="https://github.com/PyThaiNLP/nlpo3">newmm</a> dictionary.
     </p>
-    <div class="two">
+    <div class="seg-block">
       <div>
         <div class="seg-q" id="segq"></div>
         <div class="seg" id="seg"></div>
@@ -451,23 +475,6 @@ no ambiguous titles among project notes</pre>
           they do in English.
         </p>
       </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <p class="eyebrow">What you actually get</p>
-    <h2>A knowledge base that behaves like a tool, not a service.</h2>
-    <div class="tbl-wrap" style="margin-top:1.6rem">
-      <table>
-        <tr><th>Where notes live</th><td><span class="yes">Plain <code>.md</code> in your repositories.</span> The index is disposable and rebuildable.</td></tr>
-        <tr><th>What it runs on</th><td><span class="yes">One binary on your machine.</span> No account, no vendor, works offline.</td></tr>
-        <tr><th>Editing</th><td>Obsidian-compatible <code>[[wikilinks]]</code>. Use Obsidian, your editor, or the built-in web UI — same files.</td></tr>
-        <tr><th>Finding</th><td>Full-text search with dictionary word segmentation, a link graph, backlinks across projects.</td></tr>
-        <tr><th>Seeing</th><td>The web UI opens on a map of the vault; typing dims everything that does not answer you.</td></tr>
-        <tr><th>Licence</th><td>Apache-2.0. Fork it, ship it commercially, embed it. The name and logo are not covered — rename what you ship.</td></tr>
-      </table>
     </div>
   </div>
 </section>

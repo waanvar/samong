@@ -12,8 +12,6 @@ already work with. Plain Markdown,
 [Obsidian](https://obsidian.md)-compatible (`[[wikilink]]` /
 `[[wikilink|alias]]`), no account, no cloud, one binary.
 
-*[อ่านเป็นภาษาไทย →](README.th.md)*
-
 ![Samong — the graph is the workspace, with note titles, hub sizing and folder clusters](docs/graph-dark.png)
 
 ## Why Samong
