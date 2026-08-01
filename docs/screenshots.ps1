@@ -4,9 +4,22 @@
 # for the force layout to settle via --virtual-time-budget, and writes a file we
 # can commit. The old screenshots were from the "Banyan" era — wrong name, wrong
 # colours, and a three-pane layout deleted in Phase 16.
+#
+# IMPORTANT: point this at a server serving the DEMO vault from demo-vault.sh, not
+# at whatever vault you happen to have registered. Running it against a real vault
+# bakes that vault's note titles and folder names into images committed to a public
+# repository — which is how private material leaks without anyone deciding to leak
+# it. There is no default port for that reason: pass one deliberately.
+#
+#   bash docs/demo-vault.sh /tmp/demo
+#   SAMONG_CONFIG_DIR=/tmp/demo-config samong vault add payments /tmp/demo
+#   SAMONG_CONFIG_DIR=/tmp/demo-config samong-server start --port 8802 --no-open
+#   pwsh docs/screenshots.ps1 -Port 8802
 param(
-  [int]$Port = 8801,
-  [string]$OutDir = "C:\Users\User\Documents\Banyan\docs"
+  [Parameter(Mandatory = $true)][int]$Port,
+  # Relative to this script, so it works from any clone rather than only on the
+  # machine it was written on.
+  [string]$OutDir = (Join-Path $PSScriptRoot ".")
 )
 
 $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
