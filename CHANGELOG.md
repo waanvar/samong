@@ -8,15 +8,99 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-- **Semantic search, optional and local.** Build with `--features semantic` and
-  run `samong embed` to rank by meaning as well as by words, using a multilingual
-  model so it works on Thai notes — not just English ones. Off by default: it
-  pulls in ONNX Runtime and downloads a 465 MB model, and "one binary, nothing to
-  fetch" is a promise worth protecting for everyone who does not need this.
-  Reference notes from `scope.include` are excluded unless you pass `--reference`,
-  because on a 430-note vault they were 95% of an 11-minute embed.
+_Nothing yet._
+
+## 0.3.3
+
+The release where Samong stops requiring a terminal, and where a vault becomes
+something you can hand to another person.
+
+### Double-click to open it
+
+Windows `Samong.exe`, macOS `Samong.app`, Linux `samong-app` with a `.desktop`
+file. No terminal, no configuration, no account.
+
+- **A first run with nothing to answer.** It creates a vault at
+  `Documents/Samong`, writes two notes that link to each other, indexes them, and
+  opens your browser. Two notes rather than one because the first thing you see is
+  the map, and one note draws a single dot that demonstrates nothing.
+- **A second double-click brings you back to the window that is already open**
+  instead of starting a second server on the same vault.
+- **It moves off a busy port rather than failing** — and checks that what is on
+  port 3000 is actually Samong before pointing your browser at it.
+- **The `⏻` button quits.** The server outlives the browser tab, so closing the
+  tab is not the same as stopping the program; without this the only way out was
+  the task manager.
+- No console window on Windows, and no Dock icon on macOS: the interface is the
+  browser window. If the launcher fails it writes `~/.config/samong/launcher.log`
+  and opens it, because a windowless program has nowhere else to say anything.
+
+> Neither the app bundle nor the `.exe` is code-signed. macOS **refuses** to open
+> it on first launch — right-click → **Open** — and Windows SmartScreen may warn.
+> Each archive ships a `DOUBLE-CLICK.md` that says so plainly.
+
+### A vault can be published, installed, updated, and verified
+
+- **`samong pack <dir>`** copies out the publishable part of a vault: in-scope
+  `.md` files and `samong.toml`, nothing else. A whitelist, not a
+  copy-then-delete — `.brain/` holds a full copy of every note body *and* the
+  titles of notes you deleted, so a vault tidied up before publishing would have
+  shipped the tidying too. Refuses to run until `[vault] license` says what
+  people may do with the notes.
+- **`samong vault install <git-url>`** clones someone else's vault in as
+  **read-only reference notes**: same graph, same search, `[[links]]` from your
+  own notes resolve into it. It wires the path into `scope.include` *and* into
+  your `.gitignore`, with the reason written beside the rule — committing notes
+  you bought into your own repository is a licence breach nobody chose to make.
+- **`samong vault update [name]`** pulls new content. One vault whose access has
+  lapsed does not stop the others.
+- **`samong vault verify [name]`** answers "is this the vault its publisher
+  published". Not a checksum file — a git checkout is already a Merkle tree, and a
+  digest sitting beside the content it describes is not a security control.
+  Instead: the commit signature, the signer **pinned at install** the way SSH pins
+  a host key, and any local change to a copy that is supposed to be read-only —
+  including files nobody published, since a stray `.md` dropped into an installed
+  vault would appear in your search results credited to its author.
+- An update **signed by a different key, or suddenly not signed at all, is
+  refused before the merge** — nothing reaches your working tree or your index.
+- Publishers should sign **commits**, not release tags: updates follow a branch,
+  so a tag signature says nothing about the commit you just pulled.
+- **`samong.toml`** is edited with a format-preserving parser, so the comments and
+  ordering in a file you wrote by hand survive us writing to it.
+
+### Search results say whose notes they are
+
+A hit from an installed vault now carries that vault's name and its licence — in
+the CLI, the web UI, the API, and the MCP tools. The moment worth protecting is
+not the search; it is the paragraph somebody copies out of a result into work of
+their own, after which nothing records where it came from. A vault that states no
+licence reads `licence not stated`, because that is an answer rather than a gap.
+
+The MCP `read_note` tool prefixes reference notes with their source for the same
+reason: an agent is the most likely thing to lift a paragraph out of a bought
+vault and drop it into a note of yours.
+
+### Search finds notes by meaning, if you ask for it
+
+- **Optional local semantic search.** Build with `--features semantic` and run
+  `samong embed` to rank by meaning as well as by words, with a multilingual model
+  so it works on Thai notes and not only English ones. Off by default and absent
+  from the published binaries: it pulls in ONNX Runtime and downloads a 465 MB
+  model, and "one binary, nothing to fetch" is a promise worth keeping for
+  everyone who does not need this.
+- Reference notes are excluded from embedding unless you pass `--reference`; on a
+  430-note vault they were 95% of an eleven-minute run.
 - **Search ranks by connectedness as well as relevance.** When the words cannot
   tell two notes apart, the one the rest of your notes point at comes first.
+
+### Fixed
+
+- **A `[[` with no closing `]]` no longer swallows the next real link.** The
+  pattern could match across line breaks, so a note that *described* wikilinks —
+  a bare `[[` in prose on one line, a real link two lines below — produced a graph
+  node whose label was a paragraph of text. Wikilinks are now single-line, which
+  is also Obsidian's rule. Renaming was fixed to match, so it can no longer miss
+  some links while mangling others.
 
 ## 0.3.2
 
