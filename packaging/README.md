@@ -22,7 +22,7 @@ The consequence is not cosmetic:
   because it is from an unidentified developer". The user has to right-click →
   **Open**, then confirm. That is one extra step on the very first run, and it
   arrives at the worst possible moment: before they have seen anything.
-- **Windows** SmartScreen may warn on `Samong.exe` until the file has been
+- **Windows** SmartScreen may warn on `Open Samong.exe` until the file has been
   downloaded enough times to earn reputation. "More info" → "Run anyway".
 
 This is the honest state, and it is the largest remaining barrier for exactly the

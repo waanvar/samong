@@ -12,31 +12,24 @@ _Nothing yet._
 
 ## 0.3.4
 
-Fixes the Windows archive from 0.3.3. Nothing else changed.
-
-### Fixed
-
-- **`samong.exe` in the 0.3.3 Windows archive was the GUI launcher, not the
-  command-line tool.** The packaging step copied the launcher to `Samong.exe`,
-  which on a case-insensitive filesystem *is* `samong.exe`, so it silently
-  replaced the CLI. Anyone who unpacked that archive and ran `samong search`
-  would have got a browser window. The double-click copy is now called
-  **`Open Samong.exe`**, which cannot collide.
-- Packaging now **checks the staged archive before creating it** — every expected
-  binary present, and no two differently-named binaries turning out to be the
-  same file. The 0.3.3 defect passed four green jobs because nothing looked.
-
-> The macOS and Linux archives from 0.3.3 were not affected.
-
-## 0.3.3
-
 The release where Samong stops requiring a terminal, and where a vault becomes
 something you can hand to another person.
 
+> **0.3.3 was published and withdrawn.** Its Windows archive shipped the GUI
+> launcher as `samong.exe`: the packaging step copied the launcher to
+> `Samong.exe`, which on a case-insensitive filesystem *is* `samong.exe`, so it
+> replaced the command-line tool — anyone who unpacked it and ran `samong search`
+> would have got a browser window. The double-click copy is now **`Open
+> Samong.exe`**, which cannot collide, and packaging **checks the staged archive
+> before creating it**: every expected binary present, and no two
+> differently-named binaries turning out to be the same file. Four jobs went green
+> on the broken archive because nothing looked. The macOS and Linux archives were
+> unaffected, and 0.3.4 is 0.3.3 plus that fix.
+
 ### Double-click to open it
 
-Windows `Samong.exe`, macOS `Samong.app`, Linux `samong-app` with a `.desktop`
-file. No terminal, no configuration, no account.
+Windows `Open Samong.exe`, macOS `Samong.app`, Linux `samong-app` with a
+`.desktop` file. No terminal, no configuration, no account.
 
 - **A first run with nothing to answer.** It creates a vault at
   `Documents/Samong`, writes two notes that link to each other, indexes them, and
