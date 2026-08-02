@@ -83,7 +83,7 @@ impl Sources {
                 (root.prefix.clone(), source)
             })
             .collect();
-        entries.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        entries.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
         Self { entries }
     }
 
