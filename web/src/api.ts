@@ -59,6 +59,13 @@ export interface GraphData {
 
 export interface DoctorReport {
   vault: string;
+  /// What the vault says about itself — set when it came from someone else.
+  manifest: {
+    description: string | null;
+    version: string | null;
+    license: string | null;
+    source: string | null;
+  };
   notes_dir: string;
   follow_gitignore: boolean;
   include_roots: { path: string; present: boolean }[];

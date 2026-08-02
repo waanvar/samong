@@ -156,6 +156,10 @@ const en = {
     other:
       "{count} files sit inside dependency directories — to learn from a set of docs, add its path to scope.include",
   },
+  "health.about": "About this vault",
+  "health.version": "Content version",
+  "health.license": "Licence",
+  "health.source": "Source",
   "health.semantic": "Semantic search",
   "health.semantic.none": "Nothing embedded yet — run `samong embed` to search by meaning",
   "health.semantic.count": { one: "{count} note embedded", other: "{count} notes embedded" },
@@ -281,6 +285,10 @@ const th: Record<MessageKey, Message> = {
   "health.skippedTitle": "ไฟล์ .md ที่ไม่ถูกนับเป็นโน้ต",
   "health.skippedDependency":
     "{count} ไฟล์อยู่ในโฟลเดอร์ dependency — ถ้าอยากเรียนรู้จากเอกสารชุดไหน เพิ่ม path นั้นใน scope.include",
+  "health.about": "เกี่ยวกับ vault นี้",
+  "health.version": "เวอร์ชันเนื้อหา",
+  "health.license": "สัญญาอนุญาต",
+  "health.source": "แหล่งที่มา",
   "health.semantic": "ค้นด้วยความหมาย",
   "health.semantic.none": "ยังไม่ได้ embed อะไรเลย — สั่ง `samong embed` เพื่อค้นด้วยความหมาย",
   "health.semantic.count": "embed แล้ว {count} โน้ต",

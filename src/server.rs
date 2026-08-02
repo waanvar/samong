@@ -417,6 +417,9 @@ struct IncludeRootStatus {
 #[derive(Serialize)]
 struct DoctorResponse {
     vault: String,
+    /// What the vault says about itself, for a vault that came from someone else.
+    /// Every field is optional and usually empty on a personal vault.
+    manifest: Manifest,
     notes_dir: String,
     follow_gitignore: bool,
     include_roots: Vec<IncludeRootStatus>,
@@ -487,6 +490,14 @@ fn embedding_status(_scope: &Scope) -> Result<Option<EmbeddingStatus>, anyhow::E
 }
 
 #[derive(Serialize)]
+struct Manifest {
+    description: Option<String>,
+    version: Option<String>,
+    license: Option<String>,
+    source: Option<String>,
+}
+
+#[derive(Serialize)]
 struct AmbiguousTitle {
     title: String,
     keys: Vec<String>,
@@ -512,6 +523,12 @@ async fn get_doctor(
 
         Ok(DoctorResponse {
             vault: display_path(&root),
+            manifest: Manifest {
+                description: scope.config().vault.description.clone(),
+                version: scope.config().vault.version.clone(),
+                license: scope.config().vault.license.clone(),
+                source: scope.config().vault.source.clone(),
+            },
             notes_dir: scope.config().scope.notes_dir.clone(),
             follow_gitignore: scope.config().scope.follow_gitignore,
             include_roots: scope

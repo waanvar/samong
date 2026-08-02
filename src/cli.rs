@@ -57,6 +57,22 @@ enum Command {
         #[arg(long)]
         reference: bool,
     },
+    /// Copy the shareable part of this vault into a directory, ready to publish
+    ///
+    /// Copies the notes you wrote and `samong.toml`, and nothing else. It exists
+    /// because handing someone your vault folder hands them more than you think:
+    /// `.brain/` holds a second copy of every note's text, and the titles of
+    /// notes you deleted linger in the index file until their pages are reused.
+    Pack {
+        /// Directory to write the publishable copy into (must not already hold files)
+        dest: PathBuf,
+        /// Include read-only reference notes pulled in by `scope.include`
+        ///
+        /// Off by default: those files belong to someone else, and many of the
+        /// licences they ship under do not permit redistribution.
+        #[arg(long)]
+        include_reference: bool,
+    },
     /// Show forward links and backlinks for a note
     Links {
         title: String,
@@ -398,6 +414,126 @@ fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
 /// Results are labelled with the note's path, not its bare title: search is
 /// exactly where two files called `README` have to be told apart, and the path
 /// contains the title anyway.
+/// Copy the publishable part of a vault into a fresh directory.
+///
+/// A whitelist, never a copy-then-delete: the failure being prevented is shipping
+/// something you did not know was there, and a blacklist only ever excludes the
+/// leaks somebody already thought of. Only in-scope `.md` files and `samong.toml`
+/// are written out.
+///
+/// Specifically **not** copied:
+/// - `.brain/` — the index stores a full copy of every note's body, and the titles
+///   of deleted notes survive in `graph.redb` until their pages are reused. A
+///   seller who tidied up before publishing would ship the tidying too.
+/// - reference notes from `scope.include`, unless asked — they are somebody else's
+///   documentation and their licences frequently forbid redistribution.
+///
+/// Known limitation, stated rather than hidden: attachments a note links to
+/// (images, PDFs) are not `.md` and are not copied. A vault that depends on them
+/// needs them carried over by hand until this understands them.
+fn cmd_pack(vault: &Path, dest: &Path, include_reference: bool) -> Result<()> {
+    let scope = Scope::load(vault)?;
+
+    // Publishing without saying what people may do with the notes is the mistake
+    // that is hardest to walk back, so it stops here rather than in a review.
+    if scope.config().vault.license.is_none() {
+        bail!(
+            "this vault has no [vault] license in {}, and packing is for publishing.\n\
+             Say what people may do with these notes — for example:\n\
+             \n    [vault]\n    license = \"CC-BY-4.0\"\n\
+             \nUse \"All rights reserved\" if that is what you mean.",
+            crate::scope::CONFIG_FILE
+        );
+    }
+
+    if dest.exists()
+        && fs::read_dir(dest)
+            .map(|mut d| d.next().is_some())
+            .unwrap_or(false)
+    {
+        bail!(
+            "{} already has files in it — pack writes a fresh copy and will not \
+             merge into an existing directory",
+            display_path(dest)
+        );
+    }
+    let canonical_dest = dest.canonicalize().ok();
+    if canonical_dest.as_deref() == Some(scope.root()) {
+        bail!("destination is the vault itself");
+    }
+
+    let notes = vault::list_notes_in(&scope)?;
+    let mut copied = 0usize;
+    let mut skipped_reference = 0usize;
+    for note in &notes {
+        if note.reference && !include_reference {
+            skipped_reference += 1;
+            continue;
+        }
+        let target = dest.join(&note.key);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+        }
+        fs::copy(&note.path, &target).with_context(|| format!("copying {}", note.key))?;
+        copied += 1;
+    }
+
+    let config = scope.root().join(crate::scope::CONFIG_FILE);
+    if config.exists() {
+        fs::copy(&config, dest.join(crate::scope::CONFIG_FILE))
+            .context("copying the vault manifest")?;
+    }
+
+    println!(
+        "packed {copied} note(s) into {} — no index, no .brain/",
+        display_path(dest)
+    );
+    if skipped_reference > 0 {
+        println!(
+            "left out {skipped_reference} reference note(s) from scope.include: they belong to \
+             whoever published them. `--include-reference` overrides this, but check their \
+             licence first."
+        );
+    }
+    if include_reference && notes.iter().any(|n| n.reference) {
+        println!(
+            "warning: reference notes are included. You are redistributing someone else's \
+             documentation — make sure its licence allows that."
+        );
+    }
+    Ok(())
+}
+
+/// What the vault says about itself.
+///
+/// These fields sat in `samong.toml` unread since Phase 10 — declared for a
+/// future where vaults are handed between people, then never surfaced. A vault
+/// that travels needs to say what it holds, which version of the content this is,
+/// who may use it, and where a newer copy comes from; a vault that never leaves
+/// your machine loses nothing by leaving them blank.
+fn print_manifest(scope: &Scope) {
+    let vault = &scope.config().vault;
+    if let Some(description) = &vault.description {
+        println!("about: {description}");
+    }
+    if let Some(version) = &vault.version {
+        println!("content version: {version}");
+    }
+    match &vault.license {
+        Some(license) => println!("content licence: {license}"),
+        // Only worth nagging about for a vault that is clearly meant to travel:
+        // one that already declares where it came from.
+        None if vault.source.is_some() => println!(
+            "content licence: not set — say what people may do with these notes \
+             before sharing the vault"
+        ),
+        None => {}
+    }
+    if let Some(source) = &vault.source {
+        println!("source: {source}");
+    }
+}
+
 /// Build or refresh the vault's embeddings.
 ///
 /// In a build without the `semantic` feature this is still a real command that
@@ -546,6 +682,7 @@ fn cmd_doctor(vault: &Path) -> Result<()> {
     if let Some(name) = &scope.config().vault.name {
         println!("name (from {}): {name}", crate::scope::CONFIG_FILE);
     }
+    print_manifest(&scope);
     if scope.notes_root() != scope.root() {
         println!("notes dir: {}", display_path(scope.notes_root()));
     }
@@ -725,6 +862,10 @@ pub fn run() -> Result<()> {
             println!("reindex complete");
         }
         Command::Embed { reference } => cmd_embed(&vault, reference)?,
+        Command::Pack {
+            dest,
+            include_reference,
+        } => cmd_pack(&vault, &dest, include_reference)?,
         Command::Links { title, all_vaults } => cmd_links(&vault, &title, all_vaults)?,
         Command::Orphans => cmd_orphans(&vault)?,
         Command::Broken => cmd_broken(&vault)?,

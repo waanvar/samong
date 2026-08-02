@@ -73,7 +73,33 @@ export function VaultHealth({ vault, onClose, onOpen }: Props) {
               </div>
             </div>
 
+            {/* A personal vault leaves all of this blank; a vault that came from
+                somebody else is where it starts to matter. */}
             <dl className="health-list">
+              {report.manifest.description && (
+                <>
+                  <dt>{t("health.about")}</dt>
+                  <dd>{report.manifest.description}</dd>
+                </>
+              )}
+              {report.manifest.version && (
+                <>
+                  <dt>{t("health.version")}</dt>
+                  <dd>{report.manifest.version}</dd>
+                </>
+              )}
+              {report.manifest.license && (
+                <>
+                  <dt>{t("health.license")}</dt>
+                  <dd>{report.manifest.license}</dd>
+                </>
+              )}
+              {report.manifest.source && (
+                <>
+                  <dt>{t("health.source")}</dt>
+                  <dd className="path">{report.manifest.source}</dd>
+                </>
+              )}
               <dt>{t("health.folder")}</dt>
               <dd className="path">{report.vault}</dd>
               <dt>{t("health.scannedFrom")}</dt>

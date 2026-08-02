@@ -132,6 +132,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong list` | List every note |
 | `samong reindex [--full]` | Sync the index (changed files only / everything) |
 | `samong embed [--reference]` | Embed notes for semantic search (needs `--features semantic`) |
+| `samong pack <dir> [--include-reference]` | Copy the publishable part of the vault out — notes and manifest, never the index |
 | `samong watch` | Watch the vault, keep the index fresh |
 | `samong vault add/list/remove` | Manage the central registry |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
