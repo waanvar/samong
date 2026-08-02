@@ -40,6 +40,14 @@ const en = {
   "theme.toggle": "Switch theme",
   "lang.toggle": "Switch language",
   "rail.notes": "Notes",
+  // Closing. A window opened by double-clicking has to be closable the same way;
+  // "quit" is deliberately not "close tab", because the server outlives the tab.
+  "quit": "Quit",
+  "quit.title": "Stop Samong and close it",
+  "quit.confirm": "Stop Samong? Your notes are already saved as files on this computer.",
+  "quit.stopped": "Samong has stopped.",
+  "quit.stoppedHint": "Your notes are still in their folder. You can close this tab.",
+  "quit.failed": "Could not stop Samong: {error}",
 
   // ---- first run ----
   "onboard.body":
@@ -273,6 +281,13 @@ const th: Record<MessageKey, Message> = {
   "source.from": "จาก {name}",
   "source.licenceUnstated": "ไม่ได้ระบุสัญญาอนุญาต",
   "source.tooltip": "มาจาก vault ที่ติดตั้งไว้ “{name}” — อ่านอย่างเดียว ใช้ซ้ำได้เท่าที่สัญญาอนุญาตให้",
+
+  "quit": "ปิดโปรแกรม",
+  "quit.title": "หยุด Samong แล้วปิด",
+  "quit.confirm": "หยุด Samong ไหม โน้ตของคุณถูกบันทึกเป็นไฟล์ในเครื่องอยู่แล้ว",
+  "quit.stopped": "Samong หยุดทำงานแล้ว",
+  "quit.stoppedHint": "โน้ตของคุณยังอยู่ในโฟลเดอร์เดิม ปิดแท็บนี้ได้เลย",
+  "quit.failed": "หยุด Samong ไม่ได้: {error}",
 
   "tree.empty": "vault นี้ยังไม่มีโน้ต — พิมพ์ชื่อในช่องค้นหาแล้วสร้างจากที่นั่น",
   "tree.own": "โน้ตของโปรเจกต์",

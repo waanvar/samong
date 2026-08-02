@@ -35,6 +35,8 @@ export function App() {
   const [notesByVault, setNotesByVault] = useState<Record<string, NoteInfo[]>>({});
   const [noteKey, setNoteKey] = useState("");
   const [readOnly, setReadOnly] = useState(false);
+  /** The server has been asked to stop; nothing else will work after this. */
+  const [stopped, setStopped] = useState(false);
   /** Who published the open note, when it came from an installed vault. */
   const [source, setSource] = useState<NoteSource | null>(null);
   const [content, setContent] = useState("");
@@ -222,6 +224,18 @@ export function App() {
     }
   }, [flash, switchVault, t]);
 
+  const quit = useCallback(async () => {
+    if (!window.confirm(t("quit.confirm"))) return;
+    try {
+      await api.shutdown();
+      // Set after the call resolves, so a server that refused to stop leaves the
+      // UI working rather than showing a farewell for something still running.
+      setStopped(true);
+    } catch (err) {
+      flash(t("quit.failed", { error: (err as Error).message }));
+    }
+  }, [flash, t]);
+
   const toggleTheme = useCallback(() => {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
@@ -287,6 +301,21 @@ export function App() {
     }
     return out;
   }, [vaults, notesByVault]);
+
+  if (stopped) {
+    return (
+      <div className="app onboard">
+        <div className="onboard-card">
+          <div className="lockup">
+            <SamongMark size={45} />
+            <SamongWordmark cap={26} />
+          </div>
+          <p>{t("quit.stopped")}</p>
+          <p className="empty-hint">{t("quit.stoppedHint")}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (vaults.length === 0) {
     return (
@@ -364,6 +393,14 @@ export function App() {
         </button>
         <button className="btn icon" onClick={toggleTheme} aria-label={t("theme.toggle")}>
           {theme === "dark" ? "☀" : "☾"}
+        </button>
+        <button
+          className="btn icon"
+          onClick={() => void quit()}
+          aria-label={t("quit")}
+          title={t("quit.title")}
+        >
+          ⏻
         </button>
       </header>
 

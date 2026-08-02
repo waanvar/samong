@@ -52,6 +52,31 @@ already work with. Plain Markdown,
 
 ## Install
 
+### Just open it
+
+Download, extract, **double-click**:
+
+| | |
+|---|---|
+| **Windows** | `Samong.exe` |
+| **macOS** | `Samong.app` |
+| **Linux** | `samong-app` (copy `samong.desktop` to `~/.local/share/applications/` for a menu entry) |
+
+No terminal, no configuration, no account. On the very first run it makes a
+vault at **`Documents/Samong`** with two notes in it, indexes them, and opens
+your browser. Everything after that is your own folder of Markdown files.
+
+The `⏻` button in the top right stops it — the server outlives the browser tab,
+so closing the tab is not the same as quitting.
+
+> Already have notes somewhere? Use **+ Add vault…** in the vault menu and point
+> it at that folder. Nothing is moved or converted.
+
+Two environment variables exist for the awkward cases, because a double-clicked
+program has no arguments: `SAMONG_PORT` when 3000-3011 are all taken by
+something that stays, and `SAMONG_NO_OPEN=1` to start without a browser.
+If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
+
 ### Download a binary (recommended)
 
 Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
@@ -140,6 +165,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong vault verify [name] [--require-signature]` | Check installed vaults are what their publishers published |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
 | `samong update [--check]` | Update to the latest GitHub release (--check only reports) |
+| `samong-app` | The double-click launcher: finds or creates a vault, serves, opens the browser |
 
 ### What counts as a note (vault scope)
 

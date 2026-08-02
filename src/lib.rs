@@ -1,6 +1,8 @@
 //! Samong — local-first, Obsidian-compatible knowledge base.
 //! Shared library behind the `samong` CLI and `samong-server` API binaries.
 
+/// The desktop launcher: what happens when someone double-clicks Samong.
+pub mod app;
 pub mod cli;
 pub mod git;
 pub mod graph;

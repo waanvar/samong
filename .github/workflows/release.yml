@@ -103,6 +103,26 @@ jobs:
           # the binaries + docs. NOTICE and THIRD-PARTY.md must travel with the
           # binaries: Apache-2.0 requires attribution to survive redistribution.
           cp README.md LICENSE NOTICE THIRD-PARTY.md "stage/$name/"
+
+          # Something to double-click. `samong-app` is in the archive already;
+          # what each platform needs is the shell that makes it launchable
+          # without a terminal, which is the whole point of shipping it.
+          case "${{ matrix.target }}" in
+            *windows*)
+              # Built for the windows subsystem, so no console window opens.
+              # Copied under a capitalised name because that is what the person
+              # double-clicking reads.
+              cp "$bin/samong-app.exe" "stage/$name/Samong.exe"
+              ;;
+            *macos*)
+              bash packaging/macos/make-app.sh "$bin" "stage/$name" "${TAG#v}"
+              ;;
+            *linux*)
+              cp packaging/linux/samong.desktop "stage/$name/"
+              ;;
+          esac
+          cp packaging/README.md "stage/$name/DOUBLE-CLICK.md"
+
           cd stage
           if [ "${{ matrix.archive }}" = "zip" ]; then
             7z a "../$name.zip" "$name"

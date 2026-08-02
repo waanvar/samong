@@ -134,6 +134,14 @@ export const api = {
       body: JSON.stringify({ name, path: vaultPath }),
     }).then(json<VaultInfo>),
 
+  /**
+   * Stop the server. Only reachable from this machine, like everything else
+   * here — and the only way to close Samong when it was opened by
+   * double-clicking, where there is no terminal to press Ctrl+C in.
+   */
+  shutdown: (): Promise<void> =>
+    fetch("/api/shutdown", { method: "POST" }).then(() => undefined),
+
   notes: (vault: string): Promise<NoteInfo[]> =>
     fetch(`/api/vaults/${enc(vault)}/notes`).then(json<NoteInfo[]>),
 

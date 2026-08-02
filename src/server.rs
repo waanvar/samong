@@ -17,12 +17,12 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path as UrlPath, Query, State};
 use axum::http::{header, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use notify::{RecursiveMode, Watcher};
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Notify};
 
 /// The built web UI, baked into the binary so `cargo install` and the release
 /// archives both ship a working UI with nothing to place alongside the exe.
@@ -51,6 +51,12 @@ pub struct AppState {
     io_lock: Mutex<()>,
     /// Change notifications fanned out to /ws clients.
     events: broadcast::Sender<String>,
+    /// Raised by `POST /api/shutdown`.
+    ///
+    /// A server started from a desktop launcher has no terminal to press Ctrl+C
+    /// in, so without this there is no way to stop it short of the task manager.
+    /// "Open" implies "close"; a program that can only be opened is not finished.
+    shutdown: Notify,
 }
 
 impl AppState {
@@ -59,7 +65,13 @@ impl AppState {
         Arc::new(Self {
             io_lock: Mutex::new(()),
             events,
+            shutdown: Notify::new(),
         })
+    }
+
+    /// Resolves once someone has asked the server to stop.
+    pub async fn stopped(&self) {
+        self.shutdown.notified().await;
     }
 }
 
@@ -855,6 +867,16 @@ async fn serve_embedded(uri: Uri) -> Response {
     }
 }
 
+/// Stop the server.
+///
+/// `notify_one` rather than `notify_waiters`: it stores the permit if the serve
+/// loop is not yet awaiting, so a shutdown asked for in the first instants after
+/// startup cannot be dropped on the floor.
+async fn shutdown(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    state.shutdown.notify_one();
+    Json(serde_json::json!({ "stopping": true }))
+}
+
 /// API router plus the web UI baked into the binary.
 pub fn router_with_embedded_ui(state: Arc<AppState>) -> Router {
     router(state).fallback(serve_embedded)
@@ -875,6 +897,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/links/{vault}/{*path}", get(get_links))
         .route("/api/search", get(search_notes))
         .route("/api/graph", get(get_graph))
+        .route("/api/shutdown", post(shutdown))
         .route("/ws", get(ws_upgrade))
         .with_state(state)
 }
@@ -906,6 +929,8 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
 
     let state = AppState::new();
     spawn_watcher(Arc::clone(&state), vaults)?;
+    // Kept before the router consumes `state`.
+    let stopping = Arc::clone(&state);
 
     let app = match ui_dir.filter(|dir| dir.join("index.html").exists()) {
         Some(dir) => {
@@ -935,7 +960,14 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
             let _ = open::that(url);
         });
     }
-    axum::serve(listener, app).await.context("serving")?;
+    // Graceful, so the browser gets its answer to `POST /api/shutdown` before
+    // the socket closes — otherwise the page reports a network error for a
+    // request that in fact did exactly what was asked.
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move { stopping.stopped().await })
+        .await
+        .context("serving")?;
+    println!("stopped");
     Ok(())
 }
 

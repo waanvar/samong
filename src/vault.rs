@@ -52,8 +52,20 @@ pub struct WikiLink {
     pub alias: Option<String>,
 }
 
+/// A wikilink cannot span a line break.
+///
+/// Found by reading the graph of a brand-new vault: a note that *described*
+/// wikilinks — "type `[[` inside a note" on one line, a real `[[Target]]` two
+/// lines later — matched from the first `[[` all the way to the later `]]`, and
+/// drew a node whose label was a paragraph of prose. Without the newline
+/// exclusion the pattern is unbounded, so any unclosed `[[` anywhere in a file
+/// swallows text until the next one closes.
+///
+/// This is also Obsidian's rule, which matters more than the reasoning: notes are
+/// meant to be readable by both, and a link that resolves in one and not the
+/// other is worse than no link.
 fn wikilink_pattern() -> Regex {
-    Regex::new(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]").expect("static wikilink regex is valid")
+    Regex::new(r"\[\[([^\]|\r\n]+)(?:\|([^\]\r\n]+))?\]\]").expect("static wikilink regex is valid")
 }
 
 /// Extract every `[[target]]` / `[[target|alias]]` occurrence from note content.
@@ -140,8 +152,14 @@ pub fn find_note(vault: &Path, title: &str) -> Result<Option<Note>> {
 /// Rewrite every `[[old]]` / `[[old|alias]]` in `content` to point at `new`,
 /// preserving aliases. Returns the new content and how many links were rewritten.
 pub fn rewrite_wikilinks(content: &str, old: &str, new: &str) -> (String, usize) {
-    let pattern = Regex::new(&format!(r"\[\[\s*{}\s*(\|[^\]]+)?\]\]", regex::escape(old)))
-        .expect("escaped wikilink regex is valid");
+    // Same single-line rule as `wikilink_pattern`: rewriting has to match exactly
+    // what the parser counted as a link, or a rename would miss some and mangle
+    // others.
+    let pattern = Regex::new(&format!(
+        r"\[\[[ \t]*{}[ \t]*(\|[^\]\r\n]+)?\]\]",
+        regex::escape(old)
+    ))
+    .expect("escaped wikilink regex is valid");
     let mut count = 0;
     let rewritten = pattern
         .replace_all(content, |caps: &regex::Captures| {
@@ -171,6 +189,30 @@ pub fn create_note(vault: &Path, title: &str) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression: the welcome note written on a brand-new vault explains
+    /// wikilinks, so it contains a bare `[[` in prose on one line and a real
+    /// link two lines below. The pattern used to match across both and produce a
+    /// node whose label was a paragraph — the first thing a new user would see on
+    /// their map.
+    #[test]
+    fn an_unclosed_bracket_does_not_swallow_the_next_real_link() {
+        let content = "Type `[[` inside a note to link it.\n\nNext: [[How Samong works]]\n";
+        let links = parse_wikilinks(content);
+        assert_eq!(
+            links,
+            vec![WikiLink {
+                target: "How Samong works".to_string(),
+                alias: None
+            }]
+        );
+    }
+
+    #[test]
+    fn a_wikilink_never_spans_a_line_break() {
+        assert!(parse_wikilinks("[[start\nend]]").is_empty());
+        assert!(parse_wikilinks("[[start\r\nend]]").is_empty());
+    }
 
     #[test]
     fn parses_plain_wikilink() {
