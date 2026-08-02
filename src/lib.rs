@@ -2,11 +2,13 @@
 //! Shared library behind the `samong` CLI and `samong-server` API binaries.
 
 pub mod cli;
+pub mod git;
 pub mod graph;
 pub mod indexer;
 pub mod install;
 pub mod mcp;
 pub mod ops;
+pub mod provenance;
 pub mod registry;
 pub mod scope;
 pub mod search;
@@ -20,4 +22,5 @@ pub mod update;
 pub mod vault;
 #[cfg(feature = "semantic")]
 pub mod vectors;
+pub mod verify;
 pub mod watch;

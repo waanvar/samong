@@ -137,6 +137,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong vault add/list/remove` | Manage the central registry |
 | `samong vault install <git-url>` | Install someone else's vault as read-only reference notes |
 | `samong vault update [name]` | Pull the latest content for installed vaults |
+| `samong vault verify [name] [--require-signature]` | Check installed vaults are what their publishers published |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
 | `samong update [--check]` | Update to the latest GitHub release (--check only reports) |
 
@@ -222,6 +223,84 @@ point `include` at a narrower directory.
 > `.git/info/exclude`, and `.gitignore` files above the vault. Those are
 > per-machine, and honoring them would make one repo index differently on two
 > laptops.
+
+### Installing a vault someone else published
+
+A vault can be handed to another person. `samong pack` copies out the
+publishable part — notes and manifest, never the index — and the reader installs
+the result straight from git:
+
+```bash
+samong vault install https://github.com/someone/sre-handbook.git
+```
+
+That clones into `vendor/sre-handbook`, adds it to `scope.include`, adds it to
+your `.gitignore`, and reindexes. The notes land as **reference notes** by the
+rules above: same graph, same search, `[[Runbook]]` from your own note resolves
+into them — and read-only, because an edit would be erased by the next
+`samong vault update`.
+
+The `.gitignore` line is written for you, with the reason attached:
+
+```gitignore
+# installed vaults (samong vault install)
+# Someone else's notes. Committing them here would redistribute
+# content that is not yours to redistribute.
+/vendor/sre-handbook/
+```
+
+**Results say whose they are.** A hit from an installed vault carries that
+vault's name and licence, in the CLI, the web UI, the API and the MCP tools:
+
+```
+vendor/sre-handbook/Runbook.md: When the queue backs up, drain it before …
+  ↳ from SRE Handbook · CC-BY-4.0
+```
+
+The moment worth protecting is not search, it is the paragraph somebody copies
+out of a result into work of their own — after which nothing records where it
+came from. A vault that states no licence is reported as
+`licence not stated` rather than left blank: that is an answer, not a gap.
+
+### Proving a vault is the publisher's (`samong vault verify`)
+
+Integrity is not the missing piece — an installed vault is a git checkout, and
+every byte is already covered by the commit hash. A `SHA256SUMS` beside the
+content would restate that, and restate it weaker: whoever can change a note can
+change the checksum file next to it.
+
+What is missing is **authenticity**, which is a signature. Publishers should sign
+**commits**, not release tags — `samong vault update` follows a branch, so
+readers take commits between tags and a tag signature says nothing about the
+commit they just pulled:
+
+```bash
+git config commit.gpgsign true
+```
+
+Readers get that key **pinned at install**, the way SSH pins a host key: whoever
+gave you the URL is the authority the first time, and every update afterwards is
+checked against it.
+
+```bash
+samong vault verify                       # who signed each one, and has anything changed
+samong vault verify --require-signature   # fail on unproven, not only on wrong
+```
+
+- An update signed by a **different key — or suddenly not signed at all** — is
+  refused *before* the merge, so nothing reaches your working tree or your index.
+  (Dropping the signature is the cheapest attack on pinning, so it counts as
+  changing it.) Accept a genuine key change deliberately:
+  `git -C vendor/<name> config --unset samong.signer`.
+- **Local changes are reported, including untracked files.** A stray `.md`
+  dropped into an installed vault would be indexed and would show up in search
+  attributed to its publisher.
+- **Unsigned vaults pass by default.** Almost every vault in the world is
+  unsigned today, and a check that always fails is a check nobody runs;
+  `--require-signature` is there for anyone who has decided otherwise.
+
+Nothing about who published what is stored outside the checkout. The clone is
+its own provenance, and a record kept elsewhere could only drift away from it.
 
 ### Updating
 

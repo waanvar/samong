@@ -123,7 +123,7 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "search_notes",
-            "description": "Full-text search across notes. Handles Thai text with dictionary word segmentation (finds words mid-sentence). Omit vault to search every vault.",
+            "description": "Full-text search across notes. Handles Thai text with dictionary word segmentation (finds words mid-sentence). Omit vault to search every vault. Hits from an installed vault are marked with who published them and under what licence — reuse those with attribution.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -237,7 +237,22 @@ fn tool_read_note(args: &Value) -> Result<String> {
     if !path.is_file() {
         anyhow::bail!("note \"{key}\" does not exist");
     }
-    fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))
+    let content =
+        fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+
+    // Prefixed only for notes somebody else published — and those are read-only,
+    // so the header cannot be written back into the file it describes. For the
+    // user's own notes the content is returned untouched.
+    let scope = crate::scope::Scope::load(&root)?;
+    match crate::provenance::Sources::for_scope(&scope).of(key) {
+        Some(source) => Ok(format!(
+            "[from {} — read-only, quote with attribution]
+
+{content}",
+            source.label()
+        )),
+        None => Ok(content),
+    }
 }
 
 fn tool_save_note(args: &Value) -> Result<String> {
@@ -315,7 +330,20 @@ fn tool_search_notes(args: &Value) -> Result<String> {
                 .replace('\n', " ");
             // The path, not the title: this is what read_note takes, and it is
             // the only thing that tells two same-named notes apart.
-            format!("{name}/{}: {snippet}", hit.key)
+            //
+            // Attribution matters more here than anywhere else in the program:
+            // an agent is the most likely thing to lift a paragraph out of a
+            // bought vault and drop it into a note of the user's own, where
+            // nothing records where it came from ever again.
+            match &hit.source {
+                Some(source) => format!(
+                    "{name}/{}: {snippet}
+    [from {} — quote with attribution]",
+                    hit.key,
+                    source.label()
+                ),
+                None => format!("{name}/{}: {snippet}", hit.key),
+            }
         })
         .collect();
     Ok(lines.join("\n"))

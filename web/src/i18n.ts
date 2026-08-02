@@ -125,6 +125,15 @@ const en = {
   "editor.content": "Note content",
   "editor.suggest": "Link to a note — Enter to accept",
 
+  // ---- provenance ----
+  // Shown on results and notes that came from an installed vault. The licence
+  // travels with the content because the reader is one keystroke away from
+  // copying it into work of their own.
+  "source.from": "from {name}",
+  "source.licenceUnstated": "licence not stated",
+  "source.tooltip":
+    "From the installed vault “{name}” — read-only. Reuse it only as its licence allows.",
+
   // ---- note tree ----
   "tree.empty":
     "This vault has no notes yet — type a title in the search field and create it from there",
@@ -260,6 +269,10 @@ const th: Record<MessageKey, Message> = {
   "editor.mode.preview": "อ่าน",
   "editor.content": "เนื้อหาโน้ต",
   "editor.suggest": "ลิงก์ไปยังโน้ต — Enter เพื่อเลือก",
+
+  "source.from": "จาก {name}",
+  "source.licenceUnstated": "ไม่ได้ระบุสัญญาอนุญาต",
+  "source.tooltip": "มาจาก vault ที่ติดตั้งไว้ “{name}” — อ่านอย่างเดียว ใช้ซ้ำได้เท่าที่สัญญาอนุญาตให้",
 
   "tree.empty": "vault นี้ยังไม่มีโน้ต — พิมพ์ชื่อในช่องค้นหาแล้วสร้างจากที่นั่น",
   "tree.own": "โน้ตของโปรเจกต์",

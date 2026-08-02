@@ -239,6 +239,10 @@ struct NoteContent {
     title: String,
     content: String,
     reference: bool,
+    /// Who published it, for a note that is not the reader's own. The reading
+    /// pane is where a paragraph gets copied out of somebody else's vault, so
+    /// it is where the licence has to be visible.
+    source: Option<crate::provenance::Source>,
 }
 
 async fn get_note(
@@ -253,9 +257,13 @@ async fn get_note(
         }
         let content =
             fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        let scope = Scope::load(&root)?;
         Ok(NoteContent {
             title: vault::title_from_path(&path).unwrap_or_default(),
-            reference: Scope::load(&root)?.is_reference(&key),
+            reference: scope.is_reference(&key),
+            source: crate::provenance::Sources::for_scope(&scope)
+                .of(&key)
+                .cloned(),
             key,
             content,
         })
@@ -573,6 +581,11 @@ struct SearchResult {
     /// this is what tells two same-named results apart.
     path: String,
     snippet: String,
+    /// Who published this note, when it was not the reader. `null` for their
+    /// own notes — a nullable field rather than a `reference: bool`, because
+    /// "somebody else's" and "whose, under what licence" are what a reader
+    /// about to quote it needs, and only one of those is a flag.
+    source: Option<crate::provenance::Source>,
 }
 
 async fn search_notes(
@@ -598,6 +611,7 @@ async fn search_notes(
                     title: hit.title,
                     path: hit.key,
                     snippet: hit.snippet,
+                    source: hit.source,
                 });
             }
         }

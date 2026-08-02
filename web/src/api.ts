@@ -15,8 +15,23 @@ export interface NoteInfo {
   reference: boolean;
 }
 
+/**
+ * Who published a note, for notes that came from an installed vault. The
+ * licence is the part that matters: the moment a reader copies a paragraph out
+ * of a result, the fact that it was somebody else's is gone unless it was on
+ * screen beforehand.
+ */
+export interface NoteSource {
+  /** The `scope.include` path it came from — stable, unlike name and licence. */
+  root: string;
+  name: string;
+  license: string | null;
+  version: string | null;
+}
+
 export interface NoteContent extends NoteInfo {
   content: string;
+  source: NoteSource | null;
 }
 
 export interface SearchHit {
@@ -24,6 +39,7 @@ export interface SearchHit {
   title: string;
   path: string;
   snippet: string;
+  source: NoteSource | null;
 }
 
 /** A `[[target]]` as written, with the note path(s) it resolves to. */

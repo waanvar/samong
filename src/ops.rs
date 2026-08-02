@@ -88,6 +88,9 @@ const RRF_K: f32 = 60.0;
 /// stale-index problem, not a search problem — degrades to plain relevance rather
 /// than failing the query. A vault nobody has embedded stays purely lexical.
 ///
+/// Hits from an installed vault come back carrying who published them; see
+/// [`crate::provenance`] for why that has to travel with the result.
+///
 /// # Why the score is a fused rank, always
 ///
 /// `SearchHit::score` comes back on the RRF scale even when there is only one
@@ -115,6 +118,7 @@ pub fn search_vault(
         for (index, hit) in hits.iter_mut().enumerate() {
             hit.score = 1.0 / (RRF_K + index as f32 + 1.0);
         }
+        attribute(vault, &mut hits)?;
         return Ok(hits);
     }
 
@@ -169,7 +173,31 @@ pub fn search_vault(
     });
     // The union is larger than what was asked for.
     hits.truncate(options.limit.clamp(1, crate::search::MAX_LIMIT));
+    attribute(vault, &mut hits)?;
     Ok(hits)
+}
+
+/// Mark the hits that are somebody else's work.
+///
+/// Done here rather than in each caller because this is the one function the
+/// CLI, the HTTP API and the MCP tools all go through, and attribution that
+/// three interfaces have to remember to add is attribution one of them will
+/// eventually forget. Done last, after the truncate, so a vault with no
+/// installed sources pays one `Scope::load` and a vault with them reads a
+/// manifest per source rather than per hit.
+fn attribute(vault: &std::path::Path, hits: &mut [crate::search::SearchHit]) -> Result<()> {
+    if hits.is_empty() {
+        return Ok(());
+    }
+    let scope = crate::scope::Scope::load(vault)?;
+    let sources = crate::provenance::Sources::for_scope(&scope);
+    if sources.is_empty() {
+        return Ok(());
+    }
+    for hit in hits.iter_mut() {
+        hit.source = sources.of(&hit.key).cloned();
+    }
+    Ok(())
 }
 
 /// Keys ordered by meaning, or empty when semantic search is not available here.

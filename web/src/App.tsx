@@ -5,6 +5,7 @@ import {
   titleFromKey,
   type NoteInfo,
   type NoteLinks,
+  type NoteSource,
   type VaultInfo,
 } from "./api";
 import { listenChanges } from "./ws";
@@ -34,6 +35,8 @@ export function App() {
   const [notesByVault, setNotesByVault] = useState<Record<string, NoteInfo[]>>({});
   const [noteKey, setNoteKey] = useState("");
   const [readOnly, setReadOnly] = useState(false);
+  /** Who published the open note, when it came from an installed vault. */
+  const [source, setSource] = useState<NoteSource | null>(null);
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [links, setLinks] = useState<NoteLinks | null>(null);
@@ -117,6 +120,7 @@ export function App() {
         setVault(name);
         setNoteKey(note.key);
         setReadOnly(note.reference);
+        setSource(note.source);
         setContent(note.content);
         setDirty(false);
         void refreshLinks(name, note.key);
@@ -401,6 +405,7 @@ export function App() {
           title={title}
           content={content}
           readOnly={readOnly}
+          source={source}
           links={links}
           onOpenKey={(k) => void openNote(vault, k)}
           onFollow={followWikilink}

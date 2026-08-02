@@ -148,6 +148,19 @@ enum VaultAction {
         /// Only this one, by directory name. Omit to update every installed vault.
         name: Option<String>,
     },
+    /// Check that installed vaults are what their publishers published
+    ///
+    /// Reports who signed each one, whether the signer is still the one seen at
+    /// install time, and whether anything has been changed locally.
+    Verify {
+        /// Only this one, by directory name. Omit to check every installed vault.
+        name: Option<String>,
+        /// Fail when a vault cannot be proven, not only when something is wrong.
+        /// For scripts; unsigned vaults are the common case, so this is off by
+        /// default.
+        #[arg(long)]
+        require_signature: bool,
+    },
     /// List every registered vault
     List,
     /// Remove a vault from the registry (files are left untouched)
@@ -462,6 +475,31 @@ fn cmd_vault_install(url: &str, into: &str, name: Option<&str>) -> Result<()> {
         Err(error) => println!("  (no readable {}: {error})", crate::scope::CONFIG_FILE),
     }
 
+    // Who published this, at the moment the reader decides to trust it — and
+    // pinned, so that a later update signed by somebody else has to be noticed
+    // instead of merged.
+    match crate::verify::signature_of(&installed.absolute, "HEAD") {
+        Ok(signature) => {
+            if signature.trust.is_sound() {
+                println!(
+                    "  {} by {}",
+                    signature.trust.describe(),
+                    signature.describe_signer()
+                );
+                if crate::verify::pin_signer(&installed.absolute, &signature)? {
+                    println!("  pinned that key — a later update signed by anyone else will stop");
+                }
+            } else {
+                println!(
+                    "  {} — you cannot tell this apart from a copy someone else published. \
+                     Check the URL came from the author.",
+                    signature.trust.describe()
+                );
+            }
+        }
+        Err(error) => println!("  (could not read the signature: {error})"),
+    }
+
     if crate::install::add_to_scope_include(&vault, &installed.relative)? {
         println!("added {} to scope.include", installed.relative);
     }
@@ -482,14 +520,15 @@ fn cmd_vault_install(url: &str, into: &str, name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// Pull the latest content for installed vaults.
-fn cmd_vault_update(name: Option<&str>) -> Result<()> {
-    let vault = vault_root()?;
-    let scope = Scope::load(&vault)?;
-    let all = crate::install::installed(&scope);
+/// The installed vaults a command should act on, or `None` when there are none
+/// at all — a state worth its own message rather than an empty list.
+fn chosen_installations(
+    vault: &Path,
+    name: Option<&str>,
+) -> Result<Option<Vec<crate::install::Installation>>> {
+    let all = crate::install::installed(&Scope::load(vault)?);
     if all.is_empty() {
-        println!("no installed vaults here — `samong vault install <git-url>` adds one");
-        return Ok(());
+        return Ok(None);
     }
     let chosen: Vec<_> = match name {
         Some(wanted) => all.into_iter().filter(|i| i.name == wanted).collect(),
@@ -498,6 +537,16 @@ fn cmd_vault_update(name: Option<&str>) -> Result<()> {
     if chosen.is_empty() {
         bail!("no installed vault called \"{}\" here", name.unwrap_or(""));
     }
+    Ok(Some(chosen))
+}
+
+/// Pull the latest content for installed vaults.
+fn cmd_vault_update(name: Option<&str>) -> Result<()> {
+    let vault = vault_root()?;
+    let Some(chosen) = chosen_installations(&vault, name)? else {
+        println!("no installed vaults here — `samong vault install <git-url>` adds one");
+        return Ok(());
+    };
 
     let mut moved = false;
     for installation in &chosen {
@@ -515,6 +564,87 @@ fn cmd_vault_update(name: Option<&str>) -> Result<()> {
     if moved {
         let report = indexer::reindex_in(&Scope::load(&vault)?, false)?;
         println!("{report}");
+    }
+    Ok(())
+}
+
+/// Report whether installed vaults are still what their publishers published.
+///
+/// Exits non-zero only when something is *wrong* — a bad signature, a changed
+/// signer, a locally modified copy. "Not signed" and "no key to check it with"
+/// are reported plainly and pass, because almost every vault in the world is
+/// unsigned today and a check that always fails is a check nobody runs.
+/// `--require-signature` is there for the reader who has decided otherwise.
+fn cmd_vault_verify(name: Option<&str>, require_signature: bool) -> Result<()> {
+    let vault = vault_root()?;
+    let Some(chosen) = chosen_installations(&vault, name)? else {
+        println!("no installed vaults here — nothing to verify");
+        return Ok(());
+    };
+
+    let mut wrong = 0usize;
+    let mut unproven = 0usize;
+    for installation in &chosen {
+        let report = crate::verify::Report::for_installation(installation)?;
+        let signature = &report.signature;
+        println!("{}", report.name);
+        match signature.trust.is_sound() {
+            true => println!(
+                "  {} by {}",
+                signature.trust.describe(),
+                signature.describe_signer()
+            ),
+            false => println!("  {}", signature.trust.describe()),
+        }
+        if report.signer_changed() {
+            println!(
+                "  MISMATCH: installed as signed by {}",
+                report.pinned.as_deref().unwrap_or("?")
+            );
+        } else if let Some(pinned) = &report.pinned {
+            println!("  matches the key pinned at install ({pinned})");
+        }
+        if !report.changes.is_empty() {
+            // Named, not counted: "3 files differ" leaves the reader to go
+            // hunting, and one of those files may be a note they never noticed
+            // appearing in their own search results.
+            println!(
+                "  {} local change(s) — this copy no longer matches what was published:",
+                report.changes.len()
+            );
+            for change in report.changes.iter().take(10) {
+                println!("    {change}");
+            }
+            if report.changes.len() > 10 {
+                println!("    … and {} more", report.changes.len() - 10);
+            }
+            // The real path, not the vault's name: this is a command someone is
+            // about to paste. And `restore` alone would leave the `??` lines
+            // untouched — a planted file is not a modified file, and saying
+            // "restore it" would have left the actual problem on disk.
+            let where_it_is = display_path(
+                installation
+                    .path
+                    .strip_prefix(&vault)
+                    .unwrap_or(&installation.path),
+            );
+            println!("  look:    git -C {where_it_is} status");
+            println!("  discard: git -C {where_it_is} restore .");
+            println!("           git -C {where_it_is} clean -fd   (deletes untracked files)");
+        }
+        if report.is_wrong() {
+            wrong += 1;
+        } else if !report.is_proven() {
+            unproven += 1;
+            println!("  unproven — ask the publisher to sign their commits");
+        }
+    }
+
+    if wrong > 0 {
+        bail!("{wrong} of {} installed vault(s) failed", chosen.len());
+    }
+    if require_signature && unproven > 0 {
+        bail!("{unproven} installed vault(s) could not be proven (--require-signature)");
     }
     Ok(())
 }
@@ -606,7 +736,28 @@ fn cmd_pack(vault: &Path, dest: &Path, include_reference: bool) -> Result<()> {
              documentation — make sure its licence allows that."
         );
     }
+    print_publishing_advice(dest);
     Ok(())
+}
+
+/// How to publish a packed vault so readers can prove it came from you.
+///
+/// Sign *commits*, not release tags. `samong vault update` follows a branch, so
+/// a reader takes new commits between tags; a tag signature says nothing about
+/// the commit they just pulled. Turning on `commit.gpgsign` for this repository
+/// makes every update attributable and needs no further thought afterwards.
+fn print_publishing_advice(dest: &Path) {
+    println!(
+        "\nto publish it so readers can check it is yours:\n\
+         \n    cd {}\n    \
+         git init && git config commit.gpgsign true\n    \
+         git add -A && git commit -m \"first release\"\n    \
+         git remote add origin <url> && git push -u origin main\n\
+         \nreaders then get your key pinned on `samong vault install`, and \
+         `samong vault verify` checks every update against it. Sign commits rather \
+         than tags: updates follow the branch, not your tags.",
+        display_path(dest)
+    );
 }
 
 /// What the vault says about itself.
@@ -681,12 +832,20 @@ fn cmd_embed(_vault: &std::path::Path, _reference: bool) -> Result<()> {
     )
 }
 
+/// Attribution goes on its own line rather than at the end of the result.
+///
+/// A snippet runs to about 150 characters and wraps; anything appended to it
+/// lands wherever the terminal happens to break, which for the one piece of
+/// information a reader must not miss is not good enough.
 fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool {
     let found = !hits.is_empty();
     for hit in hits {
         match prefix {
             Some(name) => println!("{name}/{}: {}", hit.key, hit.snippet),
             None => println!("{}: {}", hit.key, hit.snippet),
+        }
+        if let Some(source) = &hit.source {
+            println!("  ↳ from {}", source.label());
         }
     }
     found
@@ -932,6 +1091,10 @@ fn cmd_vault(action: VaultAction) -> Result<()> {
             cmd_vault_install(&url, &into, name.as_deref())?
         }
         VaultAction::Update { name } => cmd_vault_update(name.as_deref())?,
+        VaultAction::Verify {
+            name,
+            require_signature,
+        } => cmd_vault_verify(name.as_deref(), require_signature)?,
         VaultAction::List => {
             let vaults = registry.list()?;
             if vaults.is_empty() {

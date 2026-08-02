@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type SearchHit } from "../api";
 import { useT } from "../i18n";
+import { SourceBadge } from "./SourceBadge";
 
 interface Props {
   vault: string;
@@ -151,6 +152,7 @@ export function SearchPanel({ vault, allVaults, onMatches, onOpen, onCreate }: P
               <span className="hit-head">
                 <span className="hit-title">{hit.title}</span>
                 <span className="path">{hit.path}</span>
+                <SourceBadge source={hit.source} />
               </span>
               <span
                 className="snippet"

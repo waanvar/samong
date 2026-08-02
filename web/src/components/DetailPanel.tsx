@@ -1,5 +1,6 @@
 import { renderMarkdown } from "../markdown";
-import type { NoteLinks } from "../api";
+import type { NoteLinks, NoteSource } from "../api";
+import { SourceBadge } from "./SourceBadge";
 import { useT } from "../i18n";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   title: string;
   content: string;
   readOnly: boolean;
+  source: NoteSource | null;
   links: NoteLinks | null;
   onOpenKey: (key: string) => void;
   onFollow: (target: string) => void;
@@ -29,6 +31,7 @@ export function DetailPanel({
   title,
   content,
   readOnly,
+  source,
   links,
   onOpenKey,
   onFollow,
@@ -63,7 +66,8 @@ export function DetailPanel({
             </span>
           )}
         </div>
-        <div className="detail-path path">
+        <SourceBadge source={source} />
+      <div className="detail-path path">
           {vault} / {noteKey}
         </div>
         <div className="detail-actions">

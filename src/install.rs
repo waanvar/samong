@@ -9,47 +9,19 @@
 //! Read-only is not decoration. An edit would be erased by the next `update`, and
 //! the content is not the reader's to change.
 //!
-//! # Why the `git` binary rather than a Rust git library
-//!
-//! Because of authentication. A vault someone sells lives in a private repository,
-//! and reaching it means SSH agents, credential helpers, hardware keys, SSO device
-//! flows and 2FA tokens — everything the user has *already* configured for `git`.
-//! Embedding a library means reimplementing that badly, and the first person to
-//! hit a config we did not anticipate simply cannot get what they paid for. The
-//! cost is a dependency on a program almost every user of this already has, and a
-//! clear message when they do not.
+//! Whether the vault is the one its publisher published is [`crate::verify`]'s
+//! question; `git` is called through [`crate::git`], where the reason for
+//! shelling out at all is written down.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use anyhow::{bail, Context, Result};
 
+use crate::git;
 use crate::scope::{Scope, CONFIG_FILE};
 
 /// Marker written into `.gitignore` so the block can be recognised later.
 const GITIGNORE_MARKER: &str = "# installed vaults (samong vault install)";
-
-fn git(args: &[&str], cwd: &Path) -> Result<String> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|error| {
-            anyhow::anyhow!(
-                "could not run `git`: {error}\n\
-                 Installing a vault clones a git repository, so git has to be on PATH. \
-                 Install it from https://git-scm.com and try again."
-            )
-        })?;
-    if !output.status.success() {
-        bail!(
-            "git {} failed:\n{}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
 
 /// Directory name implied by a git URL: the last segment, minus `.git`.
 pub fn name_from_url(url: &str) -> Option<String> {
@@ -95,7 +67,7 @@ pub fn install(vault: &Path, url: &str, into: &str, name: Option<&str>) -> Resul
             .with_context(|| format!("creating {}", parent.display()))?;
     }
 
-    git(&["clone", "--quiet", url, &relative], vault)?;
+    git::run(&["clone", "--quiet", url, &relative], vault)?;
 
     Ok(Installed {
         name,
@@ -207,11 +179,34 @@ impl UpdateResult {
     }
 }
 
-/// `git pull` one installation, reporting the commit it moved between.
+/// Fetch, check who signed what arrived, and only then move onto it.
+///
+/// Split into fetch and merge rather than `git pull` so the signature on the
+/// incoming commit can be checked while it is still only in the object store.
+/// `pull` would put it in the working tree first, and a warning about content
+/// that is already on disk and already indexed is a report, not a choice.
+///
+/// Still `--ff-only`: an installed vault is a copy, and a publisher who rewrote
+/// history should have to be noticed rather than merged with.
 pub fn update(installation: &Installation) -> Result<UpdateResult> {
-    let before = git(&["rev-parse", "--short", "HEAD"], &installation.path)?;
-    git(&["pull", "--quiet", "--ff-only"], &installation.path)?;
-    let after = git(&["rev-parse", "--short", "HEAD"], &installation.path)?;
+    let repo = installation.path.as_path();
+    let before = git::run(&["rev-parse", "--short", "HEAD"], repo)?;
+
+    git::run(&["fetch", "--quiet"], repo)?;
+    let Some(upstream) = git::optional(&["rev-parse", "--verify", "--quiet", "@{u}"], repo) else {
+        // No tracking branch: a vault copied in by hand, or a clone of a
+        // detached commit. Nothing to update against, which is not a failure.
+        return Ok(UpdateResult {
+            name: installation.name.clone(),
+            before: before.clone(),
+            after: before,
+        });
+    };
+
+    crate::verify::check_before_moving_to(repo, &upstream, &installation.name)?;
+    git::run(&["merge", "--quiet", "--ff-only", &upstream], repo)?;
+
+    let after = git::run(&["rev-parse", "--short", "HEAD"], repo)?;
     Ok(UpdateResult {
         name: installation.name.clone(),
         before,

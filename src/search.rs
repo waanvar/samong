@@ -125,6 +125,11 @@ pub struct SearchHit {
     /// carries the connectedness boost, which is why the cross-vault merge in
     /// `mcp` sorts on it and gets a consistent order.
     pub score: f32,
+    /// Set when the note belongs to an installed vault rather than to the
+    /// reader. Filled in by [`crate::ops::search_vault`] and not here: this
+    /// module knows about an index, and whose notes are in it is a question
+    /// about scope.
+    pub source: Option<crate::provenance::Source>,
 }
 
 fn build_schema() -> Schema {
@@ -288,6 +293,7 @@ pub fn hits_for_keys(
             // Filled in by whoever fuses the rankings; on its own this hit has no
             // relevance score, because relevance is not why it is here.
             score: 0.0,
+            source: None,
         });
     }
     Ok(out)
@@ -391,6 +397,7 @@ pub fn query_with(vault: &Path, text: &str, options: &SearchOptions) -> Result<V
             title,
             snippet: snippet_text,
             score,
+            source: None,
         });
     }
     Ok(hits)

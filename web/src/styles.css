@@ -413,6 +413,34 @@ kbd {
   text-align: end;
 }
 
+/* Provenance: the one thing on a result that must not be shortened away.
+   `.path` above takes the remaining space and ellipsises, so the badge is
+   given flex-shrink: 0 — a truncated licence is worse than no licence. */
+.source-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+.source-licence {
+  color: var(--ink-2);
+}
+
+/* `.detail-head` is a block container, so the badge sits on its own line
+   between the title row and the path without any layout of its own — it only
+   needs the header's vertical rhythm. */
+.detail-head .source-badge {
+  margin-block: 2px 4px;
+}
+
 .snippet {
   color: var(--ink-2);
   font-size: 12.5px;
