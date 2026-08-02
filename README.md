@@ -58,7 +58,7 @@ Download, extract, **double-click**:
 
 | | |
 |---|---|
-| **Windows** | `Samong.exe` |
+| **Windows** | `Open Samong.exe` |
 | **macOS** | `Samong.app` |
 | **Linux** | `samong-app` (copy `samong.desktop` to `~/.local/share/applications/` for a menu entry) |
 
@@ -87,7 +87,7 @@ platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
 Verify what you downloaded against the `.sha256` published beside it:
 
 ```sh
-sha256sum -c samong-v0.3.3-x86_64-linux.tar.gz.sha256
+sha256sum -c samong-v0.3.4-x86_64-linux.tar.gz.sha256
 ```
 
 #### ⚠️ The binaries are not code-signed

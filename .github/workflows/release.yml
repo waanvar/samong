@@ -110,9 +110,12 @@ jobs:
           case "${{ matrix.target }}" in
             *windows*)
               # Built for the windows subsystem, so no console window opens.
-              # Copied under a capitalised name because that is what the person
-              # double-clicking reads.
-              cp "$bin/samong-app.exe" "stage/$name/Samong.exe"
+              #
+              # NOT "Samong.exe": Windows filesystems are case-insensitive, so
+              # that name *is* samong.exe and this copy silently replaced the CLI
+              # in the v0.3.3 archive. "Open Samong.exe" cannot collide, and says
+              # what to do with it.
+              cp "$bin/samong-app.exe" "stage/$name/Open Samong.exe"
               ;;
             *macos*)
               bash packaging/macos/make-app.sh "$bin" "stage/$name" "${TAG#v}"
@@ -122,6 +125,10 @@ jobs:
               ;;
           esac
           cp packaging/README.md "stage/$name/DOUBLE-CLICK.md"
+
+          # Assert before archiving. The v0.3.3 Windows archive was wrong and
+          # every job was green, because nothing checked.
+          bash packaging/verify-stage.sh "stage/$name" "${{ matrix.target }}"
 
           cd stage
           if [ "${{ matrix.archive }}" = "zip" ]; then

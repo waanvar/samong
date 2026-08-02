@@ -10,6 +10,24 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.4
+
+Fixes the Windows archive from 0.3.3. Nothing else changed.
+
+### Fixed
+
+- **`samong.exe` in the 0.3.3 Windows archive was the GUI launcher, not the
+  command-line tool.** The packaging step copied the launcher to `Samong.exe`,
+  which on a case-insensitive filesystem *is* `samong.exe`, so it silently
+  replaced the CLI. Anyone who unpacked that archive and ran `samong search`
+  would have got a browser window. The double-click copy is now called
+  **`Open Samong.exe`**, which cannot collide.
+- Packaging now **checks the staged archive before creating it** — every expected
+  binary present, and no two differently-named binaries turning out to be the
+  same file. The 0.3.3 defect passed four green jobs because nothing looked.
+
+> The macOS and Linux archives from 0.3.3 were not affected.
+
 ## 0.3.3
 
 The release where Samong stops requiring a terminal, and where a vault becomes
