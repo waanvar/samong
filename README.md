@@ -135,6 +135,8 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong pack <dir> [--include-reference]` | Copy the publishable part of the vault out — notes and manifest, never the index |
 | `samong watch` | Watch the vault, keep the index fresh |
 | `samong vault add/list/remove` | Manage the central registry |
+| `samong vault install <git-url>` | Install someone else's vault as read-only reference notes |
+| `samong vault update [name]` | Pull the latest content for installed vaults |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
 | `samong update [--check]` | Update to the latest GitHub release (--check only reports) |
 

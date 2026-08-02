@@ -127,6 +127,27 @@ enum Command {
 enum VaultAction {
     /// Register a vault under a name usable in [[name/note]] links
     Add { name: String, path: PathBuf },
+    /// Install someone else's vault into this one as read-only reference notes
+    ///
+    /// Clones a git repository into the current vault, wires it into
+    /// `scope.include`, and keeps it out of your own git history. The notes it
+    /// brings are read-only: an edit would be erased by the next update, and the
+    /// content is not yours to change.
+    Install {
+        /// Git URL of the vault to install
+        url: String,
+        /// Directory to clone into, relative to the vault root
+        #[arg(long, default_value = "vendor")]
+        into: String,
+        /// Directory name to use instead of the repository's
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Pull the latest content for installed vaults
+    Update {
+        /// Only this one, by directory name. Omit to update every installed vault.
+        name: Option<String>,
+    },
     /// List every registered vault
     List,
     /// Remove a vault from the registry (files are left untouched)
@@ -414,6 +435,90 @@ fn cmd_graph(vault: &Path, all_vaults: bool) -> Result<()> {
 /// Results are labelled with the note's path, not its bare title: search is
 /// exactly where two files called `README` have to be told apart, and the path
 /// contains the title anyway.
+/// Clone someone else's vault in and wire it up as reference notes.
+fn cmd_vault_install(url: &str, into: &str, name: Option<&str>) -> Result<()> {
+    let vault = vault_root()?;
+    let installed = crate::install::install(&vault, url, into, name)?;
+    println!("cloned {url} into {}", installed.relative);
+
+    // Say what the reader is now holding, and under what terms, at the moment they
+    // acquire it — not buried in a file they may never open.
+    match Scope::load(&installed.absolute) {
+        Ok(their_scope) => {
+            let manifest = &their_scope.config().vault;
+            if let Some(description) = &manifest.description {
+                println!("  {description}");
+            }
+            if let Some(version) = &manifest.version {
+                println!("  version {version}");
+            }
+            match &manifest.license {
+                Some(license) => println!("  licence: {license}"),
+                None => println!(
+                    "  licence: not stated — ask the author what you may do with these notes"
+                ),
+            }
+        }
+        Err(error) => println!("  (no readable {}: {error})", crate::scope::CONFIG_FILE),
+    }
+
+    if crate::install::add_to_scope_include(&vault, &installed.relative)? {
+        println!("added {} to scope.include", installed.relative);
+    }
+    if crate::install::add_to_gitignore(&vault, &installed.relative)? {
+        println!(
+            "added /{}/ to .gitignore — these notes are not yours to commit",
+            installed.relative
+        );
+    }
+
+    let scope = Scope::load(&vault)?;
+    let report = indexer::reindex_in(&scope, false)?;
+    println!("{report}");
+    println!(
+        "installed as read-only reference notes: search and [[links]] reach them, \
+         edits do not."
+    );
+    Ok(())
+}
+
+/// Pull the latest content for installed vaults.
+fn cmd_vault_update(name: Option<&str>) -> Result<()> {
+    let vault = vault_root()?;
+    let scope = Scope::load(&vault)?;
+    let all = crate::install::installed(&scope);
+    if all.is_empty() {
+        println!("no installed vaults here — `samong vault install <git-url>` adds one");
+        return Ok(());
+    }
+    let chosen: Vec<_> = match name {
+        Some(wanted) => all.into_iter().filter(|i| i.name == wanted).collect(),
+        None => all,
+    };
+    if chosen.is_empty() {
+        bail!("no installed vault called \"{}\" here", name.unwrap_or(""));
+    }
+
+    let mut moved = false;
+    for installation in &chosen {
+        match crate::install::update(installation) {
+            Ok(result) if result.changed() => {
+                moved = true;
+                println!("{}: {} -> {}", result.name, result.before, result.after);
+            }
+            Ok(result) => println!("{}: already current ({})", result.name, result.after),
+            // One vault whose access has lapsed must not stop the others: a
+            // subscription ending is expected, not exceptional.
+            Err(error) => println!("{}: could not update — {error}", installation.name),
+        }
+    }
+    if moved {
+        let report = indexer::reindex_in(&Scope::load(&vault)?, false)?;
+        println!("{report}");
+    }
+    Ok(())
+}
+
 /// Copy the publishable part of a vault into a fresh directory.
 ///
 /// A whitelist, never a copy-then-delete: the failure being prevented is shipping
@@ -823,6 +928,10 @@ fn cmd_vault(action: VaultAction) -> Result<()> {
             print_scope_summary(&scope)?;
             println!("{report}");
         }
+        VaultAction::Install { url, into, name } => {
+            cmd_vault_install(&url, &into, name.as_deref())?
+        }
+        VaultAction::Update { name } => cmd_vault_update(name.as_deref())?,
         VaultAction::List => {
             let vaults = registry.list()?;
             if vaults.is_empty() {
