@@ -240,6 +240,17 @@ td:first-child { color: var(--ink-mute); width: 34%; }
 .dl .os { font-weight: 600; }
 .dl .arch { font-family: var(--mono); font-size: .76rem; color: var(--ink-mute); }
 
+.open-table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+/* The global `th` rule uppercases and shrinks — right for a data table, wrong
+   here: it renders macOS as MACOS, and a platform name is a proper noun. */
+.open-table th { text-align: left; font-family: inherit; font-size: .93rem; font-weight: 600;
+  letter-spacing: 0; text-transform: none; color: var(--ink); padding: .35rem 1rem .35rem 0;
+  white-space: nowrap; vertical-align: baseline; }
+.open-table td { padding: .35rem 0; color: var(--ink-2); }
+.open-table code { font-family: var(--mono); font-size: .86rem; color: var(--ink); }
+.panel-note { margin: .9rem 0 0; font-size: .88rem; color: var(--ink-mute); }
+.panel-note code { font-family: var(--mono); font-size: .82rem; color: var(--ink-2); }
+
 .warn { padding: 1rem 1.2rem; background: color-mix(in oklab, #e0b063 9%, transparent); border: 1px solid color-mix(in oklab, #e0b063 34%, transparent); border-radius: 10px; font-size: .91rem; color: var(--ink-2); }
 .warn b { color: var(--ink); }
 .warn pre { margin-top: .6rem; color: var(--ink); }
@@ -482,9 +493,10 @@ no ambiguous titles among project notes</pre>
 <section id="download">
   <div class="wrap">
     <p class="eyebrow">Install</p>
-    <h2>Extract, run, point it at a project.</h2>
+    <h2>Download, extract, double-click.</h2>
     <p class="section-lede">
-      Nothing to install alongside it — the web UI is inside the binary.
+      No terminal, no configuration, no account. Nothing to install alongside it —
+      the web UI is inside the binary.
     </p>
     <div class="dl">
       <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">Linux</span><span class="arch">x86_64 · tar.gz</span></a>
@@ -493,7 +505,21 @@ no ambiguous titles among project notes</pre>
       <a href="https://github.com/waanvar/samong/releases/latest"><span class="os">macOS</span><span class="arch">Intel · tar.gz</span></a>
     </div>
     <div class="panel" style="margin-bottom:1.2rem">
-      <p class="panel-title">then</p>
+      <p class="panel-title">then open it</p>
+      <table class="open-table">
+        <tr><th>Windows</th><td><code>Open Samong.exe</code></td></tr>
+        <tr><th>macOS</th><td><code>Samong.app</code></td></tr>
+        <tr><th>Linux</th><td><code>samong-app</code></td></tr>
+      </table>
+      <p class="panel-note">
+        On the first run it makes a vault at <code>Documents/Samong</code>, writes
+        two notes in it, and opens your browser. The <span aria-hidden="true">⏻</span>
+        button in the corner stops it — the server outlives the browser tab, so
+        closing the tab is not the same as quitting.
+      </p>
+    </div>
+    <div class="panel" style="margin-bottom:1.2rem">
+      <p class="panel-title">or from a terminal, pointed at code you already have</p>
 <pre><span class="p">$ samong vault add my-api /path/to/my-api</span>
 <span class="p">$ samong-server start</span>
 <span class="c"># opens http://127.0.0.1:3000</span></pre>
@@ -502,7 +528,8 @@ no ambiguous titles among project notes</pre>
       <b>The binaries are not code-signed yet.</b> macOS refuses to open unsigned
       downloads outright, and Windows SmartScreen warns. On macOS, clear the
       quarantine flag after extracting:
-<pre>xattr -d com.apple.quarantine samong samong-server samong-mcp</pre>
+<pre>xattr -dr com.apple.quarantine Samong.app samong samong-server samong-mcp</pre>
+      Or right-click <code>Samong.app</code> and choose <b>Open</b>, which asks once.
       Every release ships a <code>.sha256</code> beside the archive — check it.
       This is what open-source software without a paid certificate looks like; it
       is not a sign the file is wrong.
