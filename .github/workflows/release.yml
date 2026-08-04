@@ -139,13 +139,39 @@ jobs:
             archive="$name.tar.gz"
           fi
           cd ..
-          # A checksum beside each archive, so anyone downloading an unsigned
-          # binary can at least verify they got the file we published.
-          if command -v sha256sum >/dev/null; then
-            sha256sum "$archive" > "$archive.sha256"
-          else
-            shasum -a 256 "$archive" > "$archive.sha256"
-          fi
+
+          # A second copy under a name with no version in it.
+          #
+          # The landing page had four download buttons labelled by platform and
+          # architecture, and all four pointed at the releases page, because a
+          # direct link needs the exact filename and every filename carries the
+          # version. Someone clicking "Windows · x86_64 · zip" landed on a list of
+          # eight files and had to work out which one — for exactly the audience
+          # the double-click launcher exists for.
+          #
+          # `releases/latest/download/<name>` resolves against the newest release,
+          # so an unversioned alias is a permanent link that never needs the
+          # website to know the version. The cost is uploading each archive twice;
+          # the versioned name stays because "which build is this" has to remain
+          # answerable from the filename alone.
+          alias="samong-${{ matrix.target }}.${{ matrix.archive == 'zip' && 'zip' || 'tar.gz' }}"
+          cp "$archive" "$alias"
+
+          # One checksum per name, not one shared: `sha256sum -c` matches on the
+          # filename recorded inside the file, so a checksum naming the versioned
+          # archive would simply fail against the alias.
+          sum() {
+            if command -v sha256sum >/dev/null; then sha256sum "$1" > "$1.sha256"
+            else shasum -a 256 "$1" > "$1.sha256"; fi
+          }
+          sum "$archive"
+          sum "$alias"
+
+          # Both names must exist and be the same bytes, or the permanent link
+          # points at something other than the release it claims to be.
+          [ -f "$archive" ] && [ -f "$alias" ] || { echo "missing archive or alias" >&2; exit 1; }
+          cmp "$archive" "$alias" || { echo "alias is not a copy of the archive" >&2; exit 1; }
+          echo "published as $archive and $alias"
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2

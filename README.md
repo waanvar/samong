@@ -80,14 +80,18 @@ If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
 ### Download a binary (recommended)
 
 Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
-run. **No Rust or Node needed** — the web UI is already inside the binary. Four
+run. Direct links that always point at the newest release:
+[Linux](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-linux.tar.gz) ·
+[Windows](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-windows.zip) ·
+[macOS Apple Silicon](https://github.com/waanvar/samong/releases/latest/download/samong-aarch64-macos.tar.gz) ·
+[macOS Intel](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-macos.tar.gz). **No Rust or Node needed** — the web UI is already inside the binary. Four
 platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
 `x86_64-macos` (Intel).
 
 Verify what you downloaded against the `.sha256` published beside it:
 
 ```sh
-sha256sum -c samong-v0.3.4-x86_64-linux.tar.gz.sha256
+sha256sum -c samong-x86_64-linux.tar.gz.sha256
 ```
 
 #### ⚠️ The binaries are not code-signed

@@ -10,6 +10,26 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.5
+
+Download links that lead to a file.
+
+### Fixed
+
+- **The four download buttons on samong.dev all pointed at the releases page.**
+  Each was labelled by platform and architecture and none of them delivered one:
+  clicking "Windows · x86_64 · zip" landed on a list of eight files, for exactly
+  the audience the double-click launcher exists for. A direct link needs the exact
+  filename, and every filename carried the version.
+- Each release now also publishes **an unversioned copy of every archive**, so
+  `releases/latest/download/samong-x86_64-windows.zip` is a permanent link that
+  resolves against whatever the newest release is — the website never has to know
+  the version. Versioned names stay, because "which build is this" has to remain
+  answerable from the filename alone, and each name gets its own `.sha256`
+  (`sha256sum -c` matches on the filename recorded inside the file).
+- The landing page linked `brand.html`, which the clean-URL rule redirects to
+  `/brand` — a wasted round trip on every click. It links `/brand` directly now.
+
 ## 0.3.4
 
 The release where Samong stops requiring a terminal, and where a vault becomes
