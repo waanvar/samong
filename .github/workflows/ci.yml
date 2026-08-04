@@ -44,7 +44,7 @@ jobs:
   # Windows toolchains ship, which links with 40 unresolved `__std_*_element`
   # symbols. Linux links it cleanly, so this is where the feature gets verified.
   #
-  # The model download is deliberately not exercised — it is ~120 MB from Hugging
+  # The model download is deliberately not exercised — it is 465 MB from Hugging
   # Face and would make CI slow and network-dependent. What runs here is
   # everything up to the model: compile, link, the vector store, and chunking.
   semantic:
@@ -64,6 +64,51 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --features semantic --all-targets --locked -- -D warnings
+
+  # What `cargo publish` would actually upload.
+  #
+  # The web UI is embedded at compile time from `web/dist`, which is gitignored —
+  # so `cargo package` excludes it unless `include` in Cargo.toml overrides that.
+  # Get this wrong and `cargo install samong` yields a server with no interface
+  # and a launcher that opens a browser onto nothing. Neither the `test` job
+  # (no Node) nor the `web` job (no Rust) can see it, which is why this exists.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: The package must carry the built UI
+        run: |
+          cargo package --list --locked --allow-dirty > /tmp/pkg.txt
+          echo "--- web/ entries in the package ---"
+          grep '^web/' /tmp/pkg.txt || true
+          for required in web/dist/index.html assets/words_th.txt Cargo.toml README.md LICENSE NOTICE THIRD-PARTY.md; do
+            grep -qx "$required" /tmp/pkg.txt || { echo "::error::$required is missing from the published package"; exit 1; }
+          done
+          # Assets are hashed filenames, so assert by count rather than by name.
+          n=$(grep -c '^web/dist/assets/' /tmp/pkg.txt || true)
+          [ "$n" -gt 0 ] || { echo "::error::no built assets in the package"; exit 1; }
+          echo "package carries the UI: $n asset file(s)"
+
+      - name: Dry-run the publish
+        run: cargo publish --dry-run --locked --allow-dirty
 
   web:
     runs-on: ubuntu-latest

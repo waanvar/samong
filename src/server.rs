@@ -32,8 +32,53 @@ use tokio::sync::{broadcast, Notify};
 #[folder = "web/dist"]
 struct WebAssets;
 
-fn has_embedded_ui() -> bool {
+/// Is a built web UI baked into this binary?
+///
+/// Public because the desktop launcher has to know: opening a browser at a server
+/// with no UI shows a blank page in a program that has no console to explain
+/// itself in, which is the worst failure this project can produce.
+pub fn has_embedded_ui() -> bool {
     WebAssets::get("index.html").is_some()
+}
+
+/// Shown at every path when the binary was built without a web UI.
+///
+/// A 404 with the words "web UI not built" is a dead end for the person least
+/// able to act on it. This says what happened, that their notes are safe, and
+/// gives the two ways forward. It is plain HTML with no assets, because the
+/// situation is precisely that no assets exist.
+const NO_UI_PAGE: &str = r#"<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Samong — this build has no web UI</title>
+<style>
+ body{font:16px/1.65 system-ui,sans-serif;max-width:34rem;margin:12vh auto;padding:0 1.4rem;
+      background:#12151a;color:#c9d1dc}
+ h1{font-size:1.3rem;margin:0 0 1rem;color:#e8eef6}
+ code{font-family:ui-monospace,monospace;font-size:.88em;background:#1b2027;
+      padding:.15em .4em;border-radius:4px;color:#e8eef6}
+ a{color:#7fb3ff} p{margin:.9rem 0} .m{color:#8b96a5;font-size:.9rem}
+</style></head><body>
+<h1>This build of Samong has no web UI</h1>
+<p>The API is running and your notes are untouched — this is a packaging problem,
+   not a data problem.</p>
+<p>The command line works normally: <code>samong search</code>,
+   <code>samong list</code>, <code>samong doctor</code>.</p>
+<p>To get the interface, download a release build from
+   <a href="https://samong.dev">samong.dev</a>, which ships the UI inside the
+   binary.</p>
+<p class="m">Building from a source checkout? Run <code>npm run build</code> in
+   <code>web/</code>, then rebuild — the UI is embedded at compile time.</p>
+</body></html>
+"#;
+
+async fn serve_no_ui() -> Response {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        NO_UI_PAGE,
+    )
+        .into_response()
 }
 
 use crate::graph::Graph;
@@ -863,7 +908,7 @@ async fn serve_embedded(uri: Uri) -> Response {
             file.data,
         )
             .into_response(),
-        None => (StatusCode::NOT_FOUND, "web UI not built").into_response(),
+        None => serve_no_ui().await,
     }
 }
 
@@ -942,8 +987,13 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
             router_with_embedded_ui(state)
         }
         None => {
-            println!("web UI not built — serving API only (run `cd web && npm run build`)");
-            router(state)
+            // Not "run npm run build" — that instruction is meaningless to
+            // someone who installed a binary and has no `web/` directory. The
+            // page served at every path says the rest.
+            println!(
+                "this build has no web UI — serving the API only.                  The CLI works; a release build from https://samong.dev has the UI."
+            );
+            router(state).fallback(serve_no_ui)
         }
     };
 
@@ -974,6 +1024,91 @@ pub async fn run(port: u16, ui_dir: Option<PathBuf>, open_browser: bool) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The web UI is embedded from `web/dist`, which is gitignored — so
+    /// `cargo package` leaves it out unless `include` in Cargo.toml overrides
+    /// that, and `cargo install samong` then yields a server with no interface.
+    ///
+    /// Every pattern must be anchored with a leading slash: cargo reads them as
+    /// gitignore globs, where a bare `README.md` matches at any depth. The
+    /// unanchored first version pulled 149 files out of `web/node_modules`.
+    ///
+    /// The real proof — running `cargo package --list` — is the `package` job in
+    /// CI, which has both Node and Rust. This is the cheap guard that fails the
+    /// moment someone edits the list by hand.
+    #[test]
+    fn the_published_package_is_declared_to_contain_the_built_web_ui() {
+        let manifest = include_str!("../Cargo.toml");
+        let include = manifest
+            .split_once("include = [")
+            .expect("Cargo.toml declares an include list")
+            .1
+            .split_once(']')
+            .expect("the include list is closed")
+            .0;
+
+        assert!(
+            include.contains("\"/web/dist/**/*\""),
+            "the built web UI must be in the published package:
+{include}"
+        );
+        for path in ["/src/**/*", "/Cargo.toml", "/README.md", "/LICENSE"] {
+            assert!(
+                include.contains(&format!("\"{path}\"")),
+                "{path} is missing"
+            );
+        }
+        for line in include.lines().filter(|l| l.trim().starts_with('"')) {
+            assert!(
+                line.trim().starts_with("\"/"),
+                "include patterns must be anchored or they match at any depth: {line}"
+            );
+        }
+    }
+
+    /// The page a UI-less build serves. Verified here rather than trusted,
+    /// because the only way to reach it in a normal build is to delete the UI
+    /// and rebuild — so nobody would ever see it before a user did.
+    #[tokio::test]
+    async fn a_build_without_a_ui_explains_itself_instead_of_returning_404() {
+        let response = serve_no_ui().await;
+        assert_eq!(response.status(), StatusCode::OK, "not a 404 dead end");
+        let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("body");
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("<!doctype html>"), "it is a real page");
+        assert!(
+            text.contains("no web UI"),
+            "it says what is wrong: {}",
+            &text[..text.len().min(200)]
+        );
+        assert!(
+            text.contains("your notes are untouched") || text.contains("notes are untouched"),
+            "it says the data is safe"
+        );
+        assert!(
+            text.contains("samong.dev"),
+            "it says where to get a build with the UI"
+        );
+        // The instruction that used to be printed is meaningless to someone who
+        // installed a binary, so it must not be the headline advice.
+        assert!(
+            !text.starts_with("web UI not built"),
+            "no bare error string"
+        );
+    }
+
+    /// A build that says it has a UI must actually have the file it serves.
+    #[test]
+    fn claiming_an_embedded_ui_means_index_html_is_really_there() {
+        if has_embedded_ui() {
+            assert!(
+                WebAssets::get("index.html").is_some_and(|f| !f.data.is_empty()),
+                "index.html is embedded but empty"
+            );
+        }
+    }
 
     /// Tolerant of both environments: with a real `web/dist` build the
     /// embedded UI serves index.html; on a clean checkout (only .gitkeep)

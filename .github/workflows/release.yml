@@ -183,3 +183,53 @@ jobs:
             samong-*.zip
             samong-*.tar.gz
             samong-*.sha256
+
+  # crates.io, once every archive is built and uploaded.
+  #
+  # A separate job that `needs: build`, so a platform that fails to build stops
+  # the publish: crates.io versions are immutable, and a version published
+  # against a broken release cannot be taken back — only yanked, which still
+  # burns the number.
+  #
+  # Requires a CARGO_REGISTRY_TOKEN secret. Without it this job fails loudly
+  # rather than skipping quietly, because a release that silently stops
+  # publishing is how `cargo install samong` drifts a version behind and nobody
+  # notices.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The UI is embedded at compile time and `web/dist` is gitignored, so it has
+      # to be built here before packaging or the crate ships without an interface.
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: The package must carry the UI and the dictionary
+        run: |
+          cargo package --list --locked > /tmp/pkg.txt
+          for required in web/dist/index.html assets/words_th.txt; do
+            grep -qx "$required" /tmp/pkg.txt || { echo "::error::$required missing from the crate"; exit 1; }
+          done
+
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked

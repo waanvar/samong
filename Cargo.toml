@@ -7,6 +7,43 @@ description = "Local-first, Obsidian-compatible knowledge base with Thai full-te
 repository = "https://github.com/waanvar/samong"
 keywords = ["knowledge-base", "notes", "markdown", "thai", "search"]
 categories = ["command-line-utilities", "text-processing"]
+homepage = "https://samong.dev"
+readme = "README.md"
+# Measured, not guessed: the highest MSRV any dependency declares is 1.88.0
+# (`cargo metadata` reports it), and a clean build on that exact toolchain was
+# verified before this line was written. Without it, someone on an older Rust
+# gets a wall of compiler errors instead of one sentence naming the version.
+rust-version = "1.88"
+
+# An explicit file list, because `cargo package` otherwise honours .gitignore —
+# and `web/dist` is gitignored. The published crate would then carry an empty
+# `web/dist/.gitkeep`, so `cargo install samong` would give you a server with no
+# web UI at all: the launcher would open a browser onto nothing. `include`
+# overrides .gitignore, which is the only way to get the built UI in.
+#
+# `include` is a whitelist: anything absent here is absent from the crate. Add to
+# it when a new directory becomes load-bearing. The test
+# `the_published_package_contains_the_built_web_ui` fails if the UI goes missing.
+# Every pattern is anchored with a leading slash. Cargo reads these as
+# gitignore-style globs, where a bare `README.md` matches at *any* depth — the
+# first version of this list pulled in 149 files from `web/node_modules`
+# (77 README.md, 67 LICENSE, 5 CHANGELOG.md belonging to npm packages).
+include = [
+    "/src/**/*",
+    # The newmm dictionary is `include_str!`d by src/thai.rs, so the crate does
+    # not compile without it. Left out of the first version of this list, which
+    # `cargo publish --dry-run` catches — and crates.io versions are immutable,
+    # so publishing it would have burned 0.3.6 permanently.
+    "/assets/**/*",
+    "/web/dist/**/*",
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/THIRD-PARTY.md",
+]
 
 # MSVC PDBs balloon the target dir past several GB; tests don't need them.
 [profile.dev]

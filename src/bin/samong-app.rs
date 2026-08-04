@@ -68,6 +68,24 @@ fn run(log: &mut Log) -> anyhow::Result<()> {
         ));
     }
 
+    // A launcher whose whole purpose is the browser window must not open one onto
+    // a server with no interface to show. That would be a blank page in a program
+    // with no console — the exact failure this binary exists to avoid. It happens
+    // when the crate is built without `web/dist` populated.
+    let open_browser = if open_browser && !samong::server::has_embedded_ui() {
+        log.write(
+            "this build has no web UI embedded, so the browser was not opened.\n\
+             The command line still works. A release build from https://samong.dev \
+             ships the interface inside the binary.\n",
+        );
+        if let Some(path) = &log.path {
+            let _ = open::that(path);
+        }
+        false
+    } else {
+        open_browser
+    };
+
     log.write(&format!("serving on {port}\n"));
     let runtime = tokio::runtime::Runtime::new()?;
     runtime.block_on(samong::server::run(port, None, open_browser))

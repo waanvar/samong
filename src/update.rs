@@ -215,11 +215,19 @@ mod tests {
     /// substitutes `{{ version }}` without the leading `v`.
     #[test]
     fn the_archive_path_matches_what_the_release_workflow_builds() {
-        let workflow = include_str!("../.github/workflows/release.yml");
-        assert!(
-            workflow.contains(r#"name="samong-${TAG}-${{ matrix.target }}""#),
-            "the workflow no longer names the staged directory the way              BIN_PATH_IN_ARCHIVE expects"
-        );
+        // Read at run time rather than `include_str!`: the workflow is a
+        // repository file and has no business inside a published crate, and
+        // embedding it would make the package fail to compile the moment CI
+        // files are excluded. Absent means "running from a packaged crate",
+        // where there is nothing to check.
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/.github/workflows/release.yml");
+        match std::fs::read_to_string(path) {
+            Ok(workflow) => assert!(
+                workflow.contains(r#"name="samong-${TAG}-${{ matrix.target }}""#),
+                "the workflow no longer names the staged directory the way                  BIN_PATH_IN_ARCHIVE expects"
+            ),
+            Err(_) => eprintln!("skipped: no workflow file here (packaged crate)"),
+        }
         assert_eq!(
             BIN_PATH_IN_ARCHIVE,
             "samong-v{{ version }}-{{ target }}/{{ bin }}"

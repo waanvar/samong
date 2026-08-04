@@ -52,6 +52,14 @@ already work with. Plain Markdown,
 
 ## Install
 
+### With Rust already installed
+
+```sh
+cargo install samong
+```
+
+Builds all four binaries with the web UI inside them. Needs Rust 1.88 or newer.
+
 ### Just open it
 
 Download, extract, **double-click**:
