@@ -233,3 +233,65 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo publish --locked
+
+  # The MCP bundle, and the registry entry that points at it.
+  #
+  # Runs on macOS because `lipo` lives there: the manifest has one `darwin` key
+  # and macOS has two architectures, so the two Mac builds have to be fused into a
+  # universal binary or half of Mac users get a bundle that cannot execute.
+  #
+  # Inputs are the archives this release just published, not a rebuild — the
+  # bundle then contains exactly the bytes users download.
+  mcp-registry:
+    needs: build
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      id-token: write  # GitHub OIDC proves the io.github.waanvar namespace
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Download this release's archives
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p archives
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir archives             --pattern "samong-${TAG}-*.tar.gz" --pattern "samong-${TAG}-*.zip"
+          ls -l archives
+
+      - name: Build the bundle
+        run: bash packaging/mcpb/build.sh "${TAG#v}" "$PWD/archives" "$PWD/dist"
+
+      - name: Checksum
+        run: |
+          cd dist
+          shasum -a 256 samong-mcp.mcpb > samong-mcp.mcpb.sha256
+          cat samong-mcp.mcpb.sha256
+
+      - name: Upload the bundle to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: |
+            dist/samong-mcp.mcpb
+            dist/samong-mcp.mcpb.sha256
+
+      # Written here rather than committed: a hash in git would be a claim about a
+      # file that does not exist yet, and the version would drift the moment it is
+      # bumped. The script validates the digest and the URL before writing.
+      - name: Point server.json at what was just published
+        run: |
+          python3 packaging/mcpb/point-server-json.py             server.json             "${TAG#v}"             "$(shasum -a 256 dist/samong-mcp.mcpb | cut -d' ' -f1)"             "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/samong-mcp.mcpb"
+
+      - name: Publish to the MCP registry
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_darwin_arm64.tar.gz"             | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
+
+      - name: Confirm the registry has it
+        run: |
+          sleep 10
+          curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.waanvar/samong"             | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d, indent=2)[:1200])"

@@ -10,6 +10,43 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.7
+
+Listed in the official MCP registry, and installable without a Rust toolchain.
+
+### The MCP server is in the registry
+
+`samong-mcp` is published to the [MCP registry](https://registry.modelcontextprotocol.io)
+as **`io.github.waanvar/samong`**, so a client can find and install it without
+being told where to look.
+
+- Each release now also publishes **`samong-mcp.mcpb`** — an MCP bundle carrying
+  the server for Linux, Windows, and both Mac architectures in one file, with a
+  `.sha256` beside it. No toolchain, no npm wrapper package.
+- The macOS binary inside is **universal** (`lipo`), because the bundle manifest
+  has one `darwin` key and two architectures exist. The build fails rather than
+  warns if it cannot make one: an arm64-only bundle installs cleanly on an Intel
+  Mac and then cannot execute.
+- Publishing authenticates with **GitHub OIDC** from the release workflow, so
+  there is no long-lived registry token to store.
+
+> Not published via `registryType: "cargo"`, though the registry supports it. A
+> cargo entry has clients invoke the binary named after the crate — and this crate
+> is `samong`, whose `samong` binary is the CLI, not the MCP server. Doing it
+> properly means a separate thin crate; until then MCPB is both correct and
+> toolchain-free.
+
+### With Rust already installed
+
+```sh
+cargo install samong
+```
+
+Also new: the crate is publishable at all. `cargo package` honours `.gitignore`,
+and both the built web UI and the Thai dictionary were being excluded — the second
+of which meant the crate did not compile. See 0.3.6's notes for the shape of it;
+this is the release where it works.
+
 ## 0.3.6
 
 `samong update` works. It never had.

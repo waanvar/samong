@@ -1,0 +1,77 @@
+{
+  "manifest_version": "0.3",
+  "name": "samong",
+  "display_name": "Samong",
+  "version": "__VERSION__",
+  "description": "Search and write your own Markdown notes. Local-first: nothing leaves the machine.",
+  "long_description": "Samong indexes a folder of Markdown notes and exposes it to an agent over MCP: full-text search that handles languages written without spaces between words, a [[wikilink]] graph, and read/write access to the notes themselves. Notes are plain files in a folder you already have. Nothing is uploaded anywhere, and no account is involved.\n\nNotes installed from someone else's vault are read-only and come back from search labelled with who published them and under what licence, so quoted material stays attributable.",
+  "author": {
+    "name": "waanvar",
+    "url": "https://github.com/waanvar"
+  },
+  "homepage": "https://samong.dev",
+  "documentation": "https://github.com/waanvar/samong#ai-agents-samong-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/waanvar/samong"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "notes",
+    "markdown",
+    "knowledge-base",
+    "search",
+    "local-first",
+    "obsidian"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/samong-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/samong-mcp",
+      "args": [],
+      "env": {},
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/samong-mcp.exe"
+        },
+        "darwin": {
+          "command": "${__dirname}/server/samong-mcp-macos"
+        }
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "list_vaults",
+      "description": "List every registered vault on this machine"
+    },
+    {
+      "name": "list_notes",
+      "description": "List every note in a vault by path"
+    },
+    {
+      "name": "read_note",
+      "description": "Read one note by its vault-relative path"
+    },
+    {
+      "name": "save_note",
+      "description": "Create or overwrite a note (refuses read-only reference notes)"
+    },
+    {
+      "name": "search_notes",
+      "description": "Full-text search across one vault or all of them"
+    },
+    {
+      "name": "get_links",
+      "description": "Forward links and backlinks for a note"
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.waanvar/samong",
+  "title": "Samong",
+  "description": "Search and write your own Markdown notes. Full-text search that handles languages written without spaces between words, a wikilink graph, and nothing leaving the machine.",
+  "version": "0.3.7",
+  "websiteUrl": "https://samong.dev",
+  "repository": {
+    "url": "https://github.com/waanvar/samong",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "registryBaseUrl": "https://github.com",
+      "identifier": "https://github.com/waanvar/samong/releases/download/v0.3.7/samong-mcp.mcpb",
+      "version": "0.3.7",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

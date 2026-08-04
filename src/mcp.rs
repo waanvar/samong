@@ -74,6 +74,25 @@ fn initialize_result(params: &Value) -> Value {
     })
 }
 
+/// Every tool name this server exposes.
+///
+/// Public so the MCP bundle manifest can be checked against it: that manifest
+/// advertises a tool list to anyone browsing the registry, and a list that has
+/// drifted from reality is a promise broken before the server is even started.
+pub fn tool_names() -> Vec<String> {
+    // Owned, because `tool_definitions()` builds the JSON on each call and a
+    // borrowed name could not outlive it.
+    tool_definitions()
+        .as_array()
+        .map(|tools| {
+            tools
+                .iter()
+                .filter_map(|t| t["name"].as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn tool_definitions() -> Value {
     let vault_arg = json!({ "type": "string", "description": "Registered vault name" });
     // Notes are addressed by path, never by title: one vault can hold many files
