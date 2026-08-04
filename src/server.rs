@@ -1110,20 +1110,34 @@ mod tests {
         }
     }
 
-    /// Tolerant of both environments: with a real `web/dist` build the
-    /// embedded UI serves index.html; on a clean checkout (only .gitkeep)
-    /// it reports the UI isn't built. Either way, no panic and the SPA
-    /// fallback path is exercised.
+    /// Tolerant of both environments: with a real `web/dist` build the embedded
+    /// UI serves index.html; on a clean checkout (only `.gitkeep`) every path
+    /// gets the page that explains there is no UI in this build. Either way the
+    /// SPA fallback path is exercised and nothing 404s.
+    ///
+    /// The no-UI branch used to expect a 404 and this test passed on every
+    /// developer machine, because a working tree that has ever run
+    /// `npm run build` always takes the other branch. Only CI's clean checkout
+    /// reaches it — which is exactly where it broke when the 404 became a page.
     #[tokio::test]
-    async fn embedded_ui_serves_index_or_reports_unbuilt() {
+    async fn embedded_ui_serves_index_or_explains_that_there_is_none() {
         let root = serve_embedded(Uri::from_static("/")).await;
         let spa_route = serve_embedded(Uri::from_static("/some/client/route")).await;
+        // Never a 404: with a UI it is the app, without one it is an explanation.
+        assert_eq!(root.status(), StatusCode::OK);
+        assert_eq!(spa_route.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(root.into_body(), 4 * 1024 * 1024)
+            .await
+            .expect("body");
+        let text = String::from_utf8_lossy(&body);
         if has_embedded_ui() {
-            assert_eq!(root.status(), StatusCode::OK);
-            // Unknown paths fall back to index.html, not 404.
-            assert_eq!(spa_route.status(), StatusCode::OK);
+            assert!(!text.contains("has no web UI"), "this build has one");
         } else {
-            assert_eq!(root.status(), StatusCode::NOT_FOUND);
+            assert!(
+                text.contains("no web UI"),
+                "a UI-less build must say so rather than fail silently"
+            );
         }
     }
 }
