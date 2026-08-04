@@ -1,6 +1,6 @@
 [package]
 name = "samong"
-version = "0.3.5"
+version = "0.3.6"
 edition = "2021"
 license = "Apache-2.0"
 description = "Local-first, Obsidian-compatible knowledge base with Thai full-text search"
@@ -43,7 +43,12 @@ open = "5.4.0"
 redb = "2.6.3"
 regex = "1.13.0"
 rust-embed = { version = "8.12.0", features = ["mime-guess"] }
-self_update = { version = "0.44.0", default-features = false, features = ["reqwest", "rustls", "archive-tar", "archive-zip", "compression-flate2"] }
+# `compression-zip-deflate` is not optional in practice, despite the name.
+# `archive-zip` alone lets the crate *read* a zip but only decompress STORED
+# entries, so `samong update` on Windows failed with "Compression method not
+# supported" on every release — every file in the archive is deflated. The
+# tar side needed `compression-flate2` for the same reason.
+self_update = { version = "0.44.0", default-features = false, features = ["reqwest", "rustls", "archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 tantivy = "0.26.1"

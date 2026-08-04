@@ -10,6 +10,39 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.6
+
+`samong update` works. It never had.
+
+### Fixed
+
+Self-updating was broken in every release from 0.3.0 to 0.3.5, in three separate
+ways, and reported success anyway — which is why nobody noticed.
+
+- **It printed "updated to <version>" while every binary had been skipped.** The
+  loop caught each failure, printed it, and then announced success unconditionally.
+  A command that cannot fail visibly is a command whose failures accumulate. It now
+  says how many binaries were replaced, names the ones that were not, and exits
+  non-zero when none were.
+- **It looked for the binary at the root of the archive.** Every archive unpacks
+  into one directory named after the release, so extraction failed with "specified
+  file not found in archive".
+- **On Windows it could not decompress the archive at all** — "Compression method
+  not supported". The `self_update` dependency had `archive-zip`, which reads a zip
+  but only decompresses *stored* entries; deflated ones need
+  `compression-zip-deflate`, which was not enabled.
+- **And it installed every binary over the running one.** `bin_install_path`
+  defaults to the current executable, so updating three binaries in a loop
+  overwrote the running one three times: `samong.exe` ended up being `samong-mcp`.
+
+> **If you are on 0.3.5 or earlier, `samong update` cannot bring you here** — the
+> broken updater is the thing being fixed. Download 0.3.6 by hand once, and
+> updates work from then on.
+
+Two tests now assert what could previously only fail on a user's machine: that the
+in-archive path still matches what the release workflow builds, and that the
+features needed to unpack a release are compiled in.
+
 ## 0.3.5
 
 Download links that lead to a file.

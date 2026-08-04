@@ -11,6 +11,20 @@ const REPO_NAME: &str = "samong";
 /// The three binaries this project ships; `samong update` refreshes all of them.
 const BINARIES: [&str; 3] = ["samong", "samong-server", "samong-mcp"];
 
+/// Where each binary sits inside a release archive.
+///
+/// Every archive unpacks into one directory named after the release —
+/// `samong-v0.3.5-x86_64-windows/samong.exe` — and without this, `self_update`
+/// looks for the binary at the archive root, finds nothing, and reports
+/// "specified file not found in archive".
+///
+/// That is not a hypothetical: `samong update` had never worked, in any release.
+/// It printed "updated to <version>" while every binary was skipped, so the
+/// failure looked like a success and nothing ever contradicted it. The templating
+/// is `self_update`'s own — `{{ version }}` is the release version without the
+/// leading `v`, which is why the `v` is written out here.
+const BIN_PATH_IN_ARCHIVE: &str = "samong-v{{ version }}-{{ target }}/{{ bin }}";
+
 /// This build's version (from Cargo.toml at compile time).
 pub fn current_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -92,14 +106,32 @@ pub fn run(check_only: bool) -> Result<()> {
         return Ok(());
     }
 
-    // Replace each binary. self_update handles the platform specifics,
-    // including the Windows "rename the running exe" dance for the current one.
+    // Where the binaries live: beside this one. `self_update` defaults
+    // `bin_install_path` to the *running* executable, so a loop over three names
+    // without this overwrites the running binary three times and leaves whichever
+    // came last — `samong.exe` ended up being `samong-mcp`. The install path has
+    // to name the file being replaced, not the file doing the replacing.
+    let install_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+        .context("cannot tell where the installed binaries are")?;
+
+    let mut replaced = 0usize;
+    let mut skipped = Vec::new();
     for bin in BINARIES {
         print!("updating {bin} … ");
+        let install_path = install_dir.join(format!("{bin}{}", std::env::consts::EXE_SUFFIX));
         let status = github::Update::configure()
             .repo_owner(REPO_OWNER)
             .repo_name(REPO_NAME)
             .bin_name(bin)
+            .bin_install_path(&install_path)
+            .bin_path_in_archive(BIN_PATH_IN_ARCHIVE)
+            // Pin to the versioned archive. Each release also publishes an
+            // unversioned copy so the website can link to a file directly, and
+            // without this the choice between them comes down to which name sorts
+            // first — a detail that must not decide what gets installed.
+            .identifier(&format!("v{latest}"))
             .target(target)
             .current_version(current)
             .no_confirm(true)
@@ -107,13 +139,36 @@ pub fn run(check_only: bool) -> Result<()> {
             .build()
             .and_then(|u| u.update());
         match status {
-            Ok(s) => println!("done ({})", s.version()),
+            Ok(s) => {
+                replaced += 1;
+                println!("done ({})", s.version());
+            }
             // A locked binary (e.g. samong-server still running) shouldn't abort
             // the others — report and continue.
-            Err(e) => println!("skipped: {e}"),
+            Err(e) => {
+                println!("skipped: {e}");
+                skipped.push(bin);
+            }
         }
     }
-    println!("updated to {latest}");
+
+    // Say what actually happened. Claiming success while nothing was replaced is
+    // how a broken updater survives several releases unnoticed.
+    if replaced == 0 {
+        anyhow::bail!(
+            "nothing was updated — every binary failed above.
+             Download {latest} by hand instead:              https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+        );
+    }
+    if skipped.is_empty() {
+        println!("updated to {latest}");
+    } else {
+        println!(
+            "updated {replaced} of {} to {latest} — still on the old version: {}",
+            BINARIES.len(),
+            skipped.join(", ")
+        );
+    }
     Ok(())
 }
 
@@ -148,5 +203,48 @@ mod tests {
     #[test]
     fn current_version_is_set() {
         assert!(!current_version().is_empty());
+    }
+
+    /// The path inside the archive is agreed with the release workflow and
+    /// nothing at runtime can check it — a wrong value fails only on a real
+    /// download, from a released binary, on a user's machine. That is how this
+    /// went unnoticed through five releases.
+    ///
+    /// So the agreement is asserted against the workflow file itself: it stages
+    /// into `samong-${TAG}-<target>/`, tags are `vX.Y.Z`, and `self_update`
+    /// substitutes `{{ version }}` without the leading `v`.
+    #[test]
+    fn the_archive_path_matches_what_the_release_workflow_builds() {
+        let workflow = include_str!("../.github/workflows/release.yml");
+        assert!(
+            workflow.contains(r#"name="samong-${TAG}-${{ matrix.target }}""#),
+            "the workflow no longer names the staged directory the way              BIN_PATH_IN_ARCHIVE expects"
+        );
+        assert_eq!(
+            BIN_PATH_IN_ARCHIVE,
+            "samong-v{{ version }}-{{ target }}/{{ bin }}"
+        );
+    }
+
+    /// Zip entries are deflated, and `archive-zip` on its own only decompresses
+    /// stored ones — the omission that made every Windows self-update fail with
+    /// "Compression method not supported".
+    #[test]
+    fn zip_deflate_support_is_compiled_in() {
+        let manifest = include_str!("../Cargo.toml");
+        let line = manifest
+            .lines()
+            .find(|l| l.starts_with("self_update"))
+            .expect("self_update is a dependency");
+        for feature in [
+            "archive-zip",
+            "compression-zip-deflate",
+            "compression-flate2",
+        ] {
+            assert!(
+                line.contains(feature),
+                "self_update needs the {feature} feature to unpack a release"
+            );
+        }
     }
 }
