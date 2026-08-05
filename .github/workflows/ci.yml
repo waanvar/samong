@@ -123,6 +123,58 @@ jobs:
       - name: server.json must satisfy the registry schema
         run: python3 packaging/mcpb/validate-server-json.py server.json
 
+  # winget: the manifests are generated, so the committed copies must be exactly
+  # what the generator produces — otherwise they drift and Microsoft's validation
+  # pipeline is the thing that finds out, days after the pull request.
+  #
+  # Installing needs a Windows runner and an administrator setting that this
+  # project's own machine will not be asked to change, so this job is where a
+  # local-manifest install is actually exercised.
+  winget:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The committed manifests are what the generator produces
+        run: python packaging/winget/generate.py --check
+
+      - name: winget's own validator
+        shell: pwsh
+        run: winget validate --manifest packaging\winget\manifests
+
+      - name: Install from the manifests
+        shell: pwsh
+        run: |
+          # Runners are disposable and administrative, so enabling local manifests
+          # here costs nothing. On a real machine this is a setting a person has to
+          # choose for themselves.
+          winget settings --enable LocalManifestFiles
+          winget install --manifest packaging\winget\manifests `
+            --accept-package-agreements --accept-source-agreements
+          "$env:LOCALAPPDATA\Microsoft\WinGet\Links" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Every portable alias answers, and it finds notes
+        shell: pwsh
+        run: |
+          foreach ($b in @("samong","samong-server","samong-mcp","samong-app")) {
+            $cmd = Get-Command $b -ErrorAction SilentlyContinue
+            if (-not $cmd) { throw "$b was not aliased onto PATH" }
+            "  $b -> $($cmd.Source)"
+          }
+          samong --version
+          $env:SAMONG_CONFIG_DIR = "$env:RUNNER_TEMP\winget-config"
+          $vault = "$env:RUNNER_TEMP\winget-vault"
+          New-Item -ItemType Directory -Force $vault | Out-Null
+          Set-Content "$vault\Runbook.md" "# Runbook`n`nwhen the queue backs up, drain it`n" -Encoding utf8
+          Set-Content "$vault\Thai.md" "# Thai`n`nสถาบันวิจัยแห่งประเทศไทยประกาศผลการศึกษา`n" -Encoding utf8
+          Push-Location $vault
+          # Out-String first: -match against an array filters instead of returning a
+          # boolean, which once made a passing search look like a failure.
+          if ((samong search queue | Out-String) -notmatch "Runbook") { throw "search failed" }
+          if ((samong search "ประเทศไทย" | Out-String) -notmatch "Thai") { throw "Thai segmentation failed" }
+          Pop-Location
+          "search and Thai segmentation work through the winget install"
+
   web:
     runs-on: ubuntu-latest
     steps:

@@ -307,3 +307,56 @@ jobs:
         run: |
           sleep 10
           curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.waanvar/samong"             | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d, indent=2)[:1200])"
+
+  # A pull request into microsoft/winget-pkgs, which is where winget packages
+  # actually live — the manifests in this repo are the source, not the listing.
+  #
+  # Needs a WINGET_TOKEN secret: a fine-grained PAT with public-repo access, used
+  # to fork winget-pkgs and open the pull request under your account. Submitting to
+  # someone else's repository cannot be done with GITHUB_TOKEN.
+  #
+  # Skipped rather than failed when the secret is absent. Unlike crates.io — where a
+  # missed publish silently drifts and must be loud — a winget submission waits in
+  # Microsoft's review queue anyway, so a release that did not open a pull request
+  # is a decision, not a defect.
+  winget:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Is there a token to submit with?
+        id: gate
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -n "$WINGET_TOKEN" ]; then
+            echo "submit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "submit=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no WINGET_TOKEN secret, so no winget pull request was opened. Add one to automate it, or run wingetcreate by hand."
+          fi
+
+      - name: Generate the manifests for this release
+        shell: bash
+        run: |
+          python packaging/winget/generate.py --version "${TAG#v}"
+          python packaging/winget/generate.py --check
+
+      - name: winget's own validator
+        shell: pwsh
+        run: winget validate --manifest packaging\winget\manifests
+
+      - name: Submit the pull request
+        if: steps.gate.outputs.submit == 'true'
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          # wingetcreate submits from a directory of manifests and opens the pull
+          # request against microsoft/winget-pkgs.
+          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+          .\wingetcreate.exe submit --token $env:WINGET_TOKEN packaging\winget\manifests

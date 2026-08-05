@@ -56,18 +56,30 @@ already work with. Plain Markdown,
 
 Four ways in, in the order that costs you least trouble.
 
-### 1. Homebrew — macOS and Linux
+### 1. A package manager
+
+**macOS and Linux** — [waanvar/homebrew-samong](https://github.com/waanvar/homebrew-samong):
 
 ```sh
 brew tap waanvar/samong
 brew install samong
 ```
 
-**No Gatekeeper prompt.** Homebrew fetches with `curl`, which does not set the
-`com.apple.quarantine` attribute macOS acts on — so the unsigned binaries that a
-browser download would have refused install and run without a word. The tap's CI
-asserts that on a real Mac rather than assuming it:
-[waanvar/homebrew-samong](https://github.com/waanvar/homebrew-samong).
+**Windows** — [waanvar/scoop-samong](https://github.com/waanvar/scoop-samong):
+
+```powershell
+scoop bucket add samong https://github.com/waanvar/scoop-samong
+scoop install samong
+```
+
+A winget submission is prepared but not yet accepted; `packaging/winget/` has the
+manifests and CI installs from them on every push.
+
+**No Gatekeeper prompt, no SmartScreen warning.** Both fetch the archive
+themselves and verify it against the SHA-256 published beside it. Nothing arrives
+through a browser, so macOS never sets the `com.apple.quarantine` attribute it
+would otherwise refuse to open, and Windows has no download reputation to weigh.
+Each tap's CI installs on a real runner and asserts this rather than assuming it.
 
 ### 2. With Rust already installed
 
@@ -123,8 +135,8 @@ sha256sum -c samong-x86_64-linux.tar.gz.sha256
 #### ⚠️ Downloaded binaries are not code-signed
 
 This applies to options 3 and 4 above — anything that arrives through a browser.
-Homebrew and `cargo install` are unaffected: neither leaves a download for the OS
-to be suspicious of.
+A package manager and `cargo install` are unaffected: neither leaves a download
+for the OS to be suspicious of.
 
 Samong has no code-signing certificate, so the OS gets in the way:
 

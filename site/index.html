@@ -509,14 +509,17 @@ no ambiguous titles among project notes</pre>
     </p>
     <div class="panel" style="margin-bottom:1.2rem">
       <p class="panel-title">a package manager, if you have one</p>
-<pre><span class="p">$ brew tap waanvar/samong</span>
-<span class="p">$ brew install samong</span>
+<pre><span class="c"># macOS and Linux</span>
+<span class="p">$ brew tap waanvar/samong &amp;&amp; brew install samong</span>
+<span class="c"># Windows</span>
+<span class="p">&gt; scoop bucket add samong https://github.com/waanvar/scoop-samong</span>
+<span class="p">&gt; scoop install samong</span>
 <span class="c"># or, with Rust already installed</span>
 <span class="p">$ cargo install samong</span></pre>
       <p class="panel-note">
-        Both avoid the warning below entirely: Homebrew fetches with curl, which
-        does not set the attribute macOS Gatekeeper acts on, and cargo compiles
-        locally. Nothing arrives through a browser to be suspicious of.
+        These avoid the warning below entirely. Homebrew and Scoop fetch the
+        archive themselves and check it against the published SHA-256; cargo
+        compiles locally. Nothing arrives through a browser to be suspicious of.
       </p>
     </div>
     <div class="dl">

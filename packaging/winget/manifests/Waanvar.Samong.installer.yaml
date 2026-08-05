@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: Waanvar.Samong
+PackageVersion: 0.3.9
+MinimumOSVersion: 10.0.0.0
+InstallerType: zip
+NestedInstallerType: portable
+InstallModes:
+- silent
+- silentWithProgress
+UpgradeBehavior: uninstallPrevious
+ReleaseDate: 2026-08-05
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/waanvar/samong/releases/download/v0.3.9/samong-v0.3.9-x86_64-windows.zip
+  InstallerSha256: 87F02B16FE4B6BC2F5518D3B743CE0CB9213EEF4B34ACEF84A28342A8D678A65
+  NestedInstallerFiles:
+  - RelativeFilePath: samong-v0.3.9-x86_64-windows\samong.exe
+    PortableCommandAlias: samong
+  - RelativeFilePath: samong-v0.3.9-x86_64-windows\samong-server.exe
+    PortableCommandAlias: samong-server
+  - RelativeFilePath: samong-v0.3.9-x86_64-windows\samong-mcp.exe
+    PortableCommandAlias: samong-mcp
+  - RelativeFilePath: samong-v0.3.9-x86_64-windows\samong-app.exe
+    PortableCommandAlias: samong-app
+ManifestType: installer
+ManifestVersion: 1.6.0
