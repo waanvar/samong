@@ -10,6 +10,30 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.9
+
+The registry entry, third attempt — and the last one to be found out by the
+registry rather than by a check here.
+
+### Fixed
+
+- **MCPB packages must not carry `registryBaseUrl`**; the whole download URL goes
+  in `identifier`. 0.3.8 was rejected for it with a 400. The schema *permits* the
+  field on any package — the registry forbids it on mcpb specifically, in code, so
+  no amount of schema validation would have caught it.
+- Rather than discover the next one the same way, the nine rules the registry
+  applies to mcpb packages are now read out of its own validator source and
+  checked before publishing: no `registryBaseUrl`, HTTPS, `mcp` in the URL, a
+  GitHub or GitLab host, the release-asset path shape, a real digest, and a bundle
+  that actually answers. `--require-published` runs the last two at release time,
+  after the upload, which is exactly when the registry will try them.
+- The validator also tolerates a UTF-8 BOM, since that is what PowerShell writes
+  by default on Windows.
+
+> Both earlier attempts published the **bundle** correctly. `samong-mcp.mcpb` on
+> 0.3.7 and 0.3.8 is a working universal-macOS, Windows and Linux bundle whose
+> checksum verifies; only the registry metadata was refused.
+
 ## 0.3.8
 
 The registry entry v0.3.7 could not publish.

@@ -81,6 +81,13 @@ fn the_bundle_url_satisfies_what_the_registry_requires() {
         package.get("fileSha256").is_none(),
         "fileSha256 belongs to the release, not to the repository"
     );
+
+    // v0.3.8 was rejected for this. The schema permits the field on any package;
+    // the registry forbids it on mcpb specifically, so only a rule here catches it.
+    assert!(
+        package.get("registryBaseUrl").is_none(),
+        "mcpb packages must carry the whole URL in identifier and no registryBaseUrl"
+    );
 }
 
 /// Field limits the registry enforces. `validate-server-json.py` checks the whole

@@ -3,7 +3,7 @@
   "name": "io.github.waanvar/samong",
   "title": "Samong",
   "description": "Search your own Markdown notes, including languages written without spaces between words.",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "websiteUrl": "https://samong.dev",
   "repository": {
     "url": "https://github.com/waanvar/samong",
@@ -12,9 +12,8 @@
   "packages": [
     {
       "registryType": "mcpb",
-      "registryBaseUrl": "https://github.com",
-      "identifier": "https://github.com/waanvar/samong/releases/download/v0.3.8/samong-mcp.mcpb",
-      "version": "0.3.8",
+      "identifier": "https://github.com/waanvar/samong/releases/download/v0.3.9/samong-mcp.mcpb",
+      "version": "0.3.9",
       "transport": {
         "type": "stdio"
       }

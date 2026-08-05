@@ -285,8 +285,11 @@ jobs:
         run: |
           python3 packaging/mcpb/point-server-json.py             server.json             "${TAG#v}"             "$(shasum -a 256 dist/samong-mcp.mcpb | cut -d' ' -f1)"             "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/samong-mcp.mcpb"
 
-      - name: server.json must satisfy the registry schema
-        run: python3 packaging/mcpb/validate-server-json.py server.json
+      # --require-published: the registry fetches the URL itself and refuses an
+      # entry it cannot reach, so this runs after the upload and checks the same
+      # things — reachable bundle, real digest — before the publish is attempted.
+      - name: server.json must satisfy the registry, including the live bundle
+        run: python3 packaging/mcpb/validate-server-json.py server.json --require-published
 
       - name: Publish to the MCP registry
         run: |
