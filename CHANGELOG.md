@@ -10,6 +10,24 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.3.8
+
+The registry entry v0.3.7 could not publish.
+
+### Fixed
+
+- **`server.json`'s description was 170 characters against a limit of 100**, so
+  the MCP registry rejected it with a 422 and the listing never appeared. The
+  bundle itself published fine — `samong-mcp.mcpb` is attached to 0.3.7, its
+  macOS binary is universal, and its checksum verifies. Only the metadata was
+  wrong.
+- The limit was in the published schema the whole time
+  (`ServerDetail.description.maxLength`). It was missed because the schema had
+  been read for enumerations rather than validated against, so
+  **`server.json` is now checked against the schema it names** — in CI, and again
+  in the release workflow before anything is published. The two field limits that
+  actually bit are asserted offline by a test as well.
+
 ## 0.3.7
 
 Listed in the official MCP registry, and installable without a Rust toolchain.

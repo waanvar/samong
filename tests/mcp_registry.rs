@@ -83,6 +83,29 @@ fn the_bundle_url_satisfies_what_the_registry_requires() {
     );
 }
 
+/// Field limits the registry enforces. `validate-server-json.py` checks the whole
+/// document against the published schema, but it needs the network; these are the
+/// two that actually bit, so they fail here too, offline, in one second.
+#[test]
+fn the_fields_stay_within_the_registry_limits() {
+    let doc = server_json();
+    let description = doc["description"]
+        .as_str()
+        .expect("description is a string");
+    assert!(
+        description.chars().count() <= 100,
+        "the registry rejects a description over 100 characters — this is {}          (v0.3.7 was rejected for exactly this)",
+        description.chars().count()
+    );
+    assert!(!description.is_empty());
+
+    let title = doc["title"].as_str().expect("title is a string");
+    assert!(title.chars().count() <= 100 && !title.is_empty());
+
+    let name = doc["name"].as_str().unwrap();
+    assert!((3..=200).contains(&name.chars().count()));
+}
+
 /// The bundle manifest promises a tool list to clients that browse the registry.
 /// It has to be the tools the server really exposes.
 #[test]

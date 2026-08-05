@@ -285,6 +285,9 @@ jobs:
         run: |
           python3 packaging/mcpb/point-server-json.py             server.json             "${TAG#v}"             "$(shasum -a 256 dist/samong-mcp.mcpb | cut -d' ' -f1)"             "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/samong-mcp.mcpb"
 
+      - name: server.json must satisfy the registry schema
+        run: python3 packaging/mcpb/validate-server-json.py server.json
+
       - name: Publish to the MCP registry
         run: |
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_darwin_arm64.tar.gz"             | tar xz mcp-publisher

@@ -110,6 +110,12 @@ jobs:
       - name: Dry-run the publish
         run: cargo publish --dry-run --locked --allow-dirty
 
+      # v0.3.7's registry publish was rejected for a description of 168 characters
+      # against a documented limit of 100. The limit was in the schema all along;
+      # reading a schema is not validating against it.
+      - name: server.json must satisfy the registry schema
+        run: python3 packaging/mcpb/validate-server-json.py server.json
+
   web:
     runs-on: ubuntu-latest
     steps:
