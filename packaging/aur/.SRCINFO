@@ -1,0 +1,17 @@
+pkgbase = samong-bin
+	pkgdesc = Local-first, Obsidian-compatible knowledge base with full-text search that handles languages written without spaces between words
+	pkgver = 0.3.9
+	pkgrel = 1
+	url = https://samong.dev
+	arch = x86_64
+	license = Apache-2.0
+	depends = gcc-libs
+	depends = glibc
+	provides = samong
+	conflicts = samong
+	options = !strip
+	options = !debug
+	source = samong-v0.3.9-x86_64-linux.tar.gz::https://github.com/waanvar/samong/releases/download/v0.3.9/samong-v0.3.9-x86_64-linux.tar.gz
+	sha256sums = f943abce6ebeca885530729fb98dab48b52774bc5a065a8ada91d46aa3748d07
+
+pkgname = samong-bin

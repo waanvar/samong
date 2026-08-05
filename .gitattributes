@@ -1,0 +1,19 @@
+# Files that break, rather than merely look odd, if they arrive with CRLF.
+#
+# Deliberately narrow: no `* text=auto`, because that would renormalise the whole
+# repository in one commit and bury real changes. Only the paths where a carriage
+# return changes behaviour are pinned.
+#
+# The AUR is the sharp case. `.SRCINFO` is compared byte-for-byte against a fresh
+# `makepkg --printsrcinfo` in CI, and a PKGBUILD with CRLF fails on Arch in ways
+# that read as a packaging bug rather than a line-ending one. This repository is
+# developed on Windows, where git hands the working copy CRLF by default, so
+# without this the correctness of these files depends on each contributor's
+# core.autocrlf setting.
+packaging/aur/.SRCINFO  text eol=lf
+packaging/aur/PKGBUILD  text eol=lf
+*.sh                    text eol=lf
+
+# Rasterised brand assets and the share card: binary, never touched by eol rules.
+*.png                   binary
+*.woff2                 binary
