@@ -266,3 +266,11 @@ jobs:
       - name: Build (includes type-check)
         working-directory: web
         run: npm run build
+
+      # The share card is served from a versioned filename so that Facebook and X
+      # refetch it instead of serving their cached copy. The cost of that is a new
+      # way to fail silently: bump the tag, forget the PNG, and the page still
+      # returns 200 while every shared link goes back to being bare text. Nothing
+      # else here reads those tags.
+      - name: Every og:image the page promises must exist, at the size claimed
+        run: python3 packaging/site/make-social-card.py --meta-only

@@ -5,18 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Samong — you already solved this once</title>
 <meta name="description" content="A local-first knowledge base for the notes already in your repositories. Search finds them; every AI tool you use can read them. No account, no cloud, one binary.">
+<link rel="canonical" href="https://samong.dev/">
+<meta name="theme-color" content="#0d1014">
+
+<!-- ===========================================================================
+     The share card.
+
+     A shared link showed as bare text for as long as this page existed, because
+     until 2026-08-05 there was no og:image at all. Adding one does not fix the
+     links already shared: Facebook and X cache per URL and hold it for a long
+     time, and nothing here can purge their copy. What does force a refetch is a
+     URL they have never seen — which is why the file is versioned rather than
+     overwritten in place. Bump the filename and this tag together, via
+     packaging/site/make-social-card.py.
+
+     twitter:* are spelled out rather than left to fall back to og:*. The
+     fallback does work, but it is the kind of thing that quietly stops working
+     and cannot be noticed from here.
+     ======================================================================== -->
+<meta property="og:site_name" content="Samong">
+<meta property="og:locale" content="en">
 <meta property="og:title" content="Samong — you already solved this once">
-<meta property="og:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with.">
+<meta property="og:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with. No account, no cloud, one binary.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://samong.dev/">
-<!-- Absolute, because a crawler resolves this without the page's base URL. The
-     card is generated from the same mark and wordmark the app draws — see
-     brand/social-preview.svg, which is what the PNG was rasterised from. -->
-<meta property="og:image" content="https://samong.dev/brand/social-preview.png">
+<!-- Absolute, because a crawler resolves this without the page's base URL. -->
+<meta property="og:image" content="https://samong.dev/brand/social-preview-v2.png">
+<meta property="og:image:secure_url" content="https://samong.dev/brand/social-preview-v2.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="Samong — a local-first knowledge base. Your notes stay on your machine.">
+<meta property="og:image:alt" content="Samong — a local-first knowledge base. Your notes never leave the machine.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Samong — you already solved this once">
+<meta name="twitter:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with. No account, no cloud, one binary.">
+<meta name="twitter:image" content="https://samong.dev/brand/social-preview-v2.png">
+<meta name="twitter:image:alt" content="Samong — a local-first knowledge base. Your notes never leave the machine.">
 <link rel="icon" type="image/svg+xml" href="brand/samong-mark.svg">
 <link rel="apple-touch-icon" href="brand/samong-mark.svg">
 
@@ -151,11 +175,35 @@ code, .mono { font-family: var(--mono); font-size: 0.88em; }
 
 /* ---------- hero ---------- */
 
-.hero { position: relative; padding: clamp(2.2rem, 6vw, 4.5rem) 0 0; }
-/* Ambient field: the subject's own material, at a density that reads as texture
-   rather than decoration. Painted on the canvas we already need, so it costs no
-   dependency and stops entirely when motion is not wanted. */
-#ambient { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .5; }
+/* The bottom padding is not symmetry for its own sake. The demo card is the
+   tallest thing in the hero, so it sets the hero's height — with no bottom
+   padding its 14px rounded corner landed exactly on the next section's
+   border-top (both at 641px, measured), and a rounded rectangle touching a
+   1px rule reads as a mistake rather than a boundary. */
+.hero { position: relative; padding: clamp(2.2rem, 6vw, 4.5rem) 0 clamp(3rem, 7vw, 5.5rem); }
+/* Ambient field: the subject's own material — nodes, the links between them, and
+   retrieval moving along those links. It bleeds past the hero's bottom edge so
+   the field fades out rather than being cut off by the divider; the hero's own
+   padding is what keeps it clear of the content. */
+#ambient { position: absolute; inset: 0 0 -12% 0; width: 100%; height: 112%; z-index: 0; pointer-events: none; }
+/* The field is allowed to be bright now, so it has to be told where not to be.
+   A mask opens a soft hole over the headline and lede — the one place a moving
+   background costs legibility — and lets it come up to full strength at the top,
+   in the page margins and in the band beneath the demo card, which is where
+   there is nothing to compete with. Transparent hides, opaque shows. */
+#ambient {
+  -webkit-mask-image: radial-gradient(115% 78% at 20% 42%, transparent 0%, transparent 22%, rgba(0,0,0,.42) 46%, rgba(0,0,0,.82) 68%, #000 88%);
+          mask-image: radial-gradient(115% 78% at 20% 42%, transparent 0%, transparent 22%, rgba(0,0,0,.42) 46%, rgba(0,0,0,.82) 68%, #000 88%);
+}
+@media (max-width: 940px) {
+  /* Stacked, the text runs the full width and the card sits under it, so a hole
+     placed for a two-column hero would land in the wrong place. Fade downward
+     instead: quiet where the words are, open where the card and the CTAs are. */
+  #ambient {
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.55) 0%, transparent 18%, transparent 34%, #000 68%);
+            mask-image: linear-gradient(180deg, rgba(0,0,0,.55) 0%, transparent 18%, transparent 34%, #000 68%);
+  }
+}
 .hero-grid { position: relative; z-index: 1; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 46ch) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
 @media (max-width: 940px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
@@ -587,62 +635,281 @@ no ambiguous titles among project notes</pre>
      Ambient field behind the hero.
 
      Not an effect looking for a home: it is the same material the product is
-     made of — nodes and the links between them — at a density low enough to read
-     as texture. Drifts at a few pixels a second, pauses when the tab is hidden,
-     and is never drawn at all when reduced motion is asked for.
+     made of. The previous version was honest about that and still failed, because
+     it was drawn too faintly to be seen — grey dots under two stacked half-alphas
+     at a radius under two pixels. Something invisible is not restraint, it is
+     just cost.
+
+     So it now has three things it did not have:
+
+       depth — points sit on a near/far axis and their size, brightness and speed
+               all follow from it, which is what makes a flat plane of dots read
+               as a space you are looking into;
+       colour — the vault hues the product itself assigns to note collections,
+               so the field is recognisably Samong's rather than generic;
+       propagation — a bead of light travels a link, arrives, and sometimes
+               carries on through the next one. That is the product's actual
+               subject: a question moving through what you already know.
+
+     Motion is in pixels per second against the frame clock, not per frame, so a
+     144Hz display does not run the field two and a half times fast. It pauses
+     when the tab is hidden, and under prefers-reduced-motion it draws exactly one
+     frame — the texture without the movement, which is what that setting asks
+     for. Drawing nothing, as before, threw away the design for no benefit.
      ------------------------------------------------------------------ */
   const amb = document.getElementById("ambient");
-  if (amb && !reduce) {
+  if (amb) {
     const actx = amb.getContext("2d");
-    let pts = [], raf = 0;
-    const seed = () => {
-      const w = amb.clientWidth, h = amb.clientHeight, dpr = devicePixelRatio || 1;
-      amb.width = w * dpr; amb.height = h * dpr;
-      actx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.min(46, Math.round((w * h) / 17000));
-      pts = Array.from({ length: count }, () => ({
-        x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.11, vy: (Math.random() - 0.5) * 0.11,
-        r: 0.8 + Math.random() * 1.5,
-      }));
+
+    /* Density and reach are a pair, and the first attempt got the pair wrong:
+       40 points across a 1280x740 hero is one per 23,700px², an average spacing
+       of ~154px, which is almost exactly the 168px link range — so hardly any
+       point had a neighbour and the field read as scattered dust rather than a
+       network. At one per 9,000px² the spacing falls to ~122px and each point
+       carries four or five links, which is a constellation without being a
+       hairball. The distance test stays O(n²), but 64 points is 2,016 checks a
+       frame: nothing next to the fills. */
+    const LINK_DIST = 150;    // px; beyond this two points are not related
+    const HUE_VARS = ["--v1", "--v2", "--v3", "--v4"];
+    let hues = ["#4a7fd4", "#c47b16", "#a35fc4", "#0f9b7e"], lit = "#d8f24a";
+
+    let pts = [], clouds = [], pulses = [], raf = 0, last = 0, spawnIn = 0.6;
+    const ptr = { x: -9e9, y: -9e9, live: false };
+
+    // Resolved once rather than per frame: getComputedStyle in a paint loop is
+    // the classic way to make a canvas animation cost more than it looks.
+    const readColours = () => {
+      const cs = getComputedStyle(document.documentElement);
+      const got = HUE_VARS.map(v => cs.getPropertyValue(v).trim()).filter(Boolean);
+      if (got.length === HUE_VARS.length) hues = got;
+      lit = cs.getPropertyValue("--found").trim() || lit;
     };
-    const step = () => {
+
+    const seed = () => {
+      const w = amb.clientWidth, h = amb.clientHeight;
+      if (!w || !h) return;
+      // Capped: past 2x the extra pixels are invisible and the fill cost is not.
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      amb.width = Math.round(w * dpr);
+      amb.height = Math.round(h * dpr);
+      actx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const count = Math.max(14, Math.min(64, Math.round((w * h) / 9000)));
+      pts = Array.from({ length: count }, () => {
+        // Biased toward the far plane, so the few that come forward are events.
+        const z = Math.pow(Math.random(), 1.8);
+        const speed = 4 + z * 11;
+        const a = Math.random() * Math.PI * 2;
+        return {
+          x: Math.random() * w, y: Math.random() * h, z,
+          vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+          r: 1.8 + z * 5.4,
+          hue: hues[(Math.random() * hues.length) | 0],
+          // Independent breathing, so the field is never uniformly still.
+          phase: Math.random() * Math.PI * 2,
+          glow: 0,
+        };
+      });
+
+      // Three very large, very dim drifting glows. Points and links alone give a
+      // network but a flat one; these give it air to sit in, which is most of
+      // what separates "dots on a background" from "a space with depth". They
+      // cost three radial gradients a frame, which is nothing, and they are
+      // faint enough (5%) that they never read as blobs.
+      clouds = Array.from({ length: 3 }, (_, i) => {
+        const a = Math.random() * Math.PI * 2;
+        return {
+          x: w * (0.2 + 0.3 * i), y: h * (0.25 + 0.25 * (i % 2)),
+          vx: Math.cos(a) * 5, vy: Math.sin(a) * 5,
+          r: Math.min(w, h) * (0.42 + Math.random() * 0.3),
+          hue: hues[(i + 1) % hues.length],
+        };
+      });
+      pulses = [];
+    };
+
+    // A pulse walks the graph: two node indices, a position along the edge, and
+    // a hop budget so it eventually stops rather than wandering for ever.
+    const spawnPulse = () => {
+      if (pts.length < 2 || pulses.length >= 6) return;
+      const from = (Math.random() * pts.length) | 0;
+      const near = [];
+      for (let i = 0; i < pts.length; i++) {
+        if (i === from) continue;
+        if (Math.hypot(pts[i].x - pts[from].x, pts[i].y - pts[from].y) < LINK_DIST) near.push(i);
+      }
+      if (!near.length) return;
+      pulses.push({ from, to: near[(Math.random() * near.length) | 0], t: 0, hops: 2 + ((Math.random() * 3) | 0) });
+    };
+
+    // On arrival, continue through a different link if the budget allows —
+    // this is the bit that reads as a query propagating rather than a loose spark.
+    const hop = (p) => {
+      if (--p.hops <= 0) return false;
+      const near = [];
+      for (let i = 0; i < pts.length; i++) {
+        if (i === p.to || i === p.from) continue;
+        if (Math.hypot(pts[i].x - pts[p.to].x, pts[i].y - pts[p.to].y) < LINK_DIST) near.push(i);
+      }
+      if (!near.length) return false;
+      p.from = p.to;
+      p.to = near[(Math.random() * near.length) | 0];
+      p.t = 0;
+      return true;
+    };
+
+    const draw = (dt, t) => {
       const w = amb.clientWidth, h = amb.clientHeight;
       actx.clearRect(0, 0, w, h);
-      for (const p of pts) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
+
+      // Air first, everything else inside it.
+      for (const c of clouds) {
+        c.x += c.vx * dt; c.y += c.vy * dt;
+        if (c.x < -c.r * 0.5 || c.x > w + c.r * 0.5) c.vx *= -1;
+        if (c.y < -c.r * 0.5 || c.y > h + c.r * 0.5) c.vy *= -1;
+        const g = actx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+        g.addColorStop(0, c.hue);
+        g.addColorStop(1, "transparent");
+        actx.globalAlpha = 0.05;
+        actx.fillStyle = g;
+        actx.beginPath();
+        actx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        actx.fill();
       }
-      actx.strokeStyle = "#39414e";
-      actx.lineWidth = 0.6;
+
+      for (const p of pts) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        // Wrap rather than bounce. Bouncing makes the frame edges legible as
+        // walls; wrapping keeps the field feeling wider than the window.
+        const m = p.r + 4;
+        if (p.x < -m) p.x = w + m; else if (p.x > w + m) p.x = -m;
+        if (p.y < -m) p.y = h + m; else if (p.y > h + m) p.y = -m;
+
+        // The pointer pushes points gently aside and lights them as it passes.
+        if (ptr.live) {
+          const dx = p.x - ptr.x, dy = p.y - ptr.y;
+          const d = Math.hypot(dx, dy);
+          if (d < 150 && d > 0.5) {
+            const f = (1 - d / 150);
+            p.x += (dx / d) * f * f * 26 * dt;
+            p.y += (dy / d) * f * f * 26 * dt;
+            p.glow = Math.max(p.glow, f);
+          }
+        }
+        p.glow *= Math.pow(0.12, dt);   // decay, framerate-independent
+      }
+
+      // Links. One pass, drawn under everything, coloured by the nearer of the
+      // two points so the depth reads in the lines as well as the dots.
+      actx.lineWidth = 1;
       for (let i = 0; i < pts.length; i++) {
         for (let j = i + 1; j < pts.length; j++) {
-          const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-          if (d > 128) continue;
-          actx.globalAlpha = (1 - d / 128) * 0.3;
+          const a = pts[i], b = pts[j];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d > LINK_DIST) continue;
+          const near = a.z > b.z ? a : b;
+          const closeness = 1 - d / LINK_DIST;
+          actx.globalAlpha = closeness * (0.13 + near.z * 0.34) + Math.max(a.glow, b.glow) * 0.35;
+          actx.strokeStyle = near.hue;
           actx.beginPath();
-          actx.moveTo(pts[i].x, pts[i].y);
-          actx.lineTo(pts[j].x, pts[j].y);
+          actx.moveTo(a.x, a.y);
+          actx.lineTo(b.x, b.y);
           actx.stroke();
         }
       }
-      actx.fillStyle = "#8792a3";
-      for (const p of pts) {
-        actx.globalAlpha = 0.5;
+
+      // Pulses: a lit head with a short trail back along the edge it is crossing.
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const p = pulses[i];
+        const a = pts[p.from], b = pts[p.to];
+        if (!a || !b) { pulses.splice(i, 1); continue; }
+        const d = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        p.t += (110 / d) * dt;          // constant speed in px/s, not per-edge
+        if (p.t >= 1 && !hop(p)) { pulses.splice(i, 1); continue; }
+        const tt = Math.min(p.t, 1);
+        const x = a.x + (b.x - a.x) * tt, y = a.y + (b.y - a.y) * tt;
+        const tail = Math.max(0, tt - 0.34);
+
+        actx.globalAlpha = 0.6;
+        actx.strokeStyle = lit;
+        actx.lineWidth = 1.6;
         actx.beginPath();
-        actx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        actx.moveTo(a.x + (b.x - a.x) * tail, a.y + (b.y - a.y) * tail);
+        actx.lineTo(x, y);
+        actx.stroke();
+
+        actx.globalAlpha = 0.95;
+        actx.fillStyle = lit;
+        actx.shadowColor = lit;
+        actx.shadowBlur = 14;
+        actx.beginPath();
+        actx.arc(x, y, 2.7, 0, Math.PI * 2);
         actx.fill();
+        actx.shadowBlur = 0;
+      }
+
+      // Nodes last, so a bright point is never crossed by its own links.
+      for (const p of pts) {
+        const breathe = 0.86 + Math.sin(t * 0.7 + p.phase) * 0.14;
+        const r = p.r * breathe * (1 + p.glow * 0.5);
+        actx.globalAlpha = Math.min(1, (0.3 + p.z * 0.62) * breathe + p.glow * 0.5);
+        actx.fillStyle = p.glow > 0.25 ? lit : p.hue;
+        // Glow only on the near plane and under the cursor — a blur on all forty
+        // points is both expensive and muddy.
+        actx.shadowBlur = (p.z > 0.62 || p.glow > 0.2) ? 8 + p.z * 12 + p.glow * 10 : 0;
+        actx.shadowColor = actx.fillStyle;
+        actx.beginPath();
+        actx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        actx.fill();
+        actx.shadowBlur = 0;
       }
       actx.globalAlpha = 1;
+    };
+
+    const step = (now) => {
+      // Clamped: a backgrounded tab or a slow first paint would otherwise deliver
+      // one enormous dt and teleport the whole field.
+      const dt = Math.min((now - last) / 1000 || 0, 0.05);
+      last = now;
+      if ((spawnIn -= dt) <= 0) { spawnPulse(); spawnIn = 0.45 + Math.random() * 1.1; }
+      draw(dt, now / 1000);
       raf = requestAnimationFrame(step);
     };
-    seed(); step();
-    addEventListener("resize", seed);
-    document.addEventListener("visibilitychange", () => {
-      cancelAnimationFrame(raf);
-      if (!document.hidden) raf = requestAnimationFrame(step);
-    });
+
+    readColours();
+    seed();
+    if (reduce) {
+      draw(0, 0);                       // the texture, held still
+    } else {
+      last = performance.now();
+      raf = requestAnimationFrame(step);
+
+      const hero = document.querySelector(".hero");
+      if (hero) {
+        hero.addEventListener("pointermove", e => {
+          const b = amb.getBoundingClientRect();
+          ptr.x = e.clientX - b.left; ptr.y = e.clientY - b.top; ptr.live = true;
+        }, { passive: true });
+        hero.addEventListener("pointerleave", () => { ptr.live = false; });
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        cancelAnimationFrame(raf);
+        if (!document.hidden) { last = performance.now(); raf = requestAnimationFrame(step); }
+      });
+    }
+
+    // A ResizeObserver rather than a window resize listener, because `seed`
+    // gives up when the canvas measures zero and only a size change can undo
+    // that — and a canvas can be zero-width at first layout for reasons the
+    // window never hears about. This fires on the element itself, so it covers
+    // the window case and that one too.
+    let resizeT = 0;
+    new ResizeObserver(() => {
+      clearTimeout(resizeT);
+      resizeT = setTimeout(() => { seed(); if (reduce) draw(0, 0); }, 150);
+    }).observe(amb);
   }
 
   /* ------------------------------------------------------------------
@@ -724,8 +991,49 @@ no ambiguous titles among project notes</pre>
       for (const n of nodes) {
         n.x += (cx - n.x) * 0.004;
         n.y += (cy - n.y) * 0.006;
-        n.x = Math.max(58, Math.min(w - 58, n.x));
-        n.y = Math.max(26, Math.min(h - 26, n.y));
+        // The horizontal margin used to be 58px, reserving room for a label that
+        // now flips side when it runs out of room — so the graph gets that width
+        // back. The vertical margin covers the largest node's radius plus its
+        // 16px glow, which the old 26px did not quite clear.
+        n.x = Math.max(34, Math.min(w - 34, n.x));
+        n.y = Math.max(30, Math.min(h - 30, n.y));
+      }
+    }
+
+    /* Recentre on what was actually produced.
+       The relaxation is seeded by group — group 0 starts to the right of centre,
+       and it is the largest group — while the pull back toward the middle is
+       0.004 per pass against springs targeting 59px. The result was a graph
+       bunched into the right of the card with the left third empty. Rather than
+       tune four constants against each other, measure the bounding box at the
+       end and move it to the middle, then take up any slack with a modest
+       uniform scale. Capped at 1.3 because a layout stretched to fill exactly
+       stops looking like a graph and starts looking like a poster. */
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of nodes) {
+      if (n.x < x0) x0 = n.x;
+      if (n.x > x1) x1 = n.x;
+      if (n.y < y0) y0 = n.y;
+      if (n.y > y1) y1 = n.y;
+    }
+    const bw = x1 - x0, bh = y1 - y0;
+    if (bw > 1 && bh > 1) {
+      /* Fitted per axis, not uniformly. The relaxation produces a roughly round
+         cloud while the canvas is about 1.8:1, so a single scale is decided by
+         the tighter axis — height — and came out at 0.98, leaving the left third
+         of the card empty while claiming to have fitted. Two scales use the
+         width that is there. Edges stay straight under a linear map and the
+         nodes are drawn as circles regardless, so the only real risk is looking
+         stretched: hence a cap on each axis and on the ratio between them. */
+      let kx = Math.min(1.45, (w - 68) / bw);
+      let ky = Math.min(1.45, (h - 60) / bh);
+      const ratio = 1.5;
+      if (kx > ky * ratio) kx = ky * ratio;
+      if (ky > kx * ratio) ky = kx * ratio;
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+      for (const n of nodes) {
+        n.x = w / 2 + (n.x - mx) * kx;
+        n.y = h / 2 + (n.y - my) * ky;
       }
     }
   }
@@ -769,7 +1077,13 @@ no ambiguous titles among project notes</pre>
       ctx.shadowBlur = 0;
       if (on || hover === i || !matched && n.degree > 3) {
         ctx.fillStyle = on || hover === i ? ink : mute;
-        ctx.fillText(n.label, n.x + r + 5, n.y);
+        // Labels sit to the right of their node until that would take them off
+        // the canvas, then they flip to the left. Clamping the node position
+        // alone cannot fix this: "incident 2024-11" is wider than any margin
+        // worth reserving, so the label has to be the thing that moves.
+        const tw = ctx.measureText(n.label).width;
+        const gap = r + 5;
+        ctx.fillText(n.label, n.x + gap + tw > w - 6 ? n.x - gap - tw : n.x + gap, n.y);
       }
     });
     ctx.globalAlpha = 1;
