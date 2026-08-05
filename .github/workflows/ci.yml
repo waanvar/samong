@@ -175,6 +175,79 @@ jobs:
           Pop-Location
           "search and Thai segmentation work through the winget install"
 
+  # The AUR package, built and installed inside an Arch container.
+  #
+  # `.SRCINFO` is what the AUR actually parses to show a package's version, and it
+  # can only be produced by `makepkg --printsrcinfo` — which needs Arch. A PKGBUILD
+  # updated without regenerating it is the classic AUR mistake: the site keeps
+  # advertising the old version. So it is regenerated here and compared.
+  #
+  # Docker rather than a `container:` job, so `actions/checkout` runs on the host
+  # and nothing depends on the Arch image happening to satisfy the runner's needs.
+  aur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build, inspect and install the package
+        run: |
+          docker run --rm -v "$PWD:/work" archlinux:base-devel bash -euo pipefail -c '
+            pacman -Syu --noconfirm --needed namcap python git >/dev/null
+
+            # makepkg refuses to run as root, so the package is built by a user.
+            useradd -m builder
+            cp -r /work/packaging/aur /home/builder/pkg
+            chown -R builder:builder /home/builder/pkg
+
+            sudo -u builder bash -euo pipefail -c "
+              cd /home/builder/pkg
+
+              python generate.py --check
+
+              makepkg --printsrcinfo > .SRCINFO.generated
+              if [ ! -f .SRCINFO ]; then
+                echo \"::error::.SRCINFO is missing. Commit this, produced by makepkg --printsrcinfo:\"
+                echo \"--- 8< ---\"; cat .SRCINFO.generated; echo \"--- >8 ---\"
+                exit 1
+              fi
+              if ! diff -u .SRCINFO .SRCINFO.generated; then
+                echo \"::error::.SRCINFO does not match the PKGBUILD. The AUR reads .SRCINFO, so it would advertise the wrong version. Correct content is above as the + side.\"
+                exit 1
+              fi
+              echo \".SRCINFO matches the PKGBUILD\"
+
+              # Downloads the release archive and verifies it against sha256sums.
+              makepkg -f --noconfirm
+            "
+
+            cd /home/builder/pkg
+            namcap PKGBUILD
+            namcap ./*.pkg.tar.zst
+            pacman -U --noconfirm ./*.pkg.tar.zst
+
+            for b in samong samong-server samong-mcp samong-app; do
+              command -v "$b" >/dev/null || { echo "::error::$b not installed"; exit 1; }
+              echo "  $b -> $(command -v $b)"
+            done
+            samong --version
+            samong-server --version
+            test -f /usr/share/applications/samong.desktop
+            test -f /usr/share/licenses/samong-bin/LICENSE
+            echo "desktop entry and licence installed"
+
+            # What the program is for, not just that it starts. The Thai line only
+            # matches if the word-segmentation dictionary was compiled in.
+            export SAMONG_CONFIG_DIR=/tmp/samong-config
+            mkdir -p /tmp/vault && cd /tmp/vault
+            printf "# Runbook\n\nwhen the queue backs up, drain it\n\nSee [[Escalation]].\n" > Runbook.md
+            printf "# Escalation\n\nwake the on-call\n" > Escalation.md
+            printf "# Thai\n\nสถาบันวิจัยแห่งประเทศไทยประกาศผลการศึกษา\n" > Thai.md
+            samong search queue | grep -q Runbook || { echo "::error::search did not find the note"; exit 1; }
+            samong links Runbook | grep -q Escalation || { echo "::error::the wikilink did not resolve"; exit 1; }
+            samong search ประเทศไทย | grep -q Thai || { echo "::error::Thai segmentation failed — is the dictionary in the binary?"; exit 1; }
+            echo "search, links and Thai segmentation all work from the installed package"
+          '
+
   web:
     runs-on: ubuntu-latest
     steps:

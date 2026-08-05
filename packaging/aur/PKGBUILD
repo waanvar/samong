@@ -1,0 +1,49 @@
+# Maintainer: waanvar <waanvar@gmail.com>
+#
+# samong-bin: the published release archive, not a source build. Compiling Samong
+# needs a Rust toolchain and Node to build the web UI that gets embedded into the
+# binary, which is a lot to ask of someone who wants to try a note-taking tool.
+#
+# pkgver and sha256sums are rewritten by packaging/aur/generate.py from the
+# .sha256 file each release publishes. Editing them by hand means the package
+# silently lags upstream.
+pkgname=samong-bin
+_archive=samong-v0.3.9-x86_64-linux
+pkgver=0.3.9
+pkgrel=1
+pkgdesc="Local-first, Obsidian-compatible knowledge base with full-text search that handles languages written without spaces between words"
+arch=('x86_64')
+url="https://samong.dev"
+license=('Apache-2.0')
+depends=('gcc-libs' 'glibc')
+provides=('samong')
+conflicts=('samong')
+# Prebuilt binaries: there is nothing to strip that upstream has not already
+# decided about, and stripping a shipped artefact makes it differ from the one
+# whose checksum was published.
+options=('!strip' '!debug')
+source=("$_archive.tar.gz::https://github.com/waanvar/samong/releases/download/v$pkgver/$_archive.tar.gz")
+sha256sums=('f943abce6ebeca885530729fb98dab48b52774bc5a065a8ada91d46aa3748d07')
+
+package() {
+  cd "$srcdir/$_archive"
+
+  install -Dm755 samong "$pkgdir/usr/bin/samong"
+  install -Dm755 samong-server "$pkgdir/usr/bin/samong-server"
+  install -Dm755 samong-mcp "$pkgdir/usr/bin/samong-mcp"
+  install -Dm755 samong-app "$pkgdir/usr/bin/samong-app"
+
+  # The archive already carries a .desktop file, so the launcher appears in the
+  # application menu rather than only working from a terminal — which is the whole
+  # point of samong-app existing.
+  install -Dm644 samong.desktop "$pkgdir/usr/share/applications/samong.desktop"
+
+  # Apache-2.0 requires attribution to travel with the binaries, and THIRD-PARTY.md
+  # carries the notices for the Thai dictionary compiled into them.
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 NOTICE "$pkgdir/usr/share/licenses/$pkgname/NOTICE"
+  install -Dm644 THIRD-PARTY.md "$pkgdir/usr/share/licenses/$pkgname/THIRD-PARTY.md"
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 DOUBLE-CLICK.md "$pkgdir/usr/share/doc/$pkgname/DOUBLE-CLICK.md"
+}

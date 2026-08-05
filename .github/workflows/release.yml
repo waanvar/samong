@@ -360,3 +360,84 @@ jobs:
           # request against microsoft/winget-pkgs.
           Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
           .\wingetcreate.exe submit --token $env:WINGET_TOKEN packaging\winget\manifests
+
+  # The AUR package. Built and installed in an Arch container before anything is
+  # pushed, because the AUR has no review queue — whatever lands there is what the
+  # next person installs.
+  #
+  # Pushing needs an AUR account with an SSH key registered to it, held as an
+  # AUR_SSH_KEY secret. Without it the job builds, verifies, and says it did not
+  # push: the same reasoning as winget, where a missing submission is a decision
+  # rather than a silent drift.
+  aur:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Is there a key to push with?
+        id: gate
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          if [ -n "$AUR_SSH_KEY" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no AUR_SSH_KEY secret, so the AUR package was built and checked but not pushed. See packaging/aur/README.md to push by hand."
+          fi
+
+      # PKGBUILD and .SRCINFO are regenerated for this tag and the package is built
+      # from the archive this release just published, so the checksum is checked
+      # against the real artefact rather than a promise about it.
+      - name: Build the package for this release
+        run: |
+          docker run --rm -v "$PWD:/work" -e TAG="$TAG" archlinux:base-devel bash -euo pipefail -c '
+            pacman -Syu --noconfirm --needed namcap python git openssh >/dev/null
+            useradd -m builder
+            cp -r /work/packaging/aur /home/builder/pkg
+            chown -R builder:builder /home/builder/pkg
+            sudo -u builder bash -euo pipefail -c "
+              cd /home/builder/pkg
+              python generate.py --version \"${TAG#v}\"
+              makepkg --printsrcinfo > .SRCINFO
+              makepkg -f --noconfirm
+            "
+            cd /home/builder/pkg
+            namcap PKGBUILD
+            pacman -U --noconfirm ./*.pkg.tar.zst
+            samong --version
+            samong-server --version
+            # Only the two files the AUR wants, copied back out for the push step.
+            mkdir -p /work/aur-out
+            cp PKGBUILD .SRCINFO /work/aur-out/
+          '
+          echo "--- PKGBUILD ---"; cat aur-out/PKGBUILD
+          echo "--- .SRCINFO ---"; cat aur-out/.SRCINFO
+
+      - name: Push to the AUR
+        if: steps.gate.outputs.push == 'true'
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
+
+          git clone ssh://aur@aur.archlinux.org/samong-bin.git aur-repo
+          # Only these two files belong in an AUR repository.
+          cp aur-out/PKGBUILD aur-out/.SRCINFO aur-repo/
+          cd aur-repo
+          if git diff --quiet; then
+            echo "::notice::the AUR already has ${TAG#v}"
+            exit 0
+          fi
+          git config user.name "waanvar"
+          git config user.email "waanvar@gmail.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "samong-bin ${TAG#v}"
+          git push

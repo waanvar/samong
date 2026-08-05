@@ -72,8 +72,11 @@ scoop bucket add samong https://github.com/waanvar/scoop-samong
 scoop install samong
 ```
 
-A winget submission is prepared but not yet accepted; `packaging/winget/` has the
-manifests and CI installs from them on every push.
+**Arch Linux** — `paru -S samong-bin`, once the package is submitted. Until then
+`packaging/aur/` builds it: `cd packaging/aur && makepkg -si`.
+
+A winget submission is likewise prepared but not yet accepted; `packaging/winget/`
+has the manifests. CI installs from both on every push.
 
 **No Gatekeeper prompt, no SmartScreen warning.** Both fetch the archive
 themselves and verify it against the SHA-256 published beside it. Nothing arrives
