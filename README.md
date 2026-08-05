@@ -60,6 +60,12 @@ cargo install samong
 
 Builds all four binaries with the web UI inside them. Needs Rust 1.88 or newer.
 
+> Publishing this crate needs `cargo publish --allow-dirty`: the web UI is
+> embedded at compile time from `web/dist`, which is gitignored yet deliberately
+> included in the package, so `cargo` sees 55 files git does not track.
+> `packaging/check-publish-tree.sh` runs first and refuses if anything *outside*
+> `web/dist` is uncommitted, so the flag cannot quietly ship source edits.
+
 ### Just open it
 
 Download, extract, **double-click**:

@@ -107,6 +107,13 @@ jobs:
           [ "$n" -gt 0 ] || { echo "::error::no built assets in the package"; exit 1; }
           echo "package carries the UI: $n asset file(s)"
 
+      # `--allow-dirty` is unavoidable — `include` deliberately packages the
+      # gitignored `web/dist` — so prove first that the *only* dirty paths are
+      # that generated UI. Without this the flag hides uncommitted source edits,
+      # which is the warning it exists to give.
+      - name: Nothing dirty except the built UI
+        run: bash packaging/check-publish-tree.sh
+
       - name: Dry-run the publish
         run: cargo publish --dry-run --locked --allow-dirty
 

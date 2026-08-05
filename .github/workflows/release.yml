@@ -232,7 +232,13 @@ jobs:
       - name: Publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --locked
+        run: |
+          # Same reasoning as CI: the built UI is packaged on purpose and is
+          # gitignored, so `cargo publish` needs --allow-dirty. Checked first so
+          # the flag cannot smuggle anything else out. Without --allow-dirty this
+          # step fails with "55 files ... not yet committed".
+          bash packaging/check-publish-tree.sh
+          cargo publish --locked --allow-dirty
 
   # The MCP bundle, and the registry entry that points at it.
   #
