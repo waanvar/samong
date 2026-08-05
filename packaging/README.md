@@ -46,3 +46,24 @@ the GUI launcher instead of the command-line tool: the copy was named
 job passed. The only way to see it was to read the subsystem flag out of the
 published binary — which is not a thing anyone does routinely, and so is not a
 thing a release should depend on.
+
+## Publishing to crates.io needs `--allow-dirty`
+
+The web UI is embedded at compile time from `web/dist`, which is gitignored yet
+deliberately listed in `include`, so `cargo publish` sees 55 files git does not
+track and refuses. The flag is unavoidable.
+
+Used bare it would also silence the warning it exists to give — uncommitted source
+going out in a release nobody can reproduce. So
+`packaging/check-publish-tree.sh` runs first and refuses if anything cargo would
+ship is untracked *outside* `web/dist`.
+
+Its file list comes from `cargo package --list`, not from git. Ignored files are
+absent from `git status` entirely — it reports zero while cargo counts 55 — and
+asking git for every ignored path instead returns `target/` and
+`web/node_modules/`, which are not in the package at all.
+
+```sh
+bash packaging/check-publish-tree.sh
+cargo publish --locked --allow-dirty
+```

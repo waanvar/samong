@@ -8,6 +8,15 @@
 <meta property="og:title" content="Samong — you already solved this once">
 <meta property="og:description" content="The note is in your repo. Samong makes it findable — by you, and by every AI you work with.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://samong.dev/">
+<!-- Absolute, because a crawler resolves this without the page's base URL. The
+     card is generated from the same mark and wordmark the app draws — see
+     brand/social-preview.svg, which is what the PNG was rasterised from. -->
+<meta property="og:image" content="https://samong.dev/brand/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Samong — a local-first knowledge base. Your notes stay on your machine.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="brand/samong-mark.svg">
 <link rel="apple-touch-icon" href="brand/samong-mark.svg">
 
@@ -498,6 +507,14 @@ no ambiguous titles among project notes</pre>
       No terminal, no configuration, no account. Nothing to install alongside it —
       the web UI is inside the binary.
     </p>
+    <div class="panel" style="margin-bottom:1.2rem">
+      <p class="panel-title">already have rust?</p>
+<pre><span class="p">$ cargo install samong</span></pre>
+      <p class="panel-note">
+        Compiles on your machine, so neither macOS Gatekeeper nor Windows
+        SmartScreen has an unsigned download to object to.
+      </p>
+    </div>
     <div class="dl">
       <a href="https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-linux.tar.gz"><span class="os">Linux</span><span class="arch">x86_64 · tar.gz</span></a>
       <a href="https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-windows.zip"><span class="os">Windows</span><span class="arch">x86_64 · zip</span></a>

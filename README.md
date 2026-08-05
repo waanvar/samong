@@ -1,6 +1,8 @@
 # Samong 🧠
 
 [![CI](https://github.com/waanvar/samong/actions/workflows/ci.yml/badge.svg)](https://github.com/waanvar/samong/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/samong.svg)](https://crates.io/crates/samong)
+[![MCP registry](https://img.shields.io/badge/MCP%20registry-io.github.waanvar%2Fsamong-6f8dff)](https://registry.modelcontextprotocol.io)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **A local-first knowledge base for the notes already in your repositories**
@@ -52,21 +54,20 @@ already work with. Plain Markdown,
 
 ## Install
 
-### With Rust already installed
+Three ways in, in the order that costs you least trouble.
+
+### 1. With Rust already installed
 
 ```sh
 cargo install samong
 ```
 
-Builds all four binaries with the web UI inside them. Needs Rust 1.88 or newer.
+Builds all four binaries with the web UI inside them; needs Rust 1.88 or newer.
+Because it compiles on your machine, **no operating-system warning appears** —
+neither macOS Gatekeeper nor Windows SmartScreen has an unsigned download to
+object to.
 
-> Publishing this crate needs `cargo publish --allow-dirty`: the web UI is
-> embedded at compile time from `web/dist`, which is gitignored yet deliberately
-> included in the package, so `cargo` sees 55 files git does not track.
-> `packaging/check-publish-tree.sh` runs first and refuses if anything *outside*
-> `web/dist` is uncommitted, so the flag cannot quietly ship source edits.
-
-### Just open it
+### 2. Download and double-click
 
 Download, extract, **double-click**:
 
@@ -91,7 +92,7 @@ program has no arguments: `SAMONG_PORT` when 3000-3011 are all taken by
 something that stays, and `SAMONG_NO_OPEN=1` to start without a browser.
 If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
 
-### Download a binary (recommended)
+### 3. Download the binaries and run them yourself
 
 Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
 run. Direct links that always point at the newest release:
@@ -108,15 +109,18 @@ Verify what you downloaded against the `.sha256` published beside it:
 sha256sum -c samong-x86_64-linux.tar.gz.sha256
 ```
 
-#### ⚠️ The binaries are not code-signed
+#### ⚠️ Downloaded binaries are not code-signed
 
-Samong has no code-signing certificate yet, so the OS will get in the way:
+This applies to options 2 and 3 above — anything that arrives through a browser.
+`cargo install` is unaffected, because nothing was downloaded to be suspicious of.
 
-**macOS** — Gatekeeper *refuses* to open it (not merely a warning). One command
-after extracting clears it:
+Samong has no code-signing certificate, so the OS gets in the way:
+
+**macOS** — Gatekeeper *refuses* to open it (not merely a warning). Either
+right-click `Samong.app` → **Open**, which asks once, or clear the flag:
 
 ```sh
-xattr -d com.apple.quarantine samong samong-server samong-mcp
+xattr -dr com.apple.quarantine Samong.app samong samong-server samong-mcp
 ```
 
 **Windows** — SmartScreen warns; choose **More info → Run anyway**.
