@@ -508,11 +508,15 @@ no ambiguous titles among project notes</pre>
       the web UI is inside the binary.
     </p>
     <div class="panel" style="margin-bottom:1.2rem">
-      <p class="panel-title">already have rust?</p>
-<pre><span class="p">$ cargo install samong</span></pre>
+      <p class="panel-title">a package manager, if you have one</p>
+<pre><span class="p">$ brew tap waanvar/samong</span>
+<span class="p">$ brew install samong</span>
+<span class="c"># or, with Rust already installed</span>
+<span class="p">$ cargo install samong</span></pre>
       <p class="panel-note">
-        Compiles on your machine, so neither macOS Gatekeeper nor Windows
-        SmartScreen has an unsigned download to object to.
+        Both avoid the warning below entirely: Homebrew fetches with curl, which
+        does not set the attribute macOS Gatekeeper acts on, and cargo compiles
+        locally. Nothing arrives through a browser to be suspicious of.
       </p>
     </div>
     <div class="dl">

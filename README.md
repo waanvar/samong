@@ -54,20 +54,31 @@ already work with. Plain Markdown,
 
 ## Install
 
-Three ways in, in the order that costs you least trouble.
+Four ways in, in the order that costs you least trouble.
 
-### 1. With Rust already installed
+### 1. Homebrew — macOS and Linux
+
+```sh
+brew tap waanvar/samong
+brew install samong
+```
+
+**No Gatekeeper prompt.** Homebrew fetches with `curl`, which does not set the
+`com.apple.quarantine` attribute macOS acts on — so the unsigned binaries that a
+browser download would have refused install and run without a word. The tap's CI
+asserts that on a real Mac rather than assuming it:
+[waanvar/homebrew-samong](https://github.com/waanvar/homebrew-samong).
+
+### 2. With Rust already installed
 
 ```sh
 cargo install samong
 ```
 
 Builds all four binaries with the web UI inside them; needs Rust 1.88 or newer.
-Because it compiles on your machine, **no operating-system warning appears** —
-neither macOS Gatekeeper nor Windows SmartScreen has an unsigned download to
-object to.
+Compiling locally, there is likewise no download for either OS to object to.
 
-### 2. Download and double-click
+### 3. Download and double-click
 
 Download, extract, **double-click**:
 
@@ -92,7 +103,7 @@ program has no arguments: `SAMONG_PORT` when 3000-3011 are all taken by
 something that stays, and `SAMONG_NO_OPEN=1` to start without a browser.
 If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
 
-### 3. Download the binaries and run them yourself
+### 4. Download the binaries and run them yourself
 
 Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
 run. Direct links that always point at the newest release:
@@ -111,8 +122,9 @@ sha256sum -c samong-x86_64-linux.tar.gz.sha256
 
 #### ⚠️ Downloaded binaries are not code-signed
 
-This applies to options 2 and 3 above — anything that arrives through a browser.
-`cargo install` is unaffected, because nothing was downloaded to be suspicious of.
+This applies to options 3 and 4 above — anything that arrives through a browser.
+Homebrew and `cargo install` are unaffected: neither leaves a download for the OS
+to be suspicious of.
 
 Samong has no code-signing certificate, so the OS gets in the way:
 
