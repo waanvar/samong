@@ -1,0 +1,15 @@
+# Blank issues stay enabled on purpose. A template that does not fit is a reason to
+# write prose, not a reason to give up — and the two templates here deliberately do
+# not cover questions, documentation errors, or packaging problems.
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/waanvar/samong/security/advisories/new
+    about: >
+      Report privately, not as an issue. Path escape, a write reaching a read-only
+      note, or a published artefact not matching its source — see SECURITY.md.
+  - name: Before proposing a change
+    url: https://github.com/waanvar/samong/blob/main/CONTRIBUTING.md
+    about: >
+      What a good change looks like here, what will be declined, and the four checks
+      a pull request has to pass.

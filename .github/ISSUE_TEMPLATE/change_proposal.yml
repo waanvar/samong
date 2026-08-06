@@ -1,0 +1,80 @@
+# Framed as a proposal rather than a "feature request" because CONTRIBUTING.md asks
+# for the case to be made in an issue before code is written. The acknowledgement
+# at the end is not bureaucracy: the three constraints listed there are what the
+# project is, and a proposal that crosses one is going to be declined no matter how
+# well it is implemented. Better for that to be visible before anyone spends a
+# weekend on it.
+name: Propose a change
+description: A feature, or a different behaviour, with the case for it
+# `enhancement` rather than a new `proposal` label: GitHub silently drops a label
+# that does not exist on the repository, so a template referring to one looks like
+# a template that failed to apply its labels for no visible reason.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `CONTRIBUTING.md` is worth two minutes first — it lists what will be
+        declined and why. If your idea is on that list, say so and argue the case
+        anyway; that is a legitimate issue. What is not useful is a proposal that
+        quietly assumes the constraint away.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve, and for whom
+      description: >
+        Start with the situation, not the solution. "I keep losing track of which
+        of two notes is current" tells more than "add a modified-date column".
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today instead
+      description: >
+        A workaround that already works is important information — it sets how much
+        the change is worth, and sometimes it is the better answer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+      description: >
+        Be concrete where you can. If it touches the CLI, write the command; if it
+        touches the interface, describe what you would see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What it would cost
+      description: >
+        Optional, and genuinely valued. What would it slow down, complicate, or
+        make impossible later? A proposal that names its own downside is easier to
+        say yes to.
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: The three things this project will not do
+      description: >
+        Not a formality — these are what Samong is, and a change to any of them is
+        a change to the project rather than a feature in it.
+      options:
+        - label: >
+            My proposal does not require notes to leave the machine, an account, or
+            a service of the project's own.
+          required: true
+        - label: >
+            My proposal does not add a sync protocol. A vault is a folder and git
+            already moves folders.
+          required: true
+        - label: >
+            My proposal does not make reference notes writable, or let an AI tool
+            delete notes.
+          required: true

@@ -1,0 +1,101 @@
+# The fields here are not a formality. Every one of them was the answer to a real
+# bug in this project's history: the install method (a Windows archive whose
+# samong.exe was the launcher, an updater that failed on three of four install
+# paths), the version (a defect that spanned 0.3.0 to 0.3.5), and whether a fresh
+# vault reproduces it (which separates a stale index from a logic error).
+name: Bug report
+description: Something behaves differently from what it says it does
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: `SECURITY.md` has a list of **known trade-offs that are not
+        bugs** — unsigned binaries, the index holding note bodies, the local server
+        having no authentication. Those are documented decisions.
+
+        Found a security problem? Do not open an issue —
+        [report it privately](https://github.com/waanvar/samong/security/advisories/new).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+      placeholder: |
+        I ran `samong search deploy` in a vault containing deploy.md.
+        Expected: the note listed. Got: "no results".
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `samong --version`.
+      placeholder: samong 0.3.9
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it
+      description: >
+        This matters more than it looks. Several past defects existed on exactly
+        one install path and were invisible on the others.
+      options:
+        - cargo install samong
+        - Homebrew (brew install waanvar/samong/samong)
+        - Scoop
+        - winget
+        - AUR (samong-bin)
+        - Downloaded a release archive
+        - Built from source
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fresh
+    attributes:
+      label: Does it happen in a brand-new empty vault?
+      description: >
+        Run `samong` in an empty folder with one note in it. If the problem goes
+        away, it is probably the index rather than the logic, and `samong reindex`
+        is worth trying — say whether that fixed it.
+      options:
+        - "Yes, a fresh vault reproduces it"
+        - "No, only my existing vault"
+        - "Have not tried"
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`samong doctor` output"
+      description: Paste it as-is. Redact any path you would rather not share.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: >
+        Error output, the shape of the vault, whether it started after an update.
+        If the web interface is involved, say whether the browser console showed
+        anything.
