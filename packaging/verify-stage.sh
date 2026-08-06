@@ -46,6 +46,28 @@ esac
 # the one place a non-developer meets it, which is precisely the class of defect
 # this script exists for.
 case "$target" in
+  *windows*)
+    # On Windows the icon lives *inside* the .exe, so there is no file to look
+    # for — the resource directory has to be read. build.rs only warns when a
+    # resource compiler is missing, precisely so a contributor is not blocked by
+    # a cosmetic resource; this is the loud half of that bargain, and it is why a
+    # release cannot quietly ship binaries with the generic icon.
+    # Probed by running it, not by `command -v`. Windows ships an App Execution
+    # Alias called python3.exe that exists on PATH and prints "Python was not
+    # found" when invoked — so a presence test picks an interpreter that cannot
+    # run anything, and the check fails for a reason that has nothing to do with
+    # the icon.
+    py=""
+    for cand in python3 python py; do
+      if "$cand" -c "import sys" >/dev/null 2>&1; then py="$cand"; break; fi
+    done
+    [ -n "$py" ] || fail "no working Python found to read the executables' resources"
+    "$py" "$(dirname "${BASH_SOURCE[0]}")/icons/check-exe-icon.py" \
+      --require 16,32,48,256 \
+      "$stage/samong.exe" "$stage/samong-app.exe" "$stage/samong-server.exe" \
+      "$stage/samong-mcp.exe" "$stage/Open Samong.exe" \
+      || fail "the Windows executables do not all carry the embedded icon"
+    ;;
   *macos*)
     icns="$stage/Samong.app/Contents/Resources/samong.icns"
     [ -f "$icns" ] || fail "Samong.app has no icon at Contents/Resources/samong.icns"

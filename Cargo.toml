@@ -41,6 +41,12 @@ include = [
     # crate, none of which any `include_str!` reads. `cargo package --list` in CI
     # asserts this file is present, which is the failure that matters here.
     "/assets/words_th.txt",
+    # build.rs embeds this into the Windows executables. Both are load-bearing for
+    # the published crate: Cargo picks build.rs up automatically, so a package
+    # missing it fails to build rather than merely losing the icon — and the build
+    # script panics if the .ico is absent, for the same reason.
+    "/build.rs",
+    "/assets/icon/samong.ico",
     "/web/dist/**/*",
     "/Cargo.toml",
     "/Cargo.lock",
@@ -110,3 +116,6 @@ predicates = "3.1.4"
 reqwest = { version = "0.13.4", default-features = false, features = ["json"] }
 tempfile = "3.27.0"
 tokio-tungstenite = "0.29.0"
+
+[target."cfg(windows)".build-dependencies]
+winresource = "0.1.31"
