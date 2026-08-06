@@ -34,7 +34,13 @@ include = [
     # not compile without it. Left out of the first version of this list, which
     # `cargo publish --dry-run` catches — and crates.io versions are immutable,
     # so publishing it would have burned 0.3.6 permanently.
-    "/assets/**/*",
+    #
+    # Named individually rather than `/assets/**/*`. That glob was correct while
+    # the dictionary was the only thing in there; once assets/icon/ arrived it
+    # would have added 1.16 MB of PNGs, an .ico and an .icns to every published
+    # crate, none of which any `include_str!` reads. `cargo package --list` in CI
+    # asserts this file is present, which is the failure that matters here.
+    "/assets/words_th.txt",
     "/web/dist/**/*",
     "/Cargo.toml",
     "/Cargo.lock",

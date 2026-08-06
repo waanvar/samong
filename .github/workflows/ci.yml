@@ -123,6 +123,16 @@ jobs:
       - name: server.json must satisfy the registry schema
         run: python3 packaging/mcpb/validate-server-json.py server.json
 
+      # The icons are generated and committed, so the committed copies have to be
+      # intact. The check reads the pixels, not just the headers: the first render
+      # of the 128px icon was three quarters empty while being a perfectly valid
+      # PNG of the right dimensions, and it would have gone into both the .ico and
+      # the .icns to be wrong at exactly one size.
+      - name: The committed icons are complete
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 packaging/icons/make-icons.py --check
+
   # winget: the manifests are generated, so the committed copies must be exactly
   # what the generator produces — otherwise they drift and Microsoft's validation
   # pipeline is the thing that finds out, days after the pull request.

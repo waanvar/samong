@@ -6,6 +6,11 @@ Comment=Local-first knowledge base — your notes never leave this computer
 # would be wrong for everybody who did not unpack it where we guessed. Copy this
 # file to ~/.local/share/applications/ once samong-app is on PATH.
 Exec=samong-app
+# A bare name, not a path, for the same reason Exec is: the icon is looked up in
+# the hicolor theme, which is where the AUR package installs it. An absolute path
+# would be wrong for anyone who unpacked the archive somewhere else, and a missing
+# Icon line is why this entry showed a generic placeholder in every app menu.
+Icon=samong
 Terminal=false
 Categories=Office;Utility;
 Keywords=notes;markdown;knowledge;wiki;

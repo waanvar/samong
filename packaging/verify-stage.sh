@@ -41,4 +41,28 @@ case "$target" in
   *linux*)   [ -f "$stage/samong.desktop" ] || fail "samong.desktop is missing" ;;
 esac
 
+# The icon, per platform. A missing icon does not fail anything at build time and
+# does not stop the program running — it just makes the bundle look unfinished in
+# the one place a non-developer meets it, which is precisely the class of defect
+# this script exists for.
+case "$target" in
+  *macos*)
+    icns="$stage/Samong.app/Contents/Resources/samong.icns"
+    [ -f "$icns" ] || fail "Samong.app has no icon at Contents/Resources/samong.icns"
+    # CFBundleIconFile names "samong"; if the plist and the file disagree, macOS
+    # shows the generic blank-page icon and says nothing.
+    grep -q "<string>samong</string>" "$stage/Samong.app/Contents/Info.plist" \
+      || fail "Info.plist does not declare CFBundleIconFile samong"
+    head -c 4 "$icns" | grep -q icns || fail "samong.icns is not an ICNS file"
+    ;;
+  *linux*)
+    for size in 16 32 48 128 256; do
+      png="$stage/icons/hicolor/${size}x${size}/apps/samong.png"
+      [ -f "$png" ] || fail "the ${size}px icon is missing from the archive"
+    done
+    grep -q '^Icon=samong$' "$stage/samong.desktop" \
+      || fail "samong.desktop does not point at the installed icon"
+    ;;
+esac
+
 echo "packaging checks passed for $target"

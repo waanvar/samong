@@ -22,6 +22,14 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/samong-app" "$app/Contents/MacOS/Samong"
 chmod +x "$app/Contents/MacOS/Samong"
 
+# The icon. Resolved from this script's own location rather than the working
+# directory, so the bundle can be built from anywhere. Loudly required: a bundle
+# whose CFBundleIconFile names a file that is not there falls back to the generic
+# blank-page icon, and Finder gives no hint why.
+icns="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/assets/icon/samong.icns"
+[ -f "$icns" ] || { echo "missing $icns — run packaging/icons/make-icons.py" >&2; exit 1; }
+cp "$icns" "$app/Contents/Resources/samong.icns"
+
 # LSUIElement: no Dock icon and no menu bar. The interface is the browser window
 # that opens; a Dock icon with no window behind it is a promise this bundle
 # cannot keep, and clicking it would do nothing.
@@ -34,6 +42,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Samong</string>
   <key>CFBundleIdentifier</key><string>dev.samong.app</string>
   <key>CFBundleExecutable</key><string>Samong</string>
+  <key>CFBundleIconFile</key><string>samong</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${version}</string>
   <key>CFBundleVersion</key><string>${version}</string>

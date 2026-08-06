@@ -122,6 +122,15 @@ jobs:
               ;;
             *linux*)
               cp packaging/linux/samong.desktop "stage/$name/"
+              # The .desktop says Icon=samong, which is a theme lookup rather
+              # than a path — so the PNGs have to travel too, laid out the way
+              # the hicolor theme expects. Someone unpacking the archive copies
+              # icons/hicolor into ~/.local/share/icons/ alongside the .desktop;
+              # the AUR package installs the same tree under /usr/share.
+              for size in 16 24 32 48 64 128 256 512; do
+                install -Dm644 "assets/icon/samong-$size.png" \
+                  "stage/$name/icons/hicolor/${size}x${size}/apps/samong.png"
+              done
               ;;
           esac
           cp packaging/README.md "stage/$name/DOUBLE-CLICK.md"

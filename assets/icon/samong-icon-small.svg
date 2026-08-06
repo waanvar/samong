@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- ==========================================================================
+       The same icon, redrawn for 16 and 24 pixels.
+
+       Two artworks rather than one is not indecision. At 16px the full mark's four
+       links and four nodes occupy about eleven pixels between them: the strokes
+       land near three quarters of a pixel and render as grey haze, and the three
+       grey satellites merge into a smudge. Only the lime node survived, which was
+       measurable — and visible the moment the sizes were magnified side by side.
+
+       So the small artwork keeps what carries meaning and drops what cannot be
+       drawn. One white node, one link, one lit node: a question, the path, the
+       answer. That is the whole product, and it is the part that was still legible
+       anyway. Everything is scaled up so that no feature is thinner than about a
+       pixel and a half at 16px.
+
+       Used for 16 and 24; from 32 up the full mark resolves and is used instead.
+       ========================================================================== -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#1b2028"/>
+      <stop offset="55%" stop-color="#12161c"/>
+      <stop offset="100%" stop-color="#0b0e12"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#tile)"/>
+
+  <!-- The link, heavy enough to hold at 16px: 34/512 of the width is just over a
+       pixel there, and round caps stop it dying at the ends. -->
+  <path d="M170 168 L322 330" fill="none" stroke="#aab4c2" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="170" cy="168" r="60" fill="#eef1f6"/>
+  <circle cx="322" cy="330" r="96" fill="#d8f24a"/>
+</svg>

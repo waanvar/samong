@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- ==========================================================================
+       The application icon: one master at 1024, everything else derived from it
+       by packaging/icons/make-icons.py.
+
+       This is not site/brand/samong-mark.svg scaled up, and the difference is the
+       whole design problem. The mark is drawn for a page, on the page's own dark
+       ground, at 36px with 1.5-unit strokes. An icon has neither luxury: it sits
+       on a taskbar, a Dock, a Finder list and a 16px tree row, against a
+       background nobody controls.
+
+       So three things change.
+
+       A tile, because an icon needs its own edge. The mark alone on transparency
+       disappears against a dark taskbar and looks like a smudge against a light
+       one. The tile also gives the lime node something to be bright against.
+
+       Heavier strokes. 1.5 units at this scale is 48px here but 0.75px at 16, and
+       a sub-pixel line renders as grey haze. They are 2.4 units, which lands
+       just over a pixel at the smallest size — the minimum that survives.
+
+       And the lit node grows. At 16px the four dots and four lines become an
+       indistinct cluster; what stays legible is one bright dot against dark. That
+       dot is the thing the product does, so it is the thing that should survive
+       being made small.
+       ========================================================================== -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#1b2028"/>
+      <stop offset="55%" stop-color="#12161c"/>
+      <stop offset="100%" stop-color="#0b0e12"/>
+    </linearGradient>
+    <!-- A one-pixel inner light along the top edge: the difference between a
+         rectangle and something that looks made. Invisible below ~48px, which is
+         fine — it is not carrying meaning. -->
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#39414e" stop-opacity="0.9"/>
+      <stop offset="42%" stop-color="#39414e" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#39414e" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#d8f24a" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#d8f24a" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#d8f24a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 22.5% corner radius: close to the macOS squircle without pretending to be
+       one, and Windows and Linux draw it as given. -->
+  <rect x="0" y="0" width="1024" height="1024" rx="230" fill="url(#tile)"/>
+  <rect x="4" y="4" width="1016" height="1016" rx="226" fill="none" stroke="url(#rim)" stroke-width="8"/>
+
+  <!-- The mark, centred on its own ink rather than on its 32-unit box — the
+       geometry is not symmetric in that box, so centring the box leaves it
+       visibly low and left. Bounding ink is x 5.1..27.7, y 4.7..27.7; at scale 20
+       that puts the centre at 512,512. -->
+  <g transform="translate(184 188) scale(20)">
+    <circle cx="21.5" cy="21.5" r="13" fill="url(#halo)"/>
+    <g fill="none" stroke="#9aa5b5" stroke-width="2.4" stroke-linecap="round">
+      <path d="M9 9.5 22.5 7"/>
+      <path d="M9 9.5 20.5 20.5"/>
+      <path d="M8.5 22.5 20 21.5"/>
+      <path d="M9 9.5 8.5 22.5"/>
+    </g>
+    <circle cx="9" cy="9.5" r="3.9" fill="#e8ecf2"/>
+    <circle cx="22.5" cy="7" r="2.7" fill="#9aa5b5"/>
+    <circle cx="8.5" cy="22.5" r="2.7" fill="#9aa5b5"/>
+    <circle cx="21.5" cy="21.5" r="6.2" fill="#d8f24a"/>
+  </g>
+</svg>
