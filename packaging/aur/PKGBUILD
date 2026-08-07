@@ -8,8 +8,8 @@
 # .sha256 file each release publishes. Editing them by hand means the package
 # silently lags upstream.
 pkgname=samong-bin
-_archive=samong-v0.3.9-x86_64-linux
-pkgver=0.3.9
+_archive=samong-v0.4.0-x86_64-linux
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Local-first, Obsidian-compatible knowledge base with full-text search that handles languages written without spaces between words"
 arch=('x86_64')
@@ -23,7 +23,7 @@ conflicts=('samong')
 # whose checksum was published.
 options=('!strip' '!debug')
 source=("$_archive.tar.gz::https://github.com/waanvar/samong/releases/download/v$pkgver/$_archive.tar.gz")
-sha256sums=('f943abce6ebeca885530729fb98dab48b52774bc5a065a8ada91d46aa3748d07')
+sha256sums=('72c78c0bde4ebb9e6baa6f3c55ac1a84db7a8e05d65497822cccee7df5dfba1f')
 
 package() {
   cd "$srcdir/$_archive"
@@ -37,6 +37,16 @@ package() {
   # application menu rather than only working from a terminal — which is the whole
   # point of samong-app existing.
   install -Dm644 samong.desktop "$pkgdir/usr/share/applications/samong.desktop"
+
+  # The desktop entry says Icon=samong, which is a theme lookup rather than a
+  # path, so the PNGs have to be installed where the hicolor theme will find them
+  # or the menu shows a generic placeholder. The archive carries them already,
+  # laid out in the same shape — v0.4.0 is the first release that does, which is
+  # why this loop could not be added before it.
+  for _size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "icons/hicolor/${_size}x${_size}/apps/samong.png" \
+      "$pkgdir/usr/share/icons/hicolor/${_size}x${_size}/apps/samong.png"
+  done
 
   # Apache-2.0 requires attribution to travel with the binaries, and THIRD-PARTY.md
   # carries the notices for the Thai dictionary compiled into them.

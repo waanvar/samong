@@ -231,9 +231,15 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # --allow-dirty, which was missing and made this job fail on every release
+      # with "55 files in the working directory contain changes". The dirt is the
+      # built `web/dist`, which is gitignored and packaged on purpose — exactly the
+      # situation the CI job passes the flag for. Without it this step never got as
+      # far as publishing anything, which is why crates.io has always been updated
+      # by hand. The tree is proved clean apart from the UI two steps below.
       - name: The package must carry the UI and the dictionary
         run: |
-          cargo package --list --locked > /tmp/pkg.txt
+          cargo package --list --locked --allow-dirty > /tmp/pkg.txt
           for required in web/dist/index.html assets/words_th.txt; do
             grep -qx "$required" /tmp/pkg.txt || { echo "::error::$required missing from the crate"; exit 1; }
           done
@@ -377,8 +383,20 @@ jobs:
       - name: Generate the manifests for this release
         shell: bash
         run: |
+          # Regenerate for the tag being released. No `--check` afterwards: it
+          # compares the committed manifests against the generator's output, and
+          # the committed ones still name the *previous* version at this point —
+          # a release cannot pre-commit a manifest whose digest only exists once
+          # the archive has been uploaded. So this job asserted, immediately after
+          # rewriting the files, that they had not changed, which is a check that
+          # could never pass at release time. Drift is CI's job, against what is
+          # committed; here the freshly generated manifests are what gets
+          # submitted, and they are printed so the commit can follow.
           python packaging/winget/generate.py --version "${TAG#v}"
-          python packaging/winget/generate.py --check
+          echo "--- generated manifests, commit these ---"
+          for f in packaging/winget/manifests/*.yaml; do
+            echo "===== $f"; cat "$f"
+          done
 
       - name: winget's own validator
         shell: pwsh
