@@ -10,6 +10,57 @@ lineage rather than pretending this is the first shape the project took.
 
 _Nothing yet._
 
+## 0.4.0
+
+The release where the double-click path stops looking unfinished.
+
+### Added
+
+- **The executables have an icon.** On Windows it is embedded as a resource inside
+  each `.exe` by a new `build.rs`, which is the only place Explorer, the taskbar
+  and the SmartScreen dialog look; macOS gets an `.icns` in the app bundle, Linux
+  the hicolor PNGs in the archive with `Icon=samong` in the desktop entry.
+  Everything is generated from one master by `packaging/icons/make-icons.py`.
+- **Two artworks, not one.** Below about 24px the mark's four links and four nodes
+  fall under a pixel each and render as grey haze, so the small sizes use a
+  reduced drawing — one node, one link, the lit node — and the full mark takes
+  over from 32px.
+- **An AUR package**, `samong-bin`. CI builds it in an Arch container and asserts
+  what it is for rather than that it installs: `namcap` on both the PKGBUILD and
+  the built package, `pacman -U`, every binary on `PATH`, then a real search, a
+  wikilink resolved, and a Thai sentence segmented — the last only passes if the
+  dictionary was compiled into the binary.
+- `CODE_OF_CONDUCT.md`, issue forms and a pull-request template. The bug form's
+  required fields are the questions that turned out to matter: install method,
+  version, and whether a fresh vault reproduces it.
+- A `.gitattributes` pinning the files where a carriage return changes behaviour
+  rather than appearance — `PKGBUILD`, `.SRCINFO`, `*.sh`.
+
+### Changed
+
+- The published crate no longer carries the icon assets. `include` listed
+  `/assets/**/*`, which was right while the Thai dictionary was the only thing in
+  there; it would now have added 1.16 MB that no `include_str!` reads.
+- `actions/checkout` and `actions/setup-node` moved to v5; both were being forced
+  onto Node 24 with a deprecation warning.
+- The landing page: the hero had no bottom padding, so the demo card's rounded
+  corner landed exactly on the next section's rule. The ambient field was drawn at
+  a size and opacity that made it invisible, and is now a depth-layered
+  constellation in the product's own vault hues with retrieval travelling along
+  the links. The share card was rebuilt and versioned — Facebook and X cache per
+  URL, so a new filename is the only thing that reliably forces a refetch.
+
+### Fixed
+
+- **Documentation that had become false.** `packaging/README.md` — which ships in
+  every archive as `DOUBLE-CLICK.md`, so it is what somebody who just met the
+  SmartScreen warning reads — said the fix was money. It is not: since 2024
+  SmartScreen grants reputation on downloads rather than on sight, even for an EV
+  certificate, and that reputation resets when the certificate is renewed. A
+  certificate replaces "Unknown publisher" with a name and removes no warning. The
+  install paths that avoid the prompt entirely already exist and are free, so all
+  three documents now lead with them.
+
 ## 0.3.9
 
 The registry entry, third attempt — and the last one to be found out by the
