@@ -72,11 +72,14 @@ scoop bucket add samong https://github.com/waanvar/scoop-samong
 scoop install samong
 ```
 
+Once the winget submission is accepted this becomes `winget install Waanvar.Samong`
+with nothing to add first, since winget ships with Windows. The manifests are in
+`packaging/winget/` and CI installs from them on every push; the pull request to
+Microsoft is the only step left. **If you are on Windows and want to avoid the
+SmartScreen warning below, this section is the answer** — not the download links.
+
 **Arch Linux** — `paru -S samong-bin`, once the package is submitted. Until then
 `packaging/aur/` builds it: `cd packaging/aur && makepkg -si`.
-
-A winget submission is likewise prepared but not yet accepted; `packaging/winget/`
-has the manifests. CI installs from both on every push.
 
 **No Gatekeeper prompt, no SmartScreen warning.** Both fetch the archive
 themselves and verify it against the SHA-256 published beside it. Nothing arrives
@@ -150,11 +153,25 @@ right-click `Samong.app` → **Open**, which asks once, or clear the flag:
 xattr -dr com.apple.quarantine Samong.app samong samong-server samong-mcp
 ```
 
-**Windows** — SmartScreen warns; choose **More info → Run anyway**.
+**Windows** — SmartScreen warns and names the publisher as unknown; choose
+**More info → Run anyway**. The executables do carry an embedded icon and version
+information, so the dialog names Samong rather than a bare filename, but that is
+as far as it goes without a certificate.
 
 > Both happen to any open-source project without a paid certificate and are not a
 > sign that something is wrong with the file — but do check the checksum above,
 > and only download from the official Releases page.
+
+**Buying a certificate would not remove the Windows warning**, which is worth
+saying because it looks like it should. A certificate replaces "Unknown publisher"
+with a name; the warning itself is driven by SmartScreen *reputation*, and since
+2024 not even an EV certificate grants that on sight. Reputation is also tied to
+the certificate's thumbprint, so it resets when the certificate is renewed — at
+most every 459 days under the rules that took effect in February 2026.
+
+**Option 1 avoids all of this**, today and for free. Scoop, Homebrew and winget
+fetch and verify the archive themselves, so there is no browser download for
+either OS to weigh.
 
 ### Or build from source
 

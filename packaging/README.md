@@ -25,14 +25,46 @@ The consequence is not cosmetic:
 - **Windows** SmartScreen may warn on `Open Samong.exe` until the file has been
   downloaded enough times to earn reputation. "More info" → "Run anyway".
 
-This is the honest state, and it is the largest remaining barrier for exactly the
-non-technical audience the launcher exists for. The fix is money, not code.
+### The fix is not money, which took a while to establish
+
+The obvious conclusion is "buy a certificate", and it is wrong — or at least it
+buys much less than it looks like.
+
+A certificate replaces **"Unknown publisher"** with a name. It does not remove the
+warning. Microsoft changed SmartScreen in 2024 so that even an EV certificate no
+longer grants reputation on sight; both OV and EV now have to accumulate it from
+real downloads. Worse, reputation is bound to the certificate's thumbprint, so it
+resets to zero on renewal — and since 27 February 2026 a code-signing certificate
+may be valid for at most 459 days. A project at this scale would spend money to be
+back at the same dialog every fifteen months.
+
+**The actual fix is to stop arriving through a browser.** Scoop, Homebrew, winget
+and `cargo install` all fetch and verify the archive themselves, so no download
+reputation is ever weighed and macOS never attaches `com.apple.quarantine`. That
+path exists today and is free; the README lists it first for this reason.
+
+Worth revisiting only if enough people install by double-click to make the
+"Unknown publisher" line itself the thing costing installs.
 
 ## Icons
 
-Not yet. The brand assets in `site/brand/` are SVG, and turning them into `.ico`
-and `.icns` needs a rasteriser in CI plus (for Windows) a build script to embed
-the resource. A bundle without an icon still opens; it just looks unfinished.
+Shipped, and generated rather than drawn by hand — `packaging/icons/make-icons.py`
+derives every size from `assets/icon/samong-icon.svg`.
+
+| Platform | Where the icon lives |
+|---|---|
+| Windows | a resource **inside** each `.exe`, embedded by `build.rs` |
+| macOS | `Samong.app/Contents/Resources/samong.icns`, named by `CFBundleIconFile` |
+| Linux | `icons/hicolor/<size>/apps/samong.png` in the archive, found via `Icon=samong` |
+
+There are two artworks, not one. Below about 24px the full mark's four links and
+four nodes fall under a pixel each and render as grey haze, so
+`samong-icon-small.svg` keeps one node, one link and the lit node — the question,
+the path, the answer — and the full mark takes over from 32px up.
+
+`verify-stage.sh` asserts the icon per platform before archiving, and on Windows
+that means reading the resource directory back out of the `.exe`: `build.rs` only
+warns when no resource compiler is present, so a build can succeed without one.
 
 ## Why the names are checked, not assumed
 

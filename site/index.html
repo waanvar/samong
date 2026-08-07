@@ -556,18 +556,24 @@ no ambiguous titles among project notes</pre>
       the web UI is inside the binary.
     </p>
     <div class="panel" style="margin-bottom:1.2rem">
-      <p class="panel-title">a package manager, if you have one</p>
+      <p class="panel-title">start here — a package manager</p>
 <pre><span class="c"># macOS and Linux</span>
 <span class="p">$ brew tap waanvar/samong &amp;&amp; brew install samong</span>
 <span class="c"># Windows</span>
 <span class="p">&gt; scoop bucket add samong https://github.com/waanvar/scoop-samong</span>
 <span class="p">&gt; scoop install samong</span>
+<span class="c"># Arch Linux</span>
+<span class="p">$ makepkg -si   <span class="c">(packaging/aur, until the AUR submission lands)</span></span>
 <span class="c"># or, with Rust already installed</span>
 <span class="p">$ cargo install samong</span></pre>
       <p class="panel-note">
-        These avoid the warning below entirely. Homebrew and Scoop fetch the
-        archive themselves and check it against the published SHA-256; cargo
-        compiles locally. Nothing arrives through a browser to be suspicious of.
+        <b>This is the recommended route, not a shortcut for experts.</b> Each of
+        these fetches the archive itself and checks it against the published
+        SHA-256; cargo compiles locally. Nothing arrives through a browser, so
+        <b>the warning described below never appears</b> — macOS never attaches the
+        quarantine flag it would otherwise refuse to open, and Windows has no
+        download reputation to weigh. Each tap's CI installs on a real runner and
+        asserts this rather than assuming it.
       </p>
     </div>
     <div class="dl">
@@ -597,16 +603,22 @@ no ambiguous titles among project notes</pre>
 <span class="c"># opens http://127.0.0.1:3000</span></pre>
     </div>
     <div class="warn">
-      <b>The binaries are not code-signed yet.</b> macOS refuses to open unsigned
-      downloads outright, and Windows SmartScreen warns. On macOS, clear the
-      quarantine flag after extracting:
+      <b>The binaries are not code-signed.</b> macOS refuses to open unsigned
+      downloads outright, and Windows SmartScreen warns and calls the publisher
+      unknown. On macOS, clear the quarantine flag after extracting:
 <pre>xattr -dr com.apple.quarantine Samong.app samong samong-server samong-mcp</pre>
       Or right-click <code>Samong.app</code> and choose <b>Open</b>, which asks once.
+      On Windows, choose <b>More info → Run anyway</b>.
       Every file above ships a <code>.sha256</code> beside it on the
       <a href="https://github.com/waanvar/samong/releases/latest">releases page</a>
       — check it.
-      This is what open-source software without a paid certificate looks like; it
-      is not a sign the file is wrong.
+      <br><br>
+      Not "not signed <i>yet</i>": buying a certificate would replace "Unknown
+      publisher" with a name and <b>would not remove the warning</b>. Since 2024
+      SmartScreen grants reputation on downloads rather than on sight, even for an
+      EV certificate, and that reputation resets whenever the certificate is
+      renewed. <b>Use a package manager above and none of this happens</b> — that
+      is the real fix, and it costs nothing.
     </div>
   </div>
 </section>
