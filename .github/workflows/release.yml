@@ -238,15 +238,40 @@ jobs:
             grep -qx "$required" /tmp/pkg.txt || { echo "::error::$required missing from the crate"; exit 1; }
           done
 
+      # Gated the same way as the winget and AUR jobs, and for the same reason.
+      # Without this the step runs `cargo publish` with an empty token and fails,
+      # so every release shows a red job whenever the token is deliberately not
+      # stored — and a red job that means "nothing is wrong" is worse than no job,
+      # because it teaches everyone to stop reading them.
+      - name: Is there a token to publish with?
+        id: gate
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -n "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no CARGO_REGISTRY_TOKEN secret, so nothing was published to crates.io. Add one to automate it, or run 'cargo publish --locked --allow-dirty' by hand after checking packaging/check-publish-tree.sh."
+          fi
+
+      # Runs either way: it costs seconds and it is the check that would catch an
+      # uncommitted source edit going out under --allow-dirty. Worth knowing even
+      # when the upload is skipped.
+      - name: Nothing dirty except the built UI
+        run: bash packaging/check-publish-tree.sh
+
       - name: Publish
+        if: steps.gate.outputs.publish == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           # Same reasoning as CI: the built UI is packaged on purpose and is
-          # gitignored, so `cargo publish` needs --allow-dirty. Checked first so
-          # the flag cannot smuggle anything else out. Without --allow-dirty this
-          # step fails with "55 files ... not yet committed".
-          bash packaging/check-publish-tree.sh
+          # gitignored, so `cargo publish` needs --allow-dirty. The tree was
+          # checked in the previous step so the flag cannot smuggle anything else
+          # out. Without --allow-dirty this fails with "55 files ... not yet
+          # committed".
           cargo publish --locked --allow-dirty
 
   # The MCP bundle, and the registry entry that points at it.
