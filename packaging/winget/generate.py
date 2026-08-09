@@ -19,6 +19,7 @@ Usage:
 """
 
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -38,7 +39,25 @@ BINARIES = ["samong", "samong-server", "samong-mcp", "samong-app"]
 
 
 def get(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "winget-samong-generate"})
+    """Fetch a URL, authenticating API calls when a token is in the environment.
+
+    Unauthenticated GitHub API requests are limited to **60 per hour per IP**, and
+    a shared Actions runner burns that between jobs belonging to other people
+    entirely — so an unauthenticated call fails with `403: rate limit exceeded` at
+    unpredictable times and looks like a bug in whatever ran it. With
+    `GITHUB_TOKEN` the limit is 5,000/hour. The Homebrew tap's scheduled bump had
+    failed five runs in a row on exactly this before it was noticed.
+
+    The header goes only to `api.github.com`. Release asset URLs redirect to
+    `objects.githubusercontent.com`, which rejects an Authorization header it did
+    not expect — so sending it everywhere would trade an intermittent 403 for a
+    reliable 400.
+    """
+    headers = {"User-Agent": "winget-samong-generate"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token and url.startswith("https://api.github.com/"):
+        headers["Authorization"] = "Bearer " + token
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
         return response.read()
 
@@ -46,6 +65,22 @@ def get(url: str) -> bytes:
 def latest() -> tuple[str, str]:
     data = json.loads(get(f"https://api.github.com/repos/{REPO}/releases/latest"))
     return data["tag_name"], (data.get("published_at") or "")[:10]
+
+
+def published_at(tag: str) -> str:
+    """The publish date of one specific tag, or "" if it cannot be determined.
+
+    Empty rather than an exception: the caller falls back to the date already in
+    the committed manifest, which keeps the generator usable without network
+    access. A wrong date is worth failing over; being offline is not.
+    """
+    try:
+        data = json.loads(get(f"https://api.github.com/repos/{REPO}/releases/tags/{tag}"))
+    except Exception as exc:  # noqa: BLE001 - any failure means "no date available"
+        print(f"could not read the release date for {tag} ({exc}); keeping the committed one",
+              file=sys.stderr)
+        return ""
+    return (data.get("published_at") or "")[:10]
 
 
 def render(version: str, digest: str, release_date: str) -> dict[str, str]:
@@ -133,7 +168,13 @@ def main() -> int:
 
     if "--version" in args:
         version = args[args.index("--version") + 1].lstrip("v")
-        release_date = ""
+        # Ask for *this* tag's publish date rather than falling through to the
+        # committed file's. Keeping the old value was how `--version 0.4.0`
+        # produced a manifest carrying v0.3.9's ReleaseDate: every line of the
+        # diff looked right, and the wrong date would have been submitted to
+        # Microsoft. Falls back to whatever is committed only if the lookup fails,
+        # so an offline run still works.
+        release_date = published_at("v" + version)
     else:
         tag, release_date = latest()
         version = tag.lstrip("v")

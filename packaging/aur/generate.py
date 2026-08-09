@@ -16,6 +16,7 @@ Usage:
 """
 
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -28,7 +29,24 @@ SHA256 = re.compile(r"^[a-f0-9]{64}$")
 
 
 def get(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": "aur-samong-generate"})
+    """Fetch a URL, authenticating API calls when a token is in the environment.
+
+    Unauthenticated GitHub API requests are limited to **60 per hour per IP**, and
+    a shared Actions runner burns that between jobs belonging to other people
+    entirely — so an unauthenticated call fails with `403: rate limit exceeded` at
+    unpredictable times and looks like a bug in whatever ran it. With
+    `GITHUB_TOKEN` the limit is 5,000/hour.
+
+    The header goes only to `api.github.com`. Release asset URLs redirect to
+    `objects.githubusercontent.com`, which rejects an Authorization header it did
+    not expect — so sending it everywhere would trade an intermittent 403 for a
+    reliable 400.
+    """
+    headers = {"User-Agent": "aur-samong-generate"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token and url.startswith("https://api.github.com/"):
+        headers["Authorization"] = "Bearer " + token
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
         return response.read()
 

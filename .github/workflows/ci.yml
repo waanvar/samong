@@ -146,6 +146,12 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: The committed manifests are what the generator produces
+        # The generator asks the API which release is latest. Unauthenticated that
+        # is 60 requests an hour per runner IP, shared with everyone else on the
+        # pool, so it fails with a 403 at random and looks like drift. The token is
+        # the automatic one; it needs no secret.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python packaging/winget/generate.py --check
 
       - name: winget's own validator
@@ -200,8 +206,15 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Build, inspect and install the package
+        # generate.py asks the API which release is latest, and unauthenticated
+        # that is 60 requests an hour per runner IP shared with every other job on
+        # the pool. Threaded all the way in: `-e` for the container, and
+        # `--preserve-env` because sudo resets the environment by default, so
+        # without it the variable would exist right up to the process that needs it.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm -v "$PWD:/work" archlinux:base-devel bash -euo pipefail -c '
+          docker run --rm -v "$PWD:/work" -e GH_TOKEN archlinux:base-devel bash -euo pipefail -c '
             pacman -Syu --noconfirm --needed namcap python git >/dev/null
 
             # makepkg refuses to run as root, so the package is built by a user.
@@ -209,7 +222,7 @@ jobs:
             cp -r /work/packaging/aur /home/builder/pkg
             chown -R builder:builder /home/builder/pkg
 
-            sudo -u builder bash -euo pipefail -c "
+            sudo -u builder --preserve-env=GH_TOKEN bash -euo pipefail -c "
               cd /home/builder/pkg
 
               python generate.py --check

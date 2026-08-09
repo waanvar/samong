@@ -382,6 +382,11 @@ jobs:
 
       - name: Generate the manifests for this release
         shell: bash
+        # The generator now looks up this tag's publish date, so it makes an API
+        # call even when given --version. Authenticated, for the same reason as
+        # everywhere else: 60 requests an hour per runner IP is not a budget.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Regenerate for the tag being released. No `--check` afterwards: it
           # compares the committed manifests against the generator's output, and
@@ -445,13 +450,15 @@ jobs:
       # from the archive this release just published, so the checksum is checked
       # against the real artefact rather than a promise about it.
       - name: Build the package for this release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm -v "$PWD:/work" -e TAG="$TAG" archlinux:base-devel bash -euo pipefail -c '
+          docker run --rm -v "$PWD:/work" -e TAG="$TAG" -e GH_TOKEN archlinux:base-devel bash -euo pipefail -c '
             pacman -Syu --noconfirm --needed namcap python git openssh >/dev/null
             useradd -m builder
             cp -r /work/packaging/aur /home/builder/pkg
             chown -R builder:builder /home/builder/pkg
-            sudo -u builder bash -euo pipefail -c "
+            sudo -u builder --preserve-env=GH_TOKEN bash -euo pipefail -c "
               cd /home/builder/pkg
               python generate.py --version \"${TAG#v}\"
               makepkg --printsrcinfo > .SRCINFO
