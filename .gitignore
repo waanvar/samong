@@ -7,3 +7,9 @@ web/dist/*
 .claude/
 web/tsconfig.tsbuildinfo
 PLAN.full.md
+# The packaging scripts are plain Python run directly, but importing one from a
+# test leaves bytecode beside it. `check-publish-tree.sh` asserts that nothing
+# untracked reaches the crate, so an unignored __pycache__ turns a passing tree
+# into a failing one for no reason.
+__pycache__/
+*.pyc
