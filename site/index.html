@@ -462,20 +462,38 @@ no ambiguous titles among project notes</pre>
       is already there.
     </p>
     <div class="tools">
-      <span class="tool">Claude Code</span>
-      <span class="tool">Claude Desktop</span>
+      <span class="tool">Claude</span>
+      <span class="tool">GPT</span>
+      <span class="tool">Gemini</span>
+      <span class="tool">Qwen</span>
+      <span class="tool">Kimi</span>
+      <span class="tool">Grok</span>
+      <span class="tool">GLM</span>
+      <span class="tool">DeepSeek</span>
       <span class="tool">Cursor</span>
       <span class="tool">Windsurf</span>
-      <span class="tool">any MCP client</span>
     </div>
     <div class="two">
       <div class="panel">
-        <p class="panel-title">.mcp.json</p>
-<pre>{
-  <span class="p">"mcpServers"</span>: {
-    <span class="p">"samong"</span>: { <span class="p">"command"</span>: <span class="k">"samong-mcp"</span> }
-  }
-}</pre>
+        <p class="panel-title">one line, per client</p>
+<pre><span class="c"># Claude Code</span>
+<span class="p">$ claude mcp add --scope user samong -- samong-mcp</span>
+<span class="c"># Codex CLI / ChatGPT desktop</span>
+<span class="p">$ codex mcp add samong -- samong-mcp</span>
+<span class="c"># Gemini CLI</span>
+<span class="p">$ gemini mcp add samong samong-mcp</span>
+<span class="c"># Qwen Code</span>
+<span class="p">$ qwen mcp add samong samong-mcp</span>
+<span class="c"># Kimi Code CLI</span>
+<span class="p">$ kimi mcp add samong -- samong-mcp</span>
+<span class="c"># Grok Build</span>
+<span class="p">$ grok mcp add samong -- samong-mcp</span></pre>
+        <p class="panel-note">
+          <b>MCP is a feature of the client, not the model.</b> GLM and DeepSeek
+          ship no MCP client of their own — run them inside one that does and they
+          see the same tools. Because <code>samong-mcp</code> runs on your machine,
+          a browser-only assistant cannot reach it, which is the point.
+        </p>
       </div>
       <div class="grid3" style="grid-template-columns:minmax(0,1fr)">
         <div class="card">

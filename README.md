@@ -506,7 +506,52 @@ stays a human action.
 { "mcpServers": { "samong": { "command": "samong-mcp" } } }
 ```
 
-Full setup and a `CLAUDE.md` recipe: [docs/AI-AGENT.md](docs/AI-AGENT.md)
+### Connecting each assistant
+
+**MCP is a feature of the client, not of the model.** The useful question is not
+"can Gemini use MCP" but "can the program I talk to Gemini through use MCP" — the
+same model connects or does not depending on what you run it in.
+
+`samong-mcp` runs on your machine over stdio, so it works with any client on the
+same machine. **A browser-only assistant cannot reach it** — ChatGPT on the web,
+Gemini on the web and Grok in X all run on someone else's server, and their
+connector features want an MCP server at a public URL. That is the opposite of
+what Samong is for.
+
+| Client | Model | Add it with | Config file |
+|---|---|---|---|
+| Claude Code | Claude | `claude mcp add --scope user samong -- samong-mcp` | `.mcp.json` |
+| Claude Desktop | Claude | install the `.mcpb` from the release page | `claude_desktop_config.json` |
+| Codex CLI / ChatGPT desktop | GPT | `codex mcp add samong -- samong-mcp` | `~/.codex/config.toml` |
+| Gemini CLI | Gemini | `gemini mcp add samong samong-mcp` | `~/.gemini/settings.json` |
+| Qwen Code | Qwen | `qwen mcp add samong samong-mcp` | `~/.qwen/settings.json` |
+| Kimi Code CLI | Kimi | `kimi mcp add samong -- samong-mcp` | managed by `kimi mcp` |
+| Grok Build | Grok | `grok mcp add samong -- samong-mcp` | `~/.grok/config.toml` |
+| GLM (Z.ai) | GLM | through another client — see below | that client's |
+| DeepSeek | DeepSeek | through another client — see below | that client's |
+
+Claude Code, Gemini CLI and Qwen Code all take the same JSON shown above; only the
+file location differs. Codex and Grok take TOML instead:
+
+```toml
+[mcp_servers.samong]
+command = "samong-mcp"
+```
+
+Note the underscore — Codex spells it `mcp_servers`, not `mcpServers`, and gets it
+wrong silently.
+
+**GLM and DeepSeek are models, not MCP clients.** Z.ai's GLM Coding Plan is built
+to run inside clients you already have (Claude Code, Cline, OpenCode), and
+DeepSeek ships no MCP client of its own — so configure Samong in the host client
+and the model sees the tools through it. The same rule covers anything not listed:
+pick a client that speaks MCP, then pick the model.
+
+If a binary is not on `PATH`, use its full path instead of `samong-mcp` — the
+`PATH` a GUI client inherits is often not the one your terminal has.
+
+Full setup, a verification step and a `CLAUDE.md` recipe:
+[docs/AI-AGENT.md](docs/AI-AGENT.md)
 
 ## Architecture
 
