@@ -66,12 +66,21 @@ fn unpack(bytes: &[u8], dim: usize) -> Vec<Vec<f32>> {
     if dim == 0 {
         return Vec::new();
     }
+    // The outer split stays `chunks_exact`: `dim` is a runtime value. The inner
+    // one is four bytes of an f32, a constant, so `as_chunks::<4>()` gives back
+    // `&[[u8; 4]]` — which `from_le_bytes` takes directly, with no indexing and
+    // no chance of the four subscripts drifting out of order.
+    //
+    // `.1` is the remainder, deliberately ignored: `chunks_exact` dropped a short
+    // tail too, and a trailing partial float is a corrupt record either way.
     bytes
         .chunks_exact(dim * 4)
         .map(|chunk| {
             chunk
-                .chunks_exact(4)
-                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|b| f32::from_le_bytes(*b))
                 .collect()
         })
         .collect()
@@ -242,6 +251,71 @@ mod tests {
 
     fn vec_of(values: &[f32]) -> Vec<f32> {
         values.to_vec()
+    }
+
+    /// `pack`/`unpack` are the on-disk format for every embedding, and they had no
+    /// direct test — the store tests exercised them only in passing, through a
+    /// path where a byte-order or stride mistake could still round-trip. That gap
+    /// mattered the moment `unpack` was rewritten from `chunks_exact(4)` to
+    /// `as_chunks::<4>()` to satisfy a clippy lint that only exists in newer
+    /// toolchains: the change is meant to be exactly behaviour-preserving, and
+    /// nothing here proved it.
+    #[test]
+    fn packing_survives_a_round_trip() {
+        for dim in [1_usize, 3, 4, 384] {
+            let chunks: Vec<Vec<f32>> = (0..5)
+                .map(|c| {
+                    (0..dim)
+                        .map(|i| (c as f32) * 100.0 + (i as f32) * 0.25 - 7.5)
+                        .collect()
+                })
+                .collect();
+            let packed = pack(&chunks);
+            assert_eq!(
+                packed.len(),
+                chunks.len() * dim * 4,
+                "dim {dim}: byte count"
+            );
+            assert_eq!(unpack(&packed, dim), chunks, "dim {dim}: round trip");
+        }
+    }
+
+    /// Values that a naive implementation can mangle: the sign bit, subnormals,
+    /// and the ones where a wrong byte order still produces a valid float.
+    #[test]
+    fn packing_preserves_awkward_floats() {
+        let awkward = vec![
+            0.0,
+            -0.0,
+            1.0,
+            -1.0,
+            f32::MIN,
+            f32::MAX,
+            f32::MIN_POSITIVE,
+            f32::EPSILON,
+            1.0e-30,
+            -3.402_823_5e38,
+        ];
+        let dim = awkward.len();
+        // `from_ref` rather than `[awkward.clone()]`: the clone existed only to
+        // build a one-element slice, which is what `from_ref` is for.
+        let back = unpack(&pack(std::slice::from_ref(&awkward)), dim);
+        assert_eq!(back.len(), 1);
+        for (got, want) in back[0].iter().zip(&awkward) {
+            // Bit equality, not `==`: it is the only comparison that separates
+            // +0.0 from -0.0, which a byte-order bug can silently swap.
+            assert_eq!(got.to_bits(), want.to_bits(), "{want} came back as {got}");
+        }
+    }
+
+    /// A zero dimension has to return nothing rather than divide by it, and a
+    /// trailing partial float is a corrupt record that must not become a value.
+    #[test]
+    fn packing_rejects_nonsense_lengths() {
+        assert!(unpack(&[1, 2, 3, 4], 0).is_empty(), "dim 0");
+        assert!(unpack(&[], 4).is_empty(), "no bytes");
+        // Nine bytes cannot hold two 4-byte floats plus a whole one.
+        assert_eq!(unpack(&[0; 9], 2).len(), 1, "the short tail is dropped");
     }
 
     #[test]
