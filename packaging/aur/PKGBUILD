@@ -15,7 +15,11 @@ pkgdesc="Local-first, Obsidian-compatible knowledge base with full-text search t
 arch=('x86_64')
 url="https://samong.dev"
 license=('Apache-2.0')
-depends=('gcc-libs' 'glibc')
+# hicolor-icon-theme owns /usr/share/icons/hicolor, which package() installs
+# into. namcap flags its absence as an error, and it is right: without the
+# theme package the directory hierarchy is unowned and the desktop entry's
+# `Icon=samong` lookup has nothing to search.
+depends=('gcc-libs' 'glibc' 'hicolor-icon-theme')
 provides=('samong')
 conflicts=('samong')
 # Prebuilt binaries: there is nothing to strip that upstream has not already

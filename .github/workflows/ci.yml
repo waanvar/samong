@@ -244,8 +244,21 @@ jobs:
             "
 
             cd /home/builder/pkg
-            namcap PKGBUILD
-            namcap ./*.pkg.tar.zst
+            # namcap exits 0 no matter what it finds, so its output has to be read
+            # rather than its status trusted. It reported
+            # "E: Dependency hicolor-icon-theme detected and not included" for a
+            # full day of green runs after the icons were added, because nothing
+            # looked. Errors fail the build; warnings are printed and allowed —
+            # the ones this package gets are correct for a -bin package (the
+            # binaries are deliberately unstripped so they still match the
+            # published checksum).
+            namcap PKGBUILD ./*.pkg.tar.zst 2>&1 | tee /tmp/namcap.txt
+            if grep -q " E: " /tmp/namcap.txt; then
+              echo "::error::namcap reported errors:"
+              grep " E: " /tmp/namcap.txt
+              exit 1
+            fi
+            echo "namcap: no errors ($(grep -c " W: " /tmp/namcap.txt) warnings)"
             pacman -U --noconfirm ./*.pkg.tar.zst
 
             for b in samong samong-server samong-mcp samong-app; do
