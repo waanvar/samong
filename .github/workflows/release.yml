@@ -454,7 +454,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker run --rm -v "$PWD:/work" -e TAG="$TAG" -e GH_TOKEN archlinux:base-devel bash -euo pipefail -c '
-            pacman -Syu --noconfirm --needed namcap python git openssh >/dev/null
+            # hicolor-icon-theme: a runtime dependency of the package, which
+            # makepkg must be able to resolve before it will build.
+            pacman -Syu --noconfirm --needed namcap python git openssh hicolor-icon-theme >/dev/null
             useradd -m builder
             cp -r /work/packaging/aur /home/builder/pkg
             chown -R builder:builder /home/builder/pkg

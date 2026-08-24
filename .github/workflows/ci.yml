@@ -215,7 +215,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker run --rm -v "$PWD:/work" -e GH_TOKEN archlinux:base-devel bash -euo pipefail -c '
-            pacman -Syu --noconfirm --needed namcap python git >/dev/null
+            # hicolor-icon-theme is a *runtime* dependency of the package, and
+            # makepkg refuses to build until every declared dependency resolves.
+            # Installed here rather than passing `makepkg -s`, because the build
+            # runs as an unprivileged user who has no sudo rights to install with.
+            pacman -Syu --noconfirm --needed namcap python git hicolor-icon-theme >/dev/null
 
             # makepkg refuses to run as root, so the package is built by a user.
             useradd -m builder
