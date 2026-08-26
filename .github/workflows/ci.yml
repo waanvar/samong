@@ -4,6 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Run this workflow by hand, against any ref.
+  #
+  # A push is normally the only way in, which is fine until GitHub does not
+  # create the run at all — during an Actions outage a commit lands on main with
+  # no run attached, and there is then no way to ask for one without pushing an
+  # empty commit to move the branch. That leaves either a junk commit in the
+  # history or a commit on main that CI never judged.
+  #
+  # `ref` defaults to whatever branch the run is started from, so the ordinary
+  # case needs no input at all.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to check. Blank means this branch."
+        required: false
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,6 +29,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -51,6 +73,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -76,6 +104,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v5
         with:
@@ -144,6 +178,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - name: The committed manifests are what the generator produces
         # The generator asks the API which release is latest. Unauthenticated that
@@ -204,6 +244,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - name: Build, inspect and install the package
         # generate.py asks the API which release is latest, and unauthenticated
@@ -292,6 +338,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-node@v5
         with:
