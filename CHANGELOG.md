@@ -8,7 +8,17 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **The default port is 3117, was 3000.** 3000 is the default of Node, Rails,
+  Grafana and most scaffolded dev servers, so on a developer's machine the first
+  port was usually taken and the launcher walked up the range on every start —
+  which works, but moves the URL between runs so no bookmark stays valid. 3117 is
+  in the registered-but-unassigned range. `--port` and `SAMONG_PORT` are
+  unchanged, and anything already bookmarked on 3000 needs `--port 3000`.
+- `samong-server --port` now defaults to the same constant the launcher probes.
+  They were two separate literals that happened to agree; had they ever drifted,
+  the launcher would have looked for the server on a port it never listens on.
 
 ## 0.4.0
 

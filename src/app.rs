@@ -11,8 +11,7 @@
 //! 1. If Samong is **already serving**, point the browser at it. A second
 //!    double-click must not start a second server — it should feel like
 //!    switching to a window that is already open.
-//! 2. If the port is taken by **something else** (3000 is the most contested
-//!    port in software), move up rather than fail.
+//! 2. If the port is taken by **something else**, move up rather than fail.
 //! 3. If **no vault is registered**, make one, with notes in it. A first run
 //!    that lands on an empty screen has explained nothing.
 //!
@@ -36,7 +35,18 @@ use crate::registry::Registry;
 
 /// Where `samong-server` listens by default, and so where the launcher looks
 /// first.
-pub const DEFAULT_PORT: u16 = 3000;
+///
+/// 3117 rather than 3000. 3000 is the default of Node, Rails, Grafana and most
+/// scaffolded dev servers, so on a developer's machine the first port was
+/// usually taken by something else and the launcher walked up the range on
+/// every start — which works, but means the URL moves between runs and no
+/// bookmark stays valid. 3117 is in the registered-but-unassigned range and
+/// collides with nothing in common use.
+///
+/// `samong-server`'s `--port` default is this constant, not a second literal:
+/// they were separate numbers, and if they had ever drifted the launcher would
+/// have probed a port the server never listens on.
+pub const DEFAULT_PORT: u16 = 3117;
 /// Ports tried after the first one is found busy by something that is not us.
 pub const PORT_ATTEMPTS: u16 = 12;
 /// Name the first vault is registered under — the `[[notes/...]]` link prefix.
@@ -136,7 +146,7 @@ fn write_welcome_notes(vault: &Path) -> Result<()> {
 
 /// Is a Samong server already answering on this port?
 ///
-/// Asks, rather than assuming: port 3000 belongs to whatever dev server was
+/// Asks, rather than assuming: the port may belong to whatever dev server was
 /// started last, and opening a browser at somebody else's app would be worse
 /// than any error message. A JSON array from `/api/vaults` is the cheapest
 /// answer that no ordinary web server gives by accident — a static server or a

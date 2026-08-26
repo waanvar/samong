@@ -117,7 +117,7 @@ so closing the tab is not the same as quitting.
 > it at that folder. Nothing is moved or converted.
 
 Two environment variables exist for the awkward cases, because a double-clicked
-program has no arguments: `SAMONG_PORT` when 3000-3011 are all taken by
+program has no arguments: `SAMONG_PORT` when 3117-3128 are all taken by
 something that stays, and `SAMONG_NO_OPEN=1` to start without a browser.
 If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
 
@@ -199,7 +199,7 @@ Update to the latest version later with `samong update` (see *Updating* below).
 mkdir my-vault && cd my-vault
 samong new "My First Note"         # create + index
 samong vault add my-vault .        # register in ~/.config/samong
-samong-server start               # opens http://127.0.0.1:3000 in your browser
+samong-server start               # opens http://127.0.0.1:3117 in your browser
 ```
 
 `samong-server start` serves the embedded web UI and opens your browser — no UI
@@ -476,7 +476,7 @@ the fonts are bundled so it works offline.
   where you expected ninety is a visible answer rather than a mystery
 
 UI development: `cd web && npm run dev` (Vite proxies to samong-server on
-port 3000).
+port 3117).
 
 ## API (samong-server)
 

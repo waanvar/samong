@@ -31,7 +31,9 @@ enum Command {
 #[derive(Args)]
 struct ServerOpts {
     /// Port to listen on (always bound to 127.0.0.1)
-    #[arg(long, default_value_t = 3000)]
+    // The constant, not a repeated literal: this default and the port the
+    // launcher probes have to be the same number by construction.
+    #[arg(long, default_value_t = samong::app::DEFAULT_PORT)]
     port: u16,
 
     /// Serve the web UI from this directory instead of the one built into
@@ -69,7 +71,7 @@ mod tests {
     #[test]
     fn bare_invocation_uses_defaults() {
         let o = parse(&["samong-server"]);
-        assert_eq!(o.port, 3000);
+        assert_eq!(o.port, samong::app::DEFAULT_PORT);
         assert!(o.ui.is_none());
         assert!(!o.no_open);
     }
