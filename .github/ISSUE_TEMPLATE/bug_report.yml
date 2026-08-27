@@ -33,7 +33,7 @@ body:
     attributes:
       label: Version
       description: The output of `samong --version`.
-      placeholder: samong 0.4.0
+      placeholder: samong 0.4.1
     validations:
       required: true
 

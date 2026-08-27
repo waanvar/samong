@@ -8,6 +8,12 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.4.1
+
+A port that stays put.
+
 ### Changed
 
 - **The default port is 3117, was 3000.** 3000 is the default of Node, Rails,
