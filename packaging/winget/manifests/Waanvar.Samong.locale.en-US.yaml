@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: Waanvar.Samong
-PackageVersion: 0.4.0
+PackageVersion: 0.4.1
 PackageLocale: en-US
 Publisher: waanvar
 PublisherUrl: https://github.com/waanvar
