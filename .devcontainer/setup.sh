@@ -22,15 +22,41 @@ echo "==> web build"
 (cd web && npm run build)
 
 # samong-mcp gives the agent search over this repo's own notes — the knowledge
-# loop the project is for. A debug build is enough and takes a fraction of the
-# time of a release one. Not fatal: a sandbox without it should still be able to
-# work on the code.
-echo "==> samong-mcp (for .mcp.json)"
-if cargo build --locked --bin samong-mcp; then
+# loop the project is for — and `samong` is what registers the vault it
+# searches. Debug builds are enough and take a fraction of the time of release
+# ones. Not fatal: a sandbox without them should still be able to work on the
+# code.
+echo "==> samong and samong-mcp (for .mcp.json)"
+if cargo build --locked --bin samong --bin samong-mcp; then
   mkdir -p "$HOME/.local/bin"
+  ln -sf "$PWD/target/debug/samong" "$HOME/.local/bin/samong"
   ln -sf "$PWD/target/debug/samong-mcp" "$HOME/.local/bin/samong-mcp"
+
+  # A server that connects and then answers "no vaults registered" to every
+  # query is the quiet-success failure this project keeps warning about: the
+  # MCP tools appear to work, and an agent concludes the repo has no notes.
+  # The registry is empty in a fresh container, so fill it here.
+  #
+  # This repo is its own vault — README.md, PLAN.md, CONTRIBUTING.md, docs/ and
+  # the rest of the committed Markdown, which is what `scope` already resolves
+  # to without any samong.toml. The index it writes lands in .brain/, which is
+  # gitignored, so registering does not dirty the tree.
+  #
+  # Deliberately *not* under SAMONG_CONFIG_DIR: the server that .mcp.json starts
+  # reads ~/.config/samong, so anything written elsewhere would be invisible to
+  # it. That is safe only because this path is a throwaway container's, never a
+  # person's machine — which is also why this script belongs in .devcontainer/
+  # and nowhere a laptop would run it.
+  echo "==> register this repo as a vault"
+  if "$PWD/target/debug/samong" vault list | cut -f1 | grep -qx samong; then
+    echo "vault \"samong\" is already registered"
+  else
+    # `vault add` fails on a name already taken, and swallowing that with
+    # `|| true` would also swallow a real failure. Ask first instead.
+    "$PWD/target/debug/samong" vault add samong "$PWD"
+  fi
 else
-  echo "samong-mcp did not build; the MCP server in .mcp.json will not start." >&2
+  echo "samong did not build; the MCP server in .mcp.json will start but find no vault." >&2
 fi
 
 echo "==> ready"
