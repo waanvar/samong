@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo package --list:*)",
+      "Bash(cargo tree:*)",
+      "Bash(npm ci)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)",
+      "Bash(bash packaging/check-publish-tree.sh)"
+    ],
+    "deny": [
+      "Bash(cargo publish:*)",
+      "Bash(git push --force:*)",
+      "Read(./.env)",
+      "Read(~/.config/samong/**)"
+    ]
+  }
+}
