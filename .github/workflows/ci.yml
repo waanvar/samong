@@ -72,10 +72,17 @@ jobs:
   # the MSRV stays a one-line change and this job cannot end up disagreeing with
   # the number README quotes.
   #
-  # `cargo check` on default features, deliberately: that is what `cargo install
-  # samong` compiles. Tests and dev-dependencies are left out because a
-  # dev-dependency wanting a newer compiler breaks nobody's install, and
-  # `semantic` is left out because no release binary carries it.
+  # `cargo check`, not a test build: tests and dev-dependencies are left out
+  # because a dev-dependency wanting a newer compiler breaks nobody's install.
+  #
+  # Both feature sets are checked. Default features are what `cargo install
+  # samong` compiles, so that one is the promise README makes. `semantic` is
+  # checked too even though no release binary carries it, because it is where
+  # the minimum is most likely to move: `ort` and `ort-sys` declare 1.88
+  # themselves, exactly our floor and no headroom, and the feature is still
+  # something the project undertakes to keep working — the `semantic` job below
+  # exists for that reason. Checking it on stable alone would say nothing about
+  # whether it still builds for the Rust version README names.
   msrv:
     runs-on: ubuntu-latest
     steps:
@@ -109,6 +116,14 @@ jobs:
 
       - name: The declared minimum must actually compile
         run: cargo check --all --locked --verbose
+
+      # Separate step rather than a second job: the toolchain and the cache are
+      # already here, and a reader looking for "what does the MSRV cover" should
+      # find both answers in one place. It shares the `semantic` job's reliance
+      # on ort downloading a prebuilt ONNX Runtime, so a CDN failure reddens both
+      # and is recognisable as one cause rather than an MSRV break.
+      - name: ... and so must the semantic feature
+        run: cargo check --features semantic --locked --verbose
 
   # The `semantic` feature is off by default and the release binaries never carry
   # it, so nothing else in this file would ever compile it. It still has to be
