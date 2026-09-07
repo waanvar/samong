@@ -2,8 +2,14 @@
   "name": "samong",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
+    // "latest", not the 1.88 in Cargo.toml. That field is the minimum a user
+    // needs; CI judges every push on dtolnay/rust-toolchain@stable, so pinning
+    // the container to the minimum made it the only place in the project
+    // building on a compiler nothing else uses — a lint added after 1.88 would
+    // pass here and fail in CI. The cost: nothing builds on 1.88 any more, so
+    // the MSRV README states is a claim no job checks.
     "ghcr.io/devcontainers/features/rust:1": {
-      "version": "1.88",
+      "version": "latest",
       "profile": "minimal"
     },
     "ghcr.io/devcontainers/features/node:1": {
