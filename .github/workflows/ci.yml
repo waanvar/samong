@@ -59,6 +59,57 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+  # `rust-version` in Cargo.toml is a promise to anyone still on an older Rust,
+  # and until this job existed nothing kept it: every other job here installs
+  # @stable, and the devcontainer stopped pinning the minimum once that turned
+  # out to be the only place in the project building on a compiler nothing else
+  # used. So the number was true when it was measured and unchecked ever since.
+  # A dependency bump is all it takes to break silently — `--locked` means the
+  # lockfile decides, and a lockfile entry that needs 1.89 compiles perfectly on
+  # stable.
+  #
+  # The version is read out of Cargo.toml rather than written here, so raising
+  # the MSRV stays a one-line change and this job cannot end up disagreeing with
+  # the number README quotes.
+  #
+  # `cargo check` on default features, deliberately: that is what `cargo install
+  # samong` compiles. Tests and dev-dependencies are left out because a
+  # dev-dependency wanting a newer compiler breaks nobody's install, and
+  # `semantic` is left out because no release binary carries it.
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Empty on push and pull_request, which makes checkout behave exactly
+          # as it does without this — so the input is only ever a manual run
+          # naming a ref. Without it the input would be decorative: a run
+          # dispatched for a specific SHA would silently check out the branch.
+          ref: ${{ inputs.ref }}
+
+      # A missing or unreadable rust-version fails here rather than quietly
+      # installing some default toolchain and reporting a green MSRV run that
+      # checked nothing.
+      - name: Read the MSRV out of Cargo.toml
+        id: msrv
+        run: |
+          version=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          [ -n "$version" ] || { echo "::error::no rust-version in Cargo.toml"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "MSRV declared in Cargo.toml: $version"
+
+      # @master, not a version tag: the toolchain is only known at run time, and
+      # this input is the action's documented way to ask for one.
+      - name: Install Rust ${{ steps.msrv.outputs.version }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: The declared minimum must actually compile
+        run: cargo check --all --locked --verbose
+
   # The `semantic` feature is off by default and the release binaries never carry
   # it, so nothing else in this file would ever compile it. It still has to be
   # kept working, and it cannot be checked on every machine: the prebuilt ONNX
