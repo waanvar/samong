@@ -4,7 +4,10 @@ node_modules/
 web/dist/*
 !web/dist/.gitkeep
 .demo/
-.claude/
+# Local Claude Code state stays out; the shared settings file is committed so
+# cloud sessions get the same permissions as a laptop.
+.claude/*
+!.claude/settings.json
 web/tsconfig.tsbuildinfo
 PLAN.full.md
 # The packaging scripts are plain Python run directly, but importing one from a

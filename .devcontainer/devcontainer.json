@@ -1,0 +1,17 @@
+{
+  "name": "samong",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "1.88",
+      "profile": "minimal"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    }
+  },
+  "onCreateCommand": "bash .devcontainer/setup.sh",
+  "remoteEnv": {
+    "CARGO_TERM_COLOR": "always"
+  }
+}
