@@ -77,7 +77,7 @@ pub struct Config {
 ///
 /// Every field is optional and nothing reads most of them yet. They exist now
 /// because `deny_unknown_fields` is deliberately strict: adding a field later
-/// means older binaries reject a `banyan.toml` that a newer one wrote, and these
+/// means older binaries reject a `samong.toml` that a newer one wrote, and these
 /// are the fields a shareable knowledge pack will need — a name, a version to
 /// update against, a license for content that is not ours, and where it came from.
 #[derive(Debug, Clone, Default, Deserialize)]
