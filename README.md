@@ -74,9 +74,10 @@ scoop install samong
 
 Once the winget submission is accepted this becomes `winget install Waanvar.Samong`
 with nothing to add first, since winget ships with Windows. The manifests are in
-`packaging/winget/` and CI installs from them on every push; the pull request to
-Microsoft is the only step left. **If you are on Windows and want to avoid the
-SmartScreen warning below, this section is the answer** — not the download links.
+`packaging/winget/`, CI installs from them on every push, and each release opens the
+pull request to Microsoft on its own; what is left is Microsoft accepting it.
+**If you are on Windows and want to avoid the SmartScreen warning below, this
+section is the answer** — not the download links.
 
 **Arch Linux** — `paru -S samong-bin`, once the package is submitted. Until then
 `packaging/aur/` builds it: `cd packaging/aur && makepkg -si`.

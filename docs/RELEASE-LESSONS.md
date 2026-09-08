@@ -1,9 +1,10 @@
 # What went wrong shipping this, and what to check because of it
 
 Written 2026-08-05, after the sequence that took Samong from a private repository to
-crates.io, the MCP registry, Homebrew, Scoop and a landing page. Kept because every
-item below was a real defect that reached a published artefact or was one step away
-from doing so, and because they share a shape.
+crates.io, the MCP registry, Homebrew, Scoop and a landing page; extended through
+v0.4.1, because the releases after that date produced the same shapes again. Kept
+because every item below was a real defect that reached a published artefact or was
+one step away from doing so, and because they share a shape.
 
 ## The shape
 
@@ -35,6 +36,24 @@ And two ways a reading can be worthless:
    only visible in `internal/validators/registries/mcpb.go`. **When something rejects
    a submission, read its validator source.**
 
+And three ways green means nothing at all:
+
+6. **A tool that prints the defect and exits 0.** `namcap` printed
+   `samong-bin E: Dependency hicolor-icon-theme detected and not included` on every
+   run of the `aur` job, and the job was green every time, because namcap's exit
+   status does not depend on what it found. It was noticed by scrolling a log while
+   chasing something else. Output has to be read; an exit code is not a reading.
+7. **A skipped step inside a green job.** `Push to the AUR` and `Publish` both skip
+   when their secret is absent — deliberately, so a missing secret is not a red run.
+   The cost is that "the release workflow succeeded" does not mean the package was
+   pushed or the crate published. Both were skipped in v0.4.1's run, which is
+   correct, and invisible from the run's conclusion alone.
+8. **A run that does not exist.** During a GitHub Actions outage, `cd184b8` landed on
+   `main` with no workflow run attached — not queued, not failed, absent. Every view
+   that lists the runs there are shows an unjudged commit and a passing commit the
+   same way. `workflow_dispatch` with a `ref` input exists so the answer is not
+   "push an empty commit to move the branch".
+
 ## The defects
 
 ### Reached a published release
@@ -48,6 +67,9 @@ And two ways a reading can be worthless:
 | v0.3.8 | MCP registry rejected it again: `registryBaseUrl` forbidden for mcpb. |
 | v0.3.0–v0.3.1 | `x86_64-macos` asked for a retired `macos-13` runner. The job did not fail — it sat **queued** for six hours. |
 | v0.3.0 | The tag was moved locally and never re-pushed, so the published build predated the website advertising it. |
+| v0.3.0–v0.4.0 | **`cargo publish` was never automated, and the reason was misread as "no token".** The `publish` job ran `cargo package --list --locked` without `--allow-dirty` and failed on the 55 gitignored files of `web/dist` that the crate is *supposed* to carry — before reaching the token gate at all. Every release to crates.io was published by hand for a fault nobody had read. |
+| v0.4.0 | **The `aur` PKGBUILD installed into `/usr/share/icons/hicolor` without declaring `hicolor-icon-theme`.** namcap reported it on every run and the job stayed green; see shape 6. The directory hierarchy would have had no owner and `Icon=samong` nothing to resolve against. |
+| v0.4.0 | **Every `generate.py` asked `api.github.com` unauthenticated.** 60 requests per hour *per IP* on shared runners, so the Homebrew tap bump failed five times in a row with a 403 that looked like a bug in whatever was running it. `GITHUB_TOKEN` is automatic; no secret was needed. The header goes to `api.github.com` only — asset URLs redirect to `objects.githubusercontent.com`, which rejects an `Authorization` it did not expect. |
 
 ### Caught one step before publishing
 
@@ -64,6 +86,17 @@ And two ways a reading can be worthless:
   fresh install *described* wikilinks, and the pattern matched across line breaks,
   drawing a graph node whose label was a paragraph. Found by opening a brand-new
   vault and reading the graph — no test saw it.
+- **The wrong `ReleaseDate` would have gone to Microsoft.** `packaging/winget/generate.py`
+  given `--version` does not call the API at all and keeps the date already in the
+  file, so regenerating for 0.4.0 carried 0.3.9's date into the manifest while every
+  line of the diff looked right. Fixed at the source: it now asks
+  `/releases/tags/{tag}` and falls back to the committed value only when the lookup
+  fails. A wrong date is worth failing for; being offline is not.
+- **A check at release time that could never pass.** The `winget` job regenerated the
+  manifests and then ran `--check` against the committed ones — which still held the
+  previous version, since a manifest cannot carry the digest of an archive that has
+  not been uploaded yet. Drift is CI's question, against what is committed; at
+  release time the freshly generated manifest *is* the thing being submitted.
 
 ### My own checks, wrong before they were right
 
@@ -103,10 +136,18 @@ And two ways a reading can be worthless:
 | `validate-server-json.py` | the whole registry schema, plus nine mcpb rules read out of the registry's Go source |
 | `mcp_registry.rs` tests | `server.json` drifting from `Cargo.toml`; the two field limits that actually bit |
 | `update.rs` tests | in-archive path vs. what the release workflow builds; the cargo features needed to unpack |
+| `packaging/icons/check-exe-icon.py` | icons read back out of the built `.exe` as `RT_ICON` entries, rather than trusting that `build.rs` ran |
+| CI job `aur`, namcap step | a namcap `E:` line passing unread; `W:` still prints and still passes, because this package earns those |
+| CI job `msrv` | a dependency quietly raising the floor above the `rust-version` the README promises — default features *and* `semantic`, which is where the floor moves first |
+| `tests/msrv.rs` | `README.md` and `CLAUDE.md` naming a Rust version that `Cargo.toml` no longer says |
 
 **After any release: `gh run view <id> --json jobs` (a queued job is a failure CI
-does not report), open an archive, and run the published binary.** The last one is
-what caught the updater; no test could.
+does not report, and a *skipped step* inside a green job is a package that was never
+pushed), open an archive, and run the published binary.** The last one is
+what caught the updater; no test could. It is also what confirmed v0.4.1: the
+published Windows binaries still carried seven `RT_ICON` entries, and the shipped
+server logged `listening on http://127.0.0.1:3117` with nothing on 3000 — a changed
+constant in the source is not evidence about the artefact that left the building.
 
 ## What to build next
 
@@ -134,13 +175,22 @@ while making the feature real. The 465 MB model download stays opt-in at runtime
 
 ### 4. Finish AUR, and the packaging debt
 
-- `.SRCINFO` must be committed — only `makepkg --printsrcinfo` can produce it, so CI
-  prints it and it gets committed from there.
-- Icons: `.ico` and `.icns` need a rasteriser in CI and, for Windows, a build script
-  to embed the resource. A bundle with no icon opens but looks unfinished.
-- `CODE_OF_CONDUCT.md`, issue and pull-request templates — GitHub reports 71% health.
-- No `aarch64-linux` or Windows ARM64 archive exists; brew, scoop and AUR each
-  document the hole rather than pretend.
+Most of this shipped in v0.4.0 and is struck through rather than deleted, because
+what was on the list is part of the record:
+
+- ~~`.SRCINFO` must be committed~~ — done; CI prints it with
+  `makepkg --printsrcinfo` and compares the committed file byte for byte.
+- ~~Icons: `.ico` and `.icns` need a rasteriser in CI and, for Windows, a build
+  script to embed the resource.~~ — done, generated from one master by
+  `packaging/icons/make-icons.py`, with two artworks because the four-link mark is
+  grey haze below ~24px, and read back out of the `.exe` afterwards.
+- ~~`CODE_OF_CONDUCT.md`, issue and pull-request templates.~~ — done.
+- **Still open: the AUR submission itself.** The package builds, installs and is
+  asserted against in a real Arch container on every push, but AUR account
+  registration is closed for now, so nothing has been submitted. `makepkg -si` from
+  `packaging/aur/` is the working path meanwhile, and the README says so.
+- **Still open: no `aarch64-linux` or Windows ARM64 archive.** The release matrix is
+  four targets. brew, scoop and AUR each document the hole rather than pretend.
 
 ### 5. A thin `samong-mcp` crate
 
