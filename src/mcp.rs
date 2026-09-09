@@ -153,13 +153,26 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "read_note",
-            "description": "Read the full markdown content of a note, addressed by its path. \
-                            An editable note comes back with a \"[samong base_hash=...]\" line \
+            "description": "Read a note, or one section of it, addressed by its path. Pass \
+                            section to read a single \"## Heading\" and its body instead of the \
+                            whole file — cheaper, and usually all an answer needs; a wrong \
+                            section name comes back with the note's real headings. An editable \
+                            note read in full comes back with a \"[samong base_hash=...]\" line \
                             above it: that line is not part of the note — strip it, and pass the \
-                            hash as save_note's base_hash to edit this note.",
+                            hash as save_note's base_hash to edit this note. Reading a section \
+                            gives no base_hash: save_note replaces the whole file, so editing \
+                            requires reading the whole file.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "vault": vault_arg, "path": path_arg },
+                "properties": {
+                    "vault": vault_arg,
+                    "path": path_arg,
+                    "section": {
+                        "type": "string",
+                        "description": "A heading in the note, with or without its leading #s, \
+                                        matched exactly but ignoring case. Omit for the whole note."
+                    }
+                },
                 "required": ["vault", "path"]
             }
         },
@@ -299,8 +312,39 @@ fn tool_read_note(args: &Value) -> Result<String> {
     if !path.is_file() {
         anyhow::bail!("note \"{key}\" does not exist");
     }
-    let content =
-        fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let whole = fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+
+    let wanted = args.get("section").and_then(Value::as_str);
+    let content = match wanted {
+        None => whole.clone(),
+        Some(wanted) => match vault::find_section(&whole, wanted) {
+            Some(section) => section.text.to_string(),
+            // The error carries the headings the note does have, because the
+            // alternative is an agent guessing at names it cannot see, and
+            // because reading the whole note to find out costs exactly what
+            // asking for a section was meant to save.
+            None => {
+                // Quoted by hand, not with `{:?}`: Debug escapes every Thai
+                // vowel mark to `\u{e34}`, which turns the list of headings —
+                // the one thing this error exists to show — into gibberish in
+                // the language this project is for.
+                let available = vault::sections(&whole)
+                    .into_iter()
+                    .map(|section| format!("\"{}\"", section.heading))
+                    .collect::<Vec<_>>();
+                if available.is_empty() {
+                    anyhow::bail!(
+                        "note \"{key}\" has no headings, so it has no sections — \
+                         read it without the section argument"
+                    );
+                }
+                anyhow::bail!(
+                    "note \"{key}\" has no section \"{wanted}\". It has: {}",
+                    available.join(", ")
+                );
+            }
+        },
+    };
 
     let scope = crate::scope::Scope::load(&root)?;
     match crate::provenance::Sources::for_scope(&scope).of(key) {
@@ -314,6 +358,18 @@ fn tool_read_note(args: &Value) -> Result<String> {
         )),
         // The agent's own note, so it comes with the token that lets it be
         // written back — and only this exact version of it.
+        //
+        // Never for a section, though, and this is the sharp edge of the whole
+        // feature: `save_note` replaces the entire file. An agent holding a hash
+        // it got from reading one section could send that section back as the
+        // note's new content and delete everything else, having been told it was
+        // editing safely. A partial read grants no right to write, so it gets no
+        // hash — and the line below says what to do instead.
+        None if wanted.is_some() => Ok(format!(
+            "[section of {key} — read the whole note to get a base_hash before editing it]
+
+{content}"
+        )),
         None => Ok(format!(
             "{BASE_HASH_HEADER}{} — not part of the note; pass it as save_note's base_hash]
 

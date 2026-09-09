@@ -10,6 +10,16 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Added
 
+- **`read_note` can return one section**, given a heading in the new `section`
+  argument. A runbook's "วิธีแก้" is a fraction of the file and usually the whole
+  answer, so an agent stops paying for the rest of it in context. Subsections come
+  along with their parent; a `#` inside a fenced code block is not mistaken for a
+  heading; a name that is not there is an error listing the note's real headings,
+  so the agent can correct itself without reading the file to find out. A section
+  read carries **no `base_hash`** on purpose — `save_note` replaces the whole
+  file, and a hash obtained from a partial read would authorise replacing a note
+  with one of its sections.
+
 - **`samong eval <questions.toml>`** — scores search against questions somebody
   actually asked, each paired with the notes that answer it, and reports hit@k,
   MRR, and how often a question the vault *cannot* answer gets answered anyway.

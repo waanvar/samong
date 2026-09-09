@@ -524,6 +524,16 @@ Binds to `127.0.0.1` only (local-first, no auth).
 `list_notes`, `list_vaults` — deliberately no delete tool; erasing knowledge
 stays a human action.
 
+**An agent can read one section instead of the whole file.** `read_note` takes an
+optional `section` — a heading, with or without its `#`s, matched exactly but
+ignoring case — and returns that heading and its body, subsections included. A
+runbook's "วิธีแก้" is a fraction of the file, and usually the whole answer. A
+name that is not there comes back as an error listing the note's real headings,
+so an agent can correct itself without reading the file to find out. A section
+read deliberately carries **no `base_hash`**: `save_note` replaces the whole file,
+so an agent holding a hash from a partial read could send the section back as the
+note's new content and delete the rest. Editing requires reading the whole note.
+
 **An agent cannot overwrite a note it has not read.** No delete tool was never
 enough on its own: `save_note` writes the whole file, so an agent that had not
 read a note could replace all of it with one paragraph and be told "saved" —

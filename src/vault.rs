@@ -80,6 +80,88 @@ pub fn parse_wikilinks(content: &str) -> Vec<WikiLink> {
 }
 
 /// Full path for a note title inside the given vault.
+/// One `#` heading and everything under it, up to the next heading of the same
+/// or a shallower level.
+pub struct Section<'a> {
+    /// Heading text with the `#`s and surrounding whitespace removed.
+    pub heading: &'a str,
+    /// How deep the heading is: 1 for `#`, 2 for `##`.
+    pub level: usize,
+    /// The heading line and its body, exactly as they appear in the note.
+    pub text: &'a str,
+}
+
+/// Whether a line opens a section, and at what depth.
+///
+/// Only ATX headings (`## Like this`). Setext underlining is not recognised,
+/// and neither is a `#` inside a fenced code block — which is the one that would
+/// bite, since a shell comment in a runbook looks exactly like a heading. Fences
+/// are tracked for that reason.
+fn heading_level(line: &str) -> Option<usize> {
+    let hashes = line.chars().take_while(|c| *c == '#').count();
+    // `#`s must be followed by a space to be a heading, which is also what keeps
+    // `#!/bin/sh` and `#2291` out.
+    if (1..=6).contains(&hashes) && line[hashes..].starts_with(' ') {
+        Some(hashes)
+    } else {
+        None
+    }
+}
+
+/// Split a note into its headed sections, in the order they appear.
+///
+/// Text before the first heading belongs to no section and is not returned:
+/// it has no name to ask for. A note with no headings has no sections at all,
+/// which is the honest answer — the caller should read the whole thing.
+pub fn sections(content: &str) -> Vec<Section<'_>> {
+    let mut starts: Vec<(usize, usize, usize)> = Vec::new(); // (offset, level, heading_len)
+    let mut offset = 0;
+    let mut in_fence = false;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        if trimmed.trim_start().starts_with("```") || trimmed.trim_start().starts_with("~~~") {
+            in_fence = !in_fence;
+        } else if !in_fence {
+            if let Some(level) = heading_level(trimmed) {
+                starts.push((offset, level, trimmed.len()));
+            }
+        }
+        offset += line.len();
+    }
+
+    let mut out = Vec::with_capacity(starts.len());
+    for (index, &(start, level, heading_len)) in starts.iter().enumerate() {
+        // Ends at the next heading that is not nested under this one, so a `##`
+        // section carries its `###` subsections along with it.
+        let end = starts[index + 1..]
+            .iter()
+            .find(|(_, next_level, _)| *next_level <= level)
+            .map(|(next_start, _, _)| *next_start)
+            .unwrap_or(content.len());
+        out.push(Section {
+            heading: content[start..start + heading_len]
+                .trim_start_matches('#')
+                .trim(),
+            level,
+            text: content[start..end].trim_end_matches('\n'),
+        });
+    }
+    out
+}
+
+/// The section whose heading matches `wanted`, ignoring case and surrounding
+/// whitespace.
+///
+/// Exact rather than partial on purpose: "วิธีแก้" matching both "วิธีแก้" and
+/// "วิธีแก้ชั่วคราว" would hand back whichever came first, and the caller would
+/// have no way to tell it got the wrong one.
+pub fn find_section<'a>(content: &'a str, wanted: &str) -> Option<Section<'a>> {
+    let wanted = wanted.trim().trim_start_matches('#').trim();
+    sections(content)
+        .into_iter()
+        .find(|section| section.heading.eq_ignore_ascii_case(wanted))
+}
+
 pub fn note_path(vault: &Path, title: &str) -> PathBuf {
     vault.join(format!("{title}.md"))
 }
@@ -283,6 +365,120 @@ mod tests {
         let notes = list_notes(dir.path()).unwrap();
         assert_eq!(notes.len(), 1);
         assert_eq!(notes[0].title, "Real Note");
+    }
+
+    const RUNBOOK: &str = "\
+# Tomcat ต่อฐานข้อมูลไม่ได้
+
+บันทึกจากเคสจริง
+
+## อาการ
+
+โหลด JDBC driver ไม่สำเร็จ
+
+## วิธีแก้
+
+วาง driver ไว้ใน lib
+
+### ถ้ายังไม่ได้
+
+ตรวจ JNDI
+
+## ผลทดสอบ
+
+ผ่านบน Tomcat 8
+";
+
+    #[test]
+    fn a_section_stops_at_the_next_heading_of_its_own_level() {
+        let section = find_section(RUNBOOK, "อาการ").unwrap();
+        assert!(
+            section.text.contains("โหลด JDBC driver"),
+            "{}",
+            section.text
+        );
+        assert!(
+            !section.text.contains("วาง driver"),
+            "leaked into the next section"
+        );
+    }
+
+    /// A `##` section owns its `###` subsections: someone asking for "วิธีแก้"
+    /// wants the caveat under it too, and dropping it would hand back a half
+    /// answer that reads like a whole one.
+    #[test]
+    fn a_section_carries_its_subsections() {
+        let section = find_section(RUNBOOK, "วิธีแก้").unwrap();
+        assert!(section.text.contains("วาง driver"), "{}", section.text);
+        assert!(section.text.contains("ถ้ายังไม่ได้"), "{}", section.text);
+        assert!(section.text.contains("ตรวจ JNDI"), "{}", section.text);
+        assert!(!section.text.contains("ผลทดสอบ"), "ran past its level");
+    }
+
+    /// The whole point: one section is a fraction of the file.
+    #[test]
+    fn a_section_is_smaller_than_the_note() {
+        let section = find_section(RUNBOOK, "ผลทดสอบ").unwrap();
+        assert!(
+            section.text.len() * 3 < RUNBOOK.len(),
+            "section was {} of {} bytes",
+            section.text.len(),
+            RUNBOOK.len()
+        );
+    }
+
+    #[test]
+    fn the_top_heading_covers_everything_under_it() {
+        let section = find_section(RUNBOOK, "Tomcat ต่อฐานข้อมูลไม่ได้").unwrap();
+        assert!(
+            section.text.contains("ผลทดสอบ"),
+            "a # section owns the ## ones"
+        );
+        assert_eq!(section.level, 1);
+    }
+
+    /// A shell comment in a fenced block is not a heading. This is the one that
+    /// would quietly cut a runbook in half at the wrong place.
+    #[test]
+    fn a_hash_inside_a_code_fence_is_not_a_heading() {
+        let note =
+            "# Deploy\n\n```sh\n# restart the service\nsystemctl restart app\n```\n\nDone.\n";
+        let headings: Vec<&str> = sections(note).into_iter().map(|s| s.heading).collect();
+        assert_eq!(headings, vec!["Deploy"]);
+        let deploy = find_section(note, "Deploy").unwrap();
+        assert!(
+            deploy.text.contains("systemctl restart app"),
+            "{}",
+            deploy.text
+        );
+    }
+
+    #[test]
+    fn hashes_without_a_space_are_not_headings() {
+        let note = "# Real\n\n#!/bin/sh\n#2291 is an asset number\n";
+        let headings: Vec<&str> = sections(note).into_iter().map(|s| s.heading).collect();
+        assert_eq!(headings, vec!["Real"]);
+    }
+
+    #[test]
+    fn matching_ignores_case_leading_hashes_and_padding() {
+        assert!(find_section(RUNBOOK, "  ## วิธีแก้  ").is_some());
+        let english = "## Symptoms\n\nbroken\n";
+        assert!(find_section(english, "symptoms").is_some());
+        assert!(find_section(english, "SYMPTOMS").is_some());
+    }
+
+    /// Partial names are refused rather than guessed at.
+    #[test]
+    fn a_prefix_of_a_heading_does_not_match_it() {
+        assert!(find_section(RUNBOOK, "วิธี").is_none());
+        assert!(find_section(RUNBOOK, "ไม่มีหัวข้อนี้").is_none());
+    }
+
+    #[test]
+    fn a_note_without_headings_has_no_sections() {
+        assert!(sections("just a paragraph\n\nand another\n").is_empty());
+        assert!(sections("").is_empty());
     }
 
     #[test]
