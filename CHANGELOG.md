@@ -24,6 +24,31 @@ lineage rather than pretending this is the first shape the project took.
   failure and send someone to fix ranking that works. Format and guidance on
   writing a set worth trusting: `docs/EVAL.md`.
 
+### Changed
+
+- **`save_note` refuses to overwrite a note the agent has not read.** The MCP
+  server has no delete tool on purpose, but that was only half a guarantee:
+  `save_note` replaces the whole file, so an agent that never read a note could
+  drop three years of it and be told "saved". `read_note` now returns a
+  `[samong base_hash=…]` line above an editable note, and overwriting one
+  requires passing that hash back. A stale hash, a missing hash, or a hash for a
+  note deleted in the meantime are all errors, and the note on disk is untouched.
+  Creating a new note is unchanged and needs no hash. **This changes the MCP
+  contract:** an agent that blind-writes over existing notes will start getting
+  errors that tell it to read first.
+
+### Fixed
+
+- **Saving a note is now atomic**, from both the MCP server and the HTTP API.
+  Both used `fs::write`, which truncates the file before writing it, so a crash
+  or a full disk during a save left a note shorter than it was. The `.brain/`
+  index can be rebuilt from the notes; the notes cannot be rebuilt from anything.
+- **The README's comparison to Basic Memory was overstated.** It said the nearest
+  comparable project embeds with an English-only model, full stop; that is its
+  default (`bge-small-en-v1.5`), not its ceiling — the model is a setting there.
+  The paragraph now says default rather than capability, and says plainly that
+  nobody has measured the two over the same vault.
+
 ## 0.4.1
 
 A port that stays put.

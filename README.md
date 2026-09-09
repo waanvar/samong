@@ -434,9 +434,17 @@ most of them vendored Next.js documentation, took **11m 25s** on a laptop CPU.
 That is also why reference notes are excluded unless you ask for them — they were
 95% of that time.
 
-**The model is multilingual on purpose.** The nearest comparable project embeds
-with an English-only model, which quietly makes its semantic search useless for
-anyone whose notes are not in English. This one covers 100+ languages.
+**The model is multilingual on purpose.** `multilingual-e5-small` covers 100+
+languages, and it is what you get without configuring anything — which is the
+claim, and the whole of it. The nearest comparable project, Basic Memory,
+*defaults* to `bge-small-en-v1.5`, an English-only model, so its semantic search
+starts out blind to Thai notes; but the model is a setting there
+(`semantic_embedding_model`, alongside query/document prefix settings a model
+like E5 needs), so anyone who knows to change it can. The difference is the
+default, not the ceiling. Which of the two actually ranks Thai better is
+unmeasured: nobody has run both over the same vault, and until somebody has,
+neither of us should say. (Checked against Basic Memory in September 2026;
+defaults move.)
 
 **Judging a ranking change.** `samong eval questions.toml` scores search against
 questions somebody actually asked, paired with the notes that answer them, and
@@ -509,6 +517,17 @@ Binds to `127.0.0.1` only (local-first, no auth).
 `search_notes`, `read_note`, `save_note`, `get_links`,
 `list_notes`, `list_vaults` — deliberately no delete tool; erasing knowledge
 stays a human action.
+
+**An agent cannot overwrite a note it has not read.** No delete tool was never
+enough on its own: `save_note` writes the whole file, so an agent that had not
+read a note could replace all of it with one paragraph and be told "saved" —
+deletion under a friendlier name. So `read_note` returns a `[samong base_hash=…]`
+line above an editable note, and overwriting that note requires passing the hash
+back; a stale hash, a missing one, or a hash for a note that has since been
+deleted are all refused, and the file is left alone. Creating a note that does not
+exist yet needs no hash. The web UI's `PUT` has no such precondition — there the
+editor is a person looking at the note — but every write, from either surface,
+goes to disk atomically, so an interrupted save cannot leave a note truncated.
 
 ```json
 // .mcp.json in your repo
