@@ -98,6 +98,88 @@ pub fn chunk(text: &str) -> Vec<String> {
     out
 }
 
+/// The one model this process loads, and the query it embedded last.
+///
+/// [`rank_by_similarity`] used to call [`Embedder::load`] itself, once per call —
+/// and [`crate::ops::search_vault`] calls it once per vault. Searching five
+/// vaults therefore loaded 465 MB of model five times to answer one question,
+/// embedded the same query string five times, and threw all five away. The CLI
+/// paid that per search; `samong-server` and `samong-mcp` are long-lived, so they
+/// paid it on every request for as long as they ran.
+///
+/// The cost of holding it is real and worth stating: once a process has answered
+/// one semantic search, the model stays resident in it. For the CLI that is the
+/// length of one command. For the servers it is the rest of their life — which is
+/// the trade being made deliberately, because the alternative was paying the load
+/// again on every request.
+///
+/// A `Mutex` rather than a per-thread copy: the HTTP server answers on a pool of
+/// blocking threads, and one model per thread is the same waste again, spread out
+/// where it is harder to see.
+static SHARED: std::sync::Mutex<Option<Shared>> = std::sync::Mutex::new(None);
+
+struct Shared {
+    embedder: Embedder,
+    queries: QueryCache,
+}
+
+/// The last query vector, kept because a multi-vault search asks for the same one
+/// once per vault.
+///
+/// One entry rather than a map, on purpose. The repetition being removed is
+/// immediate — the same string, once per vault, inside one search — and a map
+/// would instead hold a vector for every query a server had ever been asked,
+/// growing without a bound anybody chose.
+#[derive(Default)]
+struct QueryCache {
+    last: Option<(String, Vec<f32>)>,
+}
+
+impl QueryCache {
+    /// The vector for `text`, computing it only when it is not the one just done.
+    ///
+    /// A failed embed leaves the previous entry alone rather than clearing it: the
+    /// old entry is still correct for the old query, and dropping it would make an
+    /// error cost the *next* search a recomputation too.
+    fn get_or_insert_with(
+        &mut self,
+        text: &str,
+        embed: impl FnOnce(&str) -> Result<Vec<f32>>,
+    ) -> Result<Vec<f32>> {
+        if let Some((cached, vector)) = &self.last {
+            if cached == text {
+                return Ok(vector.clone());
+            }
+        }
+        let vector = embed(text)?;
+        self.last = Some((text.to_string(), vector.clone()));
+        Ok(vector)
+    }
+}
+
+/// Embed a search query, loading the model at most once per process.
+fn query_vector(text: &str) -> Result<Vec<f32>> {
+    // A poisoned lock means an earlier call panicked while holding it. What is
+    // behind the lock is a cache, not an invariant, so taking it back is strictly
+    // better than failing every later search on account of one old panic.
+    let mut guard = SHARED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if guard.is_none() {
+        *guard = Some(Shared {
+            // No progress bar: this is a search, and the caller is waiting on a
+            // result rather than watching a download. `samong embed` is where a
+            // first download is expected and shown.
+            embedder: Embedder::load(false)?,
+            queries: QueryCache::default(),
+        });
+    }
+    let shared = guard.as_mut().expect("stored just above");
+    // Split the borrow: the closure needs the embedder while the cache is held.
+    let Shared { embedder, queries } = shared;
+    queries.get_or_insert_with(text, |text| embedder.embed_query(text))
+}
+
 /// A loaded model. Holding one is expensive, so callers keep it for a whole run.
 pub struct Embedder {
     model: TextEmbedding,
@@ -261,16 +343,16 @@ pub fn embed_vault(
 /// question in one section is a good answer, and averaging over its other
 /// sections would bury that.
 ///
-/// Loads the model, so this is only worth calling when [`crate::vectors::exists`]
-/// says the vault has something to compare against.
+/// May load the model — once per process, see [`SHARED`] — so this is still only
+/// worth calling when [`crate::vectors::exists`] says the vault has something to
+/// compare against: a vault with no vectors should not pay for a model at all.
 pub fn rank_by_similarity(vault: &Path, text: &str, limit: usize) -> Result<Vec<String>> {
     let store = Store::open(vault)?;
     let entries = store.all()?;
     if entries.is_empty() {
         return Ok(Vec::new());
     }
-    let mut embedder = Embedder::load(false)?;
-    let query = embedder.embed_query(text)?;
+    let query = query_vector(text)?;
 
     let mut scored: Vec<(String, f32)> = entries
         .into_iter()
@@ -297,6 +379,74 @@ pub fn rank_by_similarity(vault: &Path, text: &str, limit: usize) -> Result<Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The defect: `ops::search_vault` runs once per vault, and each run embedded
+    /// the query again. Five vaults, five identical embeds of the same string.
+    ///
+    /// No model here on purpose — the counting closure stands in for it, so this
+    /// runs in CI, which deliberately stops short of downloading 465 MB.
+    #[test]
+    fn the_same_query_is_embedded_once_however_many_vaults_ask() {
+        let mut cache = QueryCache::default();
+        let mut embeds = 0;
+        let mut ask = |cache: &mut QueryCache, text: &str, embeds: &mut usize| {
+            cache
+                .get_or_insert_with(text, |_| {
+                    *embeds += 1;
+                    Ok(vec![0.5, 0.25])
+                })
+                .unwrap()
+        };
+
+        // One query, five vaults.
+        for _ in 0..5 {
+            assert_eq!(ask(&mut cache, "ตลาดหลักทรัพย์", &mut embeds), vec![0.5, 0.25]);
+        }
+        assert_eq!(embeds, 1, "the query was embedded once per vault");
+
+        // A different query is not answered from the old one.
+        ask(&mut cache, "something else", &mut embeds);
+        assert_eq!(embeds, 2);
+
+        // And the cache moved on: the first query costs again, which is the price
+        // of holding one entry rather than an unbounded map.
+        ask(&mut cache, "ตลาดหลักทรัพย์", &mut embeds);
+        assert_eq!(embeds, 3);
+    }
+
+    /// A failed embed must not throw away an entry that is still correct, and must
+    /// not leave the failed query behind as if it had succeeded.
+    #[test]
+    fn a_failed_embed_leaves_the_previous_entry_intact() {
+        let mut cache = QueryCache::default();
+        cache
+            .get_or_insert_with("first", |_| Ok(vec![1.0]))
+            .unwrap();
+
+        assert!(cache
+            .get_or_insert_with("second", |_| Err(anyhow::anyhow!("model went away")))
+            .is_err());
+
+        let mut embeds = 0;
+        let again = cache
+            .get_or_insert_with("first", |_| {
+                embeds += 1;
+                Ok(vec![9.9])
+            })
+            .unwrap();
+        assert_eq!(again, vec![1.0], "the surviving entry was replaced");
+        assert_eq!(embeds, 0, "the surviving entry was recomputed");
+
+        // The failed query was not recorded as if it had worked.
+        let mut embeds = 0;
+        cache
+            .get_or_insert_with("second", |_| {
+                embeds += 1;
+                Ok(vec![2.0])
+            })
+            .unwrap();
+        assert_eq!(embeds, 1);
+    }
 
     #[test]
     fn empty_text_produces_no_chunks() {

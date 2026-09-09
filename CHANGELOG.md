@@ -8,7 +8,17 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **Semantic search loaded the embedding model once per vault, per query.**
+  `rank_by_similarity` loaded it itself, and search runs once per vault — so
+  asking one question across five vaults loaded 465 MB of model five times,
+  embedded the same query string five times, and discarded all five. The CLI paid
+  it per search; `samong-server` and `samong-mcp` paid it per request for as long
+  as they ran. The model is now loaded at most once per process and the query
+  vector is reused across the vaults of one search. The cost of the trade, stated
+  plainly: a process that has answered one semantic search keeps the model
+  resident afterwards.
 
 ## 0.4.1
 
