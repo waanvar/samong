@@ -1,7 +1,7 @@
 //! Small operations shared by every front-end (CLI, HTTP API, MCP) so the
 //! behavior stays identical no matter which surface an agent or human uses.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::graph::{self, Graph};
 use crate::registry::Registry;
@@ -232,6 +232,65 @@ fn semantic_ranking(
     Vec::new()
 }
 
+/// Replace a note's contents so a reader sees either the old file or the new one,
+/// never a truncated half.
+///
+/// `fs::write` opens with `O_TRUNC`: from that call until the last byte lands the
+/// file on disk is empty or short. A crash, a full disk, or a killed process
+/// inside that window leaves a note smaller than it was — and nothing in the
+/// vault can put it back. The `.brain/` index is rebuildable *from* the notes;
+/// the notes are rebuildable from nothing. That asymmetry is the whole argument:
+/// the one irreplaceable thing here is the Markdown, so the one write that has to
+/// be careful is this one.
+///
+/// A sibling temp file, flushed, then renamed over the target. The rename is
+/// atomic within a filesystem, and the temp file is a sibling precisely so that
+/// both are always on the same filesystem — a temp file in `/tmp` would make the
+/// final step a copy again, which is the thing being avoided.
+///
+/// The temp name is dotted and does not end in `.md`, so neither the indexer's
+/// walker nor `watch` ever sees it as a note.
+pub fn write_note_atomically(path: &std::path::Path, content: &str) -> Result<()> {
+    use std::io::Write as _;
+
+    let parent = path
+        .parent()
+        .with_context(|| format!("{} has no parent directory", path.display()))?;
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .with_context(|| format!("{} has no file name", path.display()))?;
+    // Unique per process and per call: two saves racing on one note must not
+    // land on the same temp file, or one would rename away the other's bytes.
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let temp = parent.join(format!(".{name}.{}.{stamp}.tmp", std::process::id()));
+
+    let write = || -> Result<()> {
+        let mut file =
+            std::fs::File::create(&temp).with_context(|| format!("creating {}", temp.display()))?;
+        file.write_all(content.as_bytes())
+            .with_context(|| format!("writing {}", temp.display()))?;
+        // Without the sync the rename can be durable while the contents are not,
+        // which on a power cut yields an intact-looking note full of zeroes —
+        // worse than a short one, because nothing reports it.
+        file.sync_all()
+            .with_context(|| format!("flushing {}", temp.display()))?;
+        drop(file);
+        std::fs::rename(&temp, path).with_context(|| format!("replacing {}", path.display()))
+    };
+
+    let result = write();
+    if result.is_err() {
+        // Best effort: the error being returned is the one worth reporting, and a
+        // leftover temp file is invisible to every reader of the vault anyway.
+        let _ = std::fs::remove_file(&temp);
+    }
+    result
+}
+
 /// Note keys arrive from untrusted callers — URL segments, MCP tool arguments —
 /// and unlike a bare title they are *supposed* to contain slashes, so every
 /// other way of escaping a vault has to be closed explicitly.
@@ -311,6 +370,55 @@ pub fn resolve_key(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The defect this replaces: `fs::write` truncates first, so a write that
+    /// dies partway leaves the note shorter than it was. Nothing here can crash a
+    /// process mid-write, so assert the observable half of the promise — a failed
+    /// write leaves the previous note byte-for-byte intact.
+    #[test]
+    fn a_failed_write_leaves_the_old_note_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let note = dir.path().join("Note.md");
+        let original = "# Note\n\nthree years of work\n";
+        std::fs::write(&note, original).unwrap();
+
+        // A directory standing where the note should go: `rename` onto it fails,
+        // which stands in for any failure after the temp file is written.
+        let blocked = dir.path().join("Blocked.md");
+        std::fs::create_dir(&blocked).unwrap();
+        std::fs::write(blocked.join("keep.txt"), "occupied").unwrap();
+        assert!(write_note_atomically(&blocked, "replacement").is_err());
+
+        assert_eq!(std::fs::read_to_string(&note).unwrap(), original);
+        assert!(blocked.is_dir(), "the target was not half-replaced");
+    }
+
+    /// A temp file left in the vault is a note the user never wrote — and one the
+    /// walker could pick up. Both the success and the failure path have to leave
+    /// the directory holding exactly what it held before, plus the note.
+    #[test]
+    fn no_temp_file_survives_either_outcome() {
+        let dir = tempfile::tempdir().unwrap();
+        let note = dir.path().join("Note.md");
+
+        write_note_atomically(&note, "# first\n").unwrap();
+        write_note_atomically(&note, "# second, longer than the first\n").unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&note).unwrap(),
+            "# second, longer than the first\n"
+        );
+
+        let blocked = dir.path().join("Blocked.md");
+        std::fs::create_dir(&blocked).unwrap();
+        assert!(write_note_atomically(&blocked, "replacement").is_err());
+
+        let mut left: Vec<String> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        assert_eq!(left, vec!["Blocked.md".to_string(), "Note.md".to_string()]);
+    }
 
     #[test]
     fn validate_key_accepts_real_keys() {
