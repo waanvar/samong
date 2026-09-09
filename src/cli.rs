@@ -115,6 +115,23 @@ enum Command {
     /// Report on the vault: what is in scope, what was skipped, and any
     /// ambiguous note titles
     Doctor,
+    /// Score search against questions somebody actually asked
+    ///
+    /// Takes a TOML file of questions paired with the notes that answer them,
+    /// runs each one through the same search the CLI, API and MCP server use,
+    /// and reports hit@k, MRR, and how often a question the vault cannot answer
+    /// gets answered anyway. Exists because "this ranking feels better" is not a
+    /// measurement, and the roadmap's similarity floor has to be set from one.
+    Eval {
+        /// TOML file of questions (see `docs/EVAL.md` for the format)
+        questions: PathBuf,
+        /// The k in hit@k, and how many results each question may return
+        #[arg(long, default_value_t = 5)]
+        at: usize,
+        /// Score a registered vault by name instead of the current directory
+        #[arg(long)]
+        vault: Option<String>,
+    },
     /// Update samong to the latest GitHub release
     Update {
         /// Only report whether an update is available; don't install it
@@ -940,6 +957,91 @@ fn print_scope_summary(scope: &Scope) -> Result<()> {
     Ok(())
 }
 
+/// Score search against a question set and print the numbers plus the misses.
+///
+/// The misses are printed, not just counted, because a score with nothing behind
+/// it cannot be acted on: "hit@5 is 71%" says to try something, and "these
+/// eleven questions missed, and here is what came back instead" says what.
+fn cmd_eval(vault: &Path, questions: &Path, at: usize, vault_name: Option<&str>) -> Result<()> {
+    let root = match vault_name {
+        Some(name) => Registry::open()?
+            .get(name)?
+            .with_context(|| format!("vault \"{name}\" is not registered"))?,
+        None => vault.to_path_buf(),
+    };
+    // Score what is on disk now: a stale index would report a search failure for
+    // a note that was only ever missing from the index.
+    indexer::reindex(&root, false)?;
+
+    let set = crate::eval::QuestionSet::load(questions)?;
+    let report = crate::eval::run(&root, &set, at)?;
+
+    let answerable = report.answerable();
+    println!(
+        "{} questions — {answerable} the vault should answer, {} it should not",
+        report.outcomes.len(),
+        report.unanswerable()
+    );
+    if answerable > 0 {
+        // hit@1 alongside hit@k, because "the answer is somewhere in five" and
+        // "the answer is the first thing you see" are different promises. Deduped
+        // so `--at 1` prints one line rather than the same line twice.
+        let mut cutoffs = vec![1, report.at];
+        cutoffs.dedup();
+        for k in cutoffs {
+            let hits = report.hits_at(k);
+            println!(
+                "hit@{k:<3}      {hits}/{answerable}  ({:.0}%)",
+                percentage(hits, answerable)
+            );
+        }
+        println!("MRR          {:.3}", report.mrr());
+    }
+    if report.unanswerable() > 0 {
+        let noise = report.noise();
+        println!(
+            "answered anyway  {noise}/{}  ({:.0}%) — questions with no answer in the vault \
+             that still returned something",
+            report.unanswerable(),
+            percentage(noise, report.unanswerable())
+        );
+    }
+
+    let misses: Vec<&crate::eval::Outcome> = report
+        .outcomes
+        .iter()
+        .filter(|outcome| match outcome.answerable() {
+            true => outcome.rank_of_first_answer().is_none(),
+            false => !outcome.returned.is_empty(),
+        })
+        .collect();
+    if misses.is_empty() {
+        return Ok(());
+    }
+    println!("\n{} to look at:", misses.len());
+    for outcome in misses {
+        println!("  {:?}", outcome.ask);
+        if outcome.answerable() {
+            println!("    wanted: {}", outcome.expected.join(", "));
+        } else {
+            println!("    wanted: nothing — the vault has no answer");
+        }
+        match outcome.returned.first() {
+            Some(_) => println!("    got:    {}", outcome.returned.join(", ")),
+            None => println!("    got:    nothing"),
+        }
+    }
+    Ok(())
+}
+
+/// Percent, with an empty denominator reading as zero rather than NaN.
+fn percentage(part: usize, whole: usize) -> f32 {
+    match whole {
+        0 => 0.0,
+        whole => part as f32 * 100.0 / whole as f32,
+    }
+}
+
 fn cmd_doctor(vault: &Path) -> Result<()> {
     let scope = Scope::load(vault)?;
     println!("vault: {}", display_path(scope.root()));
@@ -1155,6 +1257,11 @@ pub fn run() -> Result<()> {
         }
         Command::Watch => watch::run(&vault)?,
         Command::Doctor => cmd_doctor(&vault)?,
+        Command::Eval {
+            questions,
+            at,
+            vault: vault_name,
+        } => cmd_eval(&vault, &questions, at, vault_name.as_deref())?,
         Command::Vault { action } => cmd_vault(action)?,
         Command::Update { check } => crate::update::run(check)?,
     }

@@ -9,6 +9,13 @@
 //!
 //! Deliberately no delete tool: an agent's brain should accumulate knowledge,
 //! not be able to erase it. Deletion stays a human action (CLI / Web UI).
+//!
+//! No delete tool was never enough on its own, though. `save_note` writes the
+//! whole file, so an agent that had not read a note could still replace three
+//! years of it with one paragraph and report success — deletion by another name.
+//! So overwriting an existing note requires the hash of the version the agent
+//! read (see [`BASE_HASH_HEADER`]): edits are refused unless they are based on
+//! what is actually on disk right now.
 
 use std::fs;
 use std::path::PathBuf;
@@ -93,6 +100,32 @@ pub fn tool_names() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// The line `read_note` puts above an editable note, and the token `save_note`
+/// demands back before it will overwrite one.
+///
+/// A header line rather than a second `note_hash` tool, because a tool an agent
+/// may forget to call protects nothing: the hash has to arrive in the same reply
+/// as the content it describes. Reference notes already carry a header of their
+/// own, so the shape is one this server established.
+const BASE_HASH_HEADER: &str = "[samong base_hash=";
+
+/// Reject content that still carries the header `read_note` added.
+///
+/// An agent that reads a note, appends a paragraph and sends the whole buffer
+/// back will include the header, and saving it would leave a stale hash sitting
+/// in the note forever — where the *next* read would prepend a second one. Loud,
+/// because a quietly stripped header teaches the agent nothing.
+fn reject_echoed_header(content: &str) -> Result<()> {
+    if content.trim_start().starts_with(BASE_HASH_HEADER) {
+        anyhow::bail!(
+            "content still begins with the \"{BASE_HASH_HEADER}...]\" line that read_note \
+             added: that line is not part of the note. Remove it, and pass the hash as the \
+             base_hash argument instead."
+        );
+    }
+    Ok(())
+}
+
 fn tool_definitions() -> Value {
     let vault_arg = json!({ "type": "string", "description": "Registered vault name" });
     // Notes are addressed by path, never by title: one vault can hold many files
@@ -120,7 +153,10 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "read_note",
-            "description": "Read the full markdown content of a note, addressed by its path.",
+            "description": "Read the full markdown content of a note, addressed by its path. \
+                            An editable note comes back with a \"[samong base_hash=...]\" line \
+                            above it: that line is not part of the note — strip it, and pass the \
+                            hash as save_note's base_hash to edit this note.",
             "inputSchema": {
                 "type": "object",
                 "properties": { "vault": vault_arg, "path": path_arg },
@@ -129,13 +165,20 @@ fn tool_definitions() -> Value {
         },
         {
             "name": "save_note",
-            "description": "Create or overwrite a note at a path. Use [[Note Title]] wikilinks to connect knowledge; use [[vault-name/Note Title]] to link across vaults. Reference notes (from scope.include) are read-only and will be refused.",
+            "description": "Create a note, or overwrite one you have read. Use [[Note Title]] wikilinks to connect knowledge; use [[vault-name/Note Title]] to link across vaults. Reference notes (from scope.include) are read-only and will be refused. Writing over an existing note requires base_hash, so read_note first — this tool replaces the whole file, and never appends.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "vault": vault_arg,
                     "path": path_arg,
-                    "content": { "type": "string", "description": "Full markdown content" }
+                    "content": { "type": "string", "description": "Full markdown content: the note's entire new text, not a fragment to add" },
+                    "base_hash": {
+                        "type": "string",
+                        "description": "The hash read_note reported for the version you are editing. \
+                                        Required when the note already exists, refused when it does \
+                                        not (passing one for a missing note means it was deleted \
+                                        under you). Never invent or copy it from another note."
+                    }
                 },
                 "required": ["vault", "path", "content"]
             }
@@ -259,18 +302,24 @@ fn tool_read_note(args: &Value) -> Result<String> {
     let content =
         fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 
-    // Prefixed only for notes somebody else published — and those are read-only,
-    // so the header cannot be written back into the file it describes. For the
-    // user's own notes the content is returned untouched.
     let scope = crate::scope::Scope::load(&root)?;
     match crate::provenance::Sources::for_scope(&scope).of(key) {
+        // Published by somebody else, so read-only: no hash, because there is no
+        // edit this could be the base of.
         Some(source) => Ok(format!(
             "[from {} — read-only, quote with attribution]
 
 {content}",
             source.label()
         )),
-        None => Ok(content),
+        // The agent's own note, so it comes with the token that lets it be
+        // written back — and only this exact version of it.
+        None => Ok(format!(
+            "{BASE_HASH_HEADER}{} — not part of the note; pass it as save_note's base_hash]
+
+{content}",
+            indexer::content_hash(&content)
+        )),
     }
 }
 
@@ -293,10 +342,46 @@ fn tool_save_note(args: &Value) -> Result<String> {
              directory (it belongs to a dependency and would be erased on reinstall)"
         );
     }
+    reject_echoed_header(content)?;
+
+    // The whole point of the hash: this tool replaces a file, so it must be able
+    // to prove the replacement was written against what is on disk *now*. An
+    // agent that read the note ten turns ago, or never read it at all, is not
+    // editing — it is guessing, over the top of whatever a human wrote since.
+    let base_hash = args.get("base_hash").and_then(Value::as_str);
+    match (path.is_file(), base_hash) {
+        (true, Some(given)) => {
+            let current = indexer::content_hash(
+                &fs::read_to_string(&path)
+                    .with_context(|| format!("reading {}", path.display()))?,
+            );
+            if given != current {
+                anyhow::bail!(
+                    "cannot save \"{key}\": it changed since you read it (base_hash {given}, \
+                     now {current}). Somebody edited this note in the meantime — read_note \
+                     again, merge your change into what is there now, and save that."
+                );
+            }
+        }
+        (true, None) => anyhow::bail!(
+            "cannot save \"{key}\": that note already exists and save_note replaces the whole \
+             file, so this would erase what is in it. Call read_note first and pass the \
+             base_hash it reports."
+        ),
+        // A hash for a note that is not there: it was deleted or renamed under
+        // the agent. Recreating it silently would undo a human's deletion.
+        (false, Some(_)) => anyhow::bail!(
+            "cannot save \"{key}\": you passed a base_hash, but no note exists at that path — \
+             it was deleted or renamed since you read it. Check where it went before \
+             recreating it; to make a genuinely new note, save without base_hash."
+        ),
+        (false, None) => {}
+    }
+
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
     }
-    fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;
+    ops::write_note_atomically(&path, content)?;
     let report = indexer::reindex(&root, false)?;
     Ok(format!(
         "saved \"{key}\" in vault \"{vault_name}\" ({report})"
