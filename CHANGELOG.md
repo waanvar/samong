@@ -8,6 +8,12 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.4.2
+
+Nothing new, and a reason to update anyway.
+
 ### Fixed
 
 - **The bundled HTML sanitiser was behind two XSS advisories.** `markdown.ts`
