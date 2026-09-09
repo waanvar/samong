@@ -8,6 +8,12 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.5.0
+
+Harder to lose a note, and a way to measure the search.
+
 ### Added
 
 - **`samong eval <questions.toml>`** — scores search against questions somebody
@@ -23,6 +29,12 @@ lineage rather than pretending this is the first shape the project took.
   exist is an error, not a miss: a typo would otherwise look exactly like a search
   failure and send someone to fix ranking that works. Format and guidance on
   writing a set worth trusting: `docs/EVAL.md`.
+- **An `Audit` workflow**, which is what noticed the dependency fixes below. It
+  runs on every push and again every Monday, because a pinned dependency set does
+  not rot in the repository — it rots in the advisory database, while the
+  repository sits still and green. Advisories against what ships fail it;
+  build-only ones are reported and do not. Anything ignored has to carry its
+  reason in `.cargo/audit.toml`.
 
 ### Changed
 
@@ -57,29 +69,14 @@ lineage rather than pretending this is the first shape the project took.
   vector is reused across the vaults of one search. The cost of the trade, stated
   plainly: a process that has answered one semantic search keeps the model
   resident afterwards.
-
-## 0.4.2
-
-Nothing new, and a reason to update anyway.
-
-### Fixed
-
 - **The bundled HTML sanitiser was behind two XSS advisories.** `markdown.ts`
   passes everything the web UI renders through `DOMPurify.sanitize`, and 3.4.11 —
   the version `npm ci` put inside both the published 0.4.0 and 0.4.1 binaries — is
-  affected by `GHSA-c2j3-45gr-mqc4` and `GHSA-55q2-fjhq-7xh7`, fixed in 3.4.13.
-  It is now 3.4.15. `h2`, which
-  serves HTTP/2 for the local API, moved from 0.4.15 to 0.4.19 for
-  `RUSTSEC-2026-0258`. Neither was noticed by anything: the lockfiles are pinned
-  on purpose, and nothing was reading them against an advisory database.
-
-### Added
-
-- **An `Audit` workflow**, which is what noticed the above. It runs on every push
-  and again every Monday, because a pinned dependency set does not rot in the
-  repository — it rots in the advisory database, while the repository sits still
-  and green. Advisories against what ships fail it; build-only ones are reported
-  and do not. Anything ignored has to carry its reason in `.cargo/audit.toml`.
+  affected by `GHSA-c2j3-45gr-mqc4` and `GHSA-55q2-fjhq-7xh7`, fixed in 3.4.13. It
+  is now 3.4.15. `h2`, which serves HTTP/2 for the local API, moved from 0.4.15 to
+  0.4.19 for `RUSTSEC-2026-0258`. Neither was noticed by anything: the lockfiles
+  are pinned on purpose, and nothing was reading them against an advisory
+  database.
 
 ## 0.4.1
 
