@@ -433,6 +433,12 @@ most of them vendored Next.js documentation, took **11m 25s** on a laptop CPU.
 That is also why reference notes are excluded unless you ask for them — they were
 95% of that time.
 
+**Searching loads the model once per process, not once per vault.** The cost of
+that is a process which has answered one semantic search keeping the model
+resident — for the CLI, the length of one command; for `samong-server` and
+`samong-mcp`, the rest of their run. The trade is deliberate: the alternative was
+loading it again for every vault of every search.
+
 **The model is multilingual on purpose.** `multilingual-e5-small` covers 100+
 languages, and it is what you get without configuring anything — which is the
 claim, and the whole of it. The nearest comparable project, Basic Memory,
