@@ -389,7 +389,9 @@ mod tests {
     fn the_same_query_is_embedded_once_however_many_vaults_ask() {
         let mut cache = QueryCache::default();
         let mut embeds = 0;
-        let mut ask = |cache: &mut QueryCache, text: &str, embeds: &mut usize| {
+        // Takes everything it touches as a parameter, so it captures nothing and
+        // needs no `mut` of its own.
+        let ask = |cache: &mut QueryCache, text: &str, embeds: &mut usize| {
             cache
                 .get_or_insert_with(text, |_| {
                     *embeds += 1;
