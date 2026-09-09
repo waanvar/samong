@@ -509,6 +509,17 @@ Binds to `127.0.0.1` only (local-first, no auth).
 `list_notes`, `list_vaults` — deliberately no delete tool; erasing knowledge
 stays a human action.
 
+**An agent cannot overwrite a note it has not read.** No delete tool was never
+enough on its own: `save_note` writes the whole file, so an agent that had not
+read a note could replace all of it with one paragraph and be told "saved" —
+deletion under a friendlier name. So `read_note` returns a `[samong base_hash=…]`
+line above an editable note, and overwriting that note requires passing the hash
+back; a stale hash, a missing one, or a hash for a note that has since been
+deleted are all refused, and the file is left alone. Creating a note that does not
+exist yet needs no hash. The web UI's `PUT` has no such precondition — there the
+editor is a person looking at the note — but every write, from either surface,
+goes to disk atomically, so an interrupted save cannot leave a note truncated.
+
 ```json
 // .mcp.json in your repo
 { "mcpServers": { "samong": { "command": "samong-mcp" } } }

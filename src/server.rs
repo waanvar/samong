@@ -350,7 +350,13 @@ async fn put_note(
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
         }
-        fs::write(&path, &body).with_context(|| format!("writing {}", path.display()))?;
+        // Atomic, for the reason given on the helper. No base_hash precondition
+        // here, unlike the MCP tool: this endpoint backs the web UI, where the
+        // editor is a person who has the note open in front of them, and the
+        // last-writer-wins risk is one browser tab against another rather than an
+        // agent overwriting a file it never read. Worth revisiting when the UI can
+        // carry a hash through a save.
+        crate::ops::write_note_atomically(&path, &body)?;
         let report = indexer::reindex(&root, false)?;
         // A note written outside the vault's scope (gitignored, say) is saved but
         // will never be searchable — say so rather than let it vanish quietly.
