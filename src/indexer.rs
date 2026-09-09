@@ -13,8 +13,10 @@ use crate::vault::{self, Note};
 /// changes; vaults indexed with an older version are rebuilt in full
 /// automatically.
 /// 1 = default tokenizer (pre-versioning), 2 = thai_mixed tokenizer,
-/// 3 = notes keyed by vault-relative path instead of title.
-pub const INDEX_VERSION: u64 = 3;
+/// 3 = notes keyed by vault-relative path instead of title,
+/// 4 = words are also split at case and letter/digit boundaries, so `LHVendor`
+///     is findable as `vendor`.
+pub const INDEX_VERSION: u64 = 4;
 
 pub struct ReindexReport {
     pub indexed: usize,
@@ -126,8 +128,15 @@ pub fn reindex_in(scope: &Scope, full: bool) -> Result<ReindexReport> {
     let notes = vault::list_notes_in(scope)?;
     let graph = Graph::open(vault)?;
 
-    // A schema/tokenizer/identity change invalidates the whole index.
-    let upgraded = graph.index_version()? != Some(INDEX_VERSION);
+    // A schema/tokenizer/identity change invalidates the whole index — and so
+    // does the vault editing its own dictionary. Both are the same failure if
+    // missed: documents in the index were cut into terms by one set of rules and
+    // the query is cut by another, so search returns the wrong notes and says
+    // nothing about it. Rebuilding is the only honest answer; it is also the
+    // reason the hash is stored rather than the word list, so noticing is cheap.
+    let dictionary = crate::thai::dictionary_hash(scope.search_words());
+    let redictionaried = graph.dictionary_hash()? != Some(dictionary);
+    let upgraded = graph.index_version()? != Some(INDEX_VERSION) || redictionaried;
     let full = full || upgraded;
 
     if full {
@@ -141,6 +150,7 @@ pub fn reindex_in(scope: &Scope, full: bool) -> Result<ReindexReport> {
         graph.rebuild(&updates)?;
         search::rebuild(vault, &bodies)?;
         graph.set_index_version(INDEX_VERSION)?;
+        graph.set_dictionary_hash(dictionary)?;
         return Ok(ReindexReport {
             indexed: notes.len(),
             removed: 0,

@@ -10,6 +10,16 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Added
 
+- **A vault can declare its own dictionary words**, in `[search] words` of
+  `samong.toml`. The bundled 62k-word dictionary knows Thai, not your employer:
+  system names, project codenames and Thai compounds a team writes as one word
+  are exactly what people search for and exactly what a general dictionary has
+  never heard of. Declared words go to the segmenter, and travel with the vault
+  because `samong pack` copies the config. Changing the list rebuilds the index
+  automatically — the notes already indexed were cut into terms by the old list,
+  and a search answered from those returns the wrong notes while reporting
+  nothing wrong.
+
 - **`samong eval <questions.toml>`** — scores search against questions somebody
   actually asked, each paired with the notes that answer it, and reports hit@k,
   MRR, and how often a question the vault *cannot* answer gets answered anyway.
@@ -39,6 +49,14 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Fixed
 
+- **A word stuck to another word was unsearchable.** A note titled `LHVendor` was
+  not found by `vendor`; on a test vault an unrelated note that merely spelled the
+  word out ranked above it. Words are now also split at case and letter/digit
+  boundaries — `LHVendor` into `LH` and `Vendor`, `JDBCDriver` into `JDBC` and
+  `Driver`, `LH2291` into `LH` and `2291` — with the original kept, so the whole
+  word still matches and the pieces are additions rather than replacements. This
+  changes how text is indexed, so the first run after upgrading rebuilds each
+  vault's index once.
 - **Saving a note is now atomic**, from both the MCP server and the HTTP API.
   Both used `fs::write`, which truncates the file before writing it, so a crash
   or a full disk during a save left a note shorter than it was. The `.brain/`

@@ -71,6 +71,26 @@ pub struct Config {
     pub vault: VaultConfig,
     #[serde(default)]
     pub scope: ScopeConfig,
+    #[serde(default)]
+    pub search: SearchConfig,
+}
+
+/// What this vault adds to how its own text is read.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SearchConfig {
+    /// Words the bundled segmentation dictionary has never heard of: system
+    /// names, project codenames, abbreviations, the Thai compound your team
+    /// writes as one word.
+    ///
+    /// Kept in `samong.toml` rather than a file of its own so it travels with
+    /// the vault — `samong pack` copies the config, so a published vault arrives
+    /// knowing its own vocabulary.
+    ///
+    /// Changing this list invalidates the index: see
+    /// [`crate::thai::dictionary_hash`].
+    #[serde(default)]
+    pub words: Vec<String>,
 }
 
 /// Who this vault is, as declared by the vault itself.
@@ -216,6 +236,11 @@ pub struct Scope {
 
 impl Scope {
     /// Compile the scope rules for `vault`, reading its committed config.
+    /// Extra dictionary words this vault declares, for segmenting its own text.
+    pub fn search_words(&self) -> &[String] {
+        &self.config.search.words
+    }
+
     pub fn load(vault: &Path) -> Result<Self> {
         Self::with_config(vault, Config::load(vault)?)
     }

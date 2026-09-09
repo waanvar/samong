@@ -95,14 +95,34 @@ impl SearchOptions {
     }
 }
 
-fn register_tokenizers(index: &Index) {
+/// Register the tokenizer this vault's index was built with.
+///
+/// `words` are the vault's own additions from `[search] words`. They have to be
+/// the same ones the index was written with: documents were segmented at index
+/// time and queries are segmented now, and if the two disagree the search
+/// quietly returns the wrong notes. [`crate::indexer`] is what keeps them in
+/// step, by rebuilding the index when the word list changes.
+fn register_tokenizers(index: &Index, words: &[String]) {
     index.tokenizers().register(
         THAI_TOKENIZER_NAME,
-        TextAnalyzer::builder(ThaiTokenizer)
+        TextAnalyzer::builder(ThaiTokenizer::with_words(words))
             .filter(RemoveLongFilter::limit(100))
             .filter(LowerCaser)
             .build(),
     );
+}
+
+/// The extra dictionary words a vault declares, or none when it declares no
+/// config at all.
+///
+/// Read from disk here rather than threaded down from callers: every search
+/// entry point already has the vault path and none of them has a `Scope`, and a
+/// missing or malformed config is not this module's error to invent a policy for
+/// — [`crate::scope::Scope::load`] reports it everywhere else.
+pub fn vault_words(vault: &std::path::Path) -> Vec<String> {
+    crate::scope::Scope::load(vault)
+        .map(|scope| scope.search_words().to_vec())
+        .unwrap_or_default()
 }
 
 /// A note as handed to the index: identity, display name, and content.
@@ -174,7 +194,7 @@ fn open_or_create(vault: &Path) -> Result<Index> {
             .with_context(|| format!("creating index dir {}", dir.display()))?;
         Index::create_in_dir(&dir, build_schema()).context("creating tantivy index")?
     };
-    register_tokenizers(&index);
+    register_tokenizers(&index, &vault_words(vault));
     Ok(index)
 }
 
@@ -260,7 +280,7 @@ pub fn hits_for_keys(
         return Ok(Vec::new());
     }
     let index = Index::open_in_dir(&dir).context("opening tantivy index")?;
-    register_tokenizers(&index);
+    register_tokenizers(&index, &vault_words(vault));
     let schema = index.schema();
     let path_field = schema.get_field("path")?;
     let title_field = schema.get_field("title")?;
@@ -340,7 +360,7 @@ pub fn query_with(vault: &Path, text: &str, options: &SearchOptions) -> Result<V
         return Ok(Vec::new());
     }
     let index = Index::open_in_dir(&dir).context("opening tantivy index")?;
-    register_tokenizers(&index);
+    register_tokenizers(&index, &vault_words(vault));
     let schema = index.schema();
     let path_field = schema
         .get_field("path")

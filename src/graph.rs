@@ -25,6 +25,11 @@ const TITLES: MultimapTableDefinition<&str, &str> = MultimapTableDefinition::new
 /// changes so stale indexes get rebuilt automatically.
 const META: TableDefinition<&str, u64> = TableDefinition::new("meta");
 const INDEX_VERSION_KEY: &str = "index_version";
+/// Identity of the segmentation dictionary the index was built with. Stored
+/// beside the version because a vault's own word list changes how text is cut
+/// into terms just as surely as a new tokenizer does — and unlike the version,
+/// it changes without anyone editing Samong.
+const DICTIONARY_KEY: &str = "dictionary_hash";
 /// Title-keyed mtime table from before notes were keyed by path. Only ever
 /// deleted, never read.
 const LEGACY_MTIMES: TableDefinition<&str, u64> = TableDefinition::new("mtimes");
@@ -179,6 +184,35 @@ impl Graph {
             table.insert(INDEX_VERSION_KEY, version)?;
         }
         txn.commit().context("committing index version")?;
+        Ok(())
+    }
+
+    /// Identity of the dictionary this vault was last indexed with, if recorded.
+    ///
+    /// `None` for a vault indexed before this was tracked, which is treated as
+    /// "unknown, so rebuild": the alternative is trusting an index that may have
+    /// been built by a different word list, and being wrong about that is
+    /// invisible to whoever is searching.
+    pub fn dictionary_hash(&self) -> Result<Option<u64>> {
+        let txn = self.db.begin_read().context("beginning read transaction")?;
+        let table = match txn.open_table(META) {
+            Ok(t) => t,
+            Err(redb::TableError::TableDoesNotExist(_)) => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+        Ok(table.get(DICTIONARY_KEY)?.map(|v| v.value()))
+    }
+
+    pub fn set_dictionary_hash(&self, hash: u64) -> Result<()> {
+        let txn = self
+            .db
+            .begin_write()
+            .context("beginning write transaction")?;
+        {
+            let mut table = txn.open_table(META)?;
+            table.insert(DICTIONARY_KEY, hash)?;
+        }
+        txn.commit().context("committing dictionary hash")?;
         Ok(())
     }
 

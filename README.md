@@ -452,6 +452,26 @@ unmeasured: nobody has run both over the same vault, and until somebody has,
 neither of us should say. (Checked against Basic Memory in September 2026;
 defaults move.)
 
+**Words your team made up.** The bundled dictionary knows Thai; it does not know
+`LHVendor`, your project codename, or the Thai compound your team writes as one
+word. Two things address that. Words are now also split at case and letter/digit
+boundaries, so `LHVendor` is found by `vendor`, `JDBCDriver` by `driver`, and
+`LH2291` by `2291` — the whole word still matches too, since the pieces are added
+rather than substituted. And a vault can declare its own vocabulary:
+
+```toml
+# samong.toml
+[search]
+words = ["LHVendor", "สมองกลอัจฉริยะ"]
+```
+
+Those words go to the Thai segmenter, so a compound it would otherwise cut into
+unrelated pieces stays one term. They live in `samong.toml` rather than a file of
+their own so `samong pack` carries them with a published vault. **Changing the
+list rebuilds the index automatically** — it has to, because every note already
+indexed was cut into terms by the old list, and a search answered from those
+would return the wrong notes without saying so.
+
 **Judging a ranking change.** `samong eval questions.toml` scores search against
 questions somebody actually asked, paired with the notes that answer them, and
 reports hit@k, MRR, and how often a question the vault *cannot* answer gets
