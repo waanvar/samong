@@ -78,7 +78,7 @@ fn file_mtime(path: &Path) -> Result<u64> {
 
 /// Content identity. mtime alone cannot serve: a checkout, a clone, or a copy
 /// between machines rewrites mtimes without changing a single byte.
-fn content_hash(content: &str) -> String {
+pub(crate) fn content_hash(content: &str) -> String {
     blake3::hash(content.as_bytes()).to_hex().to_string()
 }
 
