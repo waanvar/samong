@@ -1,0 +1,103 @@
+name: Audit
+
+# The only check in this repository whose answer can change while the repository
+# does not.
+#
+# Everything else here is judged against the tree: `--locked` on every cargo
+# command and a committed `package-lock.json`, on purpose, so CI judges the
+# dependency set that actually ships rather than whatever resolved newest today.
+# The cost of freezing the set is that nothing in it is ever re-examined. An
+# advisory published tomorrow against a version pinned last month makes today's
+# green run wrong, and no push will happen to say so — the repository is quiet
+# precisely because the code is finished.
+#
+# Hence the schedule. A vulnerability check that only runs when someone edits the
+# code answers a question nobody asked.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Monday morning UTC. Not on the hour: scheduled runs at :00 queue behind
+    # everyone else's.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to audit. Blank means this branch."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Reads Cargo.lock — the same file `--locked` pins everywhere else — against
+  # the RustSec advisory database.
+  cargo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Empty on push, pull_request and schedule, which makes checkout behave
+          # exactly as it does without this. Only a manual run naming a ref uses
+          # it.
+          ref: ${{ inputs.ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # A prebuilt binary. `cargo install cargo-audit` compiles roughly 250
+      # crates on every run, which is several minutes spent to answer a question
+      # that takes seconds.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      # Vulnerabilities fail. Warnings — unmaintained, unsound, yanked — print
+      # and pass, which is the same decision the `aur` job makes about namcap's
+      # `E:` and `W:` lines: a check that fails on everything it notices is a
+      # check somebody switches off. An unmaintained crate is a real problem on a
+      # slower clock than an exploitable one, and it is answered by choosing a
+      # different dependency, not by reddening the branch on the morning it is
+      # first reported.
+      - name: Cargo.lock against the RustSec advisory database
+        run: cargo audit
+
+  # The web UI is compiled into the binary by rust-embed, so these packages are
+  # not a build detail — their code is inside every published executable.
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      # `npm audit` resolves the tree from package-lock.json and asks the
+      # registry; it does not need node_modules, so nothing is installed here.
+      #
+      # `--omit=dev` and `--audit-level=low` together: what ships is the
+      # production tree — eight direct packages, among them the Markdown parser
+      # and the sanitiser that stand between a note's content and the reader's
+      # browser — so anything reported against it is worth stopping for. This
+      # gate was written after `dompurify` sat three patch versions behind two
+      # XSS advisories inside the published binaries, at "moderate", which a
+      # `--audit-level=high` gate would have waved through.
+      - name: What ships must have no advisories against it
+        working-directory: web
+        run: npm audit --omit=dev --audit-level=low
+
+      # Build-time packages are not in the artefact, so an advisory against one
+      # is not a reason to hold a release — but it is a reason to know. Reported
+      # here rather than enforced, and deliberately not hidden behind a passing
+      # step that printed nothing.
+      - name: Build-only dependencies, reported and not enforced
+        working-directory: web
+        continue-on-error: true
+        run: npm audit

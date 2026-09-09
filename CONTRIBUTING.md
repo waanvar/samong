@@ -24,6 +24,17 @@ cargo fmt --all -- --check
 All four have to pass. `--locked` everywhere: CI judges the dependency set that
 ships, not whatever resolved newest today.
 
+If your change adds or moves a dependency, run the advisory check too — the same
+one the `Audit` workflow runs on every push and again every Monday, since a frozen
+lockfile stops being safe without anything in the repository changing:
+
+```sh
+cargo audit                          # Cargo.lock against the RustSec database
+cd web && npm audit --omit=dev       # what is embedded in the binary
+```
+
+A new dependency also means `THIRD-PARTY.md` in the same commit.
+
 If you touched the web UI, `cargo install --path . --force` afterwards or you will
 keep testing the old interface — it is baked into the binary.
 

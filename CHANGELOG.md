@@ -8,7 +8,24 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **The bundled HTML sanitiser was behind two XSS advisories.** `markdown.ts`
+  passes everything the web UI renders through `DOMPurify.sanitize`, and 3.4.11 —
+  the version `npm ci` put inside both the published 0.4.0 and 0.4.1 binaries — is
+  affected by `GHSA-c2j3-45gr-mqc4` and `GHSA-55q2-fjhq-7xh7`, fixed in 3.4.13.
+  It is now 3.4.15. `h2`, which
+  serves HTTP/2 for the local API, moved from 0.4.15 to 0.4.19 for
+  `RUSTSEC-2026-0258`. Neither was noticed by anything: the lockfiles are pinned
+  on purpose, and nothing was reading them against an advisory database.
+
+### Added
+
+- **An `Audit` workflow**, which is what noticed the above. It runs on every push
+  and again every Monday, because a pinned dependency set does not rot in the
+  repository — it rots in the advisory database, while the repository sits still
+  and green. Advisories against what ships fail it; build-only ones are reported
+  and do not. Anything ignored has to carry its reason in `.cargo/audit.toml`.
 
 ## 0.4.1
 

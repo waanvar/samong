@@ -1,0 +1,27 @@
+# Read by `cargo audit`, which the Audit workflow runs against Cargo.lock.
+#
+# An ignored advisory is a claim that the vulnerable code cannot be reached from
+# this program, and it is only worth making in writing. Anything ignored without
+# a reason below should be treated as unreviewed and removed.
+
+[advisories]
+ignore = [
+    # quick-xml 0.38.4: quadratic run time on duplicate attribute names, and
+    # unbounded namespace-declaration allocation in `NsReader`. Both need
+    # attacker-controlled XML.
+    #
+    # It arrives as a mandatory dependency of `self_update` 0.44, whose
+    # `backends::s3` module is the only thing that uses it and is compiled
+    # unconditionally. Samong drives `backends::github` and never hands XML to
+    # anything: `src/update.rs` reads a GitHub release listing as JSON and then
+    # downloads an archive.
+    #
+    # So the parser is in every published binary and nothing in Samong feeds it.
+    # The real fix is `self_update` 1.x, which moved to quick-xml 0.41 — a major
+    # version of the crate that owns the update path, in the module that shipped
+    # silently broken through five releases. That upgrade is worth doing on its
+    # own, with the published binary actually updating itself as the evidence,
+    # and not folded into a change about CI.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]

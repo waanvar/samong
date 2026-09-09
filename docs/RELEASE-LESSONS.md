@@ -36,7 +36,7 @@ And two ways a reading can be worthless:
    only visible in `internal/validators/registries/mcpb.go`. **When something rejects
    a submission, read its validator source.**
 
-And three ways green means nothing at all:
+And four ways green means nothing at all:
 
 6. **A tool that prints the defect and exits 0.** `namcap` printed
    `samong-bin E: Dependency hicolor-icon-theme detected and not included` on every
@@ -53,6 +53,14 @@ And three ways green means nothing at all:
    that lists the runs there are shows an unjudged commit and a passing commit the
    same way. `workflow_dispatch` with a `ref` input exists so the answer is not
    "push an empty commit to move the branch".
+9. **A check that only runs when the repository changes.** Every gate here is
+   triggered by a push, which is right for every question about the code and
+   useless for the one question about the world: *is anything we already shipped
+   now known to be vulnerable?* A pinned lockfile does not rot in the repository,
+   it rots in the advisory database. When the check was finally written it found
+   `h2` and a three-versions-behind `dompurify` inside binaries that had been
+   published for weeks under a completely green CI. That is why `Audit` has a
+   `schedule:` and nothing else here does.
 
 ## The defects
 
@@ -140,6 +148,8 @@ And three ways green means nothing at all:
 | CI job `aur`, namcap step | a namcap `E:` line passing unread; `W:` still prints and still passes, because this package earns those |
 | CI job `msrv` | a dependency quietly raising the floor above the `rust-version` the README promises — default features *and* `semantic`, which is where the floor moves first |
 | `tests/msrv.rs` | `README.md` and `CLAUDE.md` naming a Rust version that `Cargo.toml` no longer says |
+| workflow `Audit`, job `cargo` | advisories against the pinned `Cargo.lock`; ignored ones must carry a written reason in `.cargo/audit.toml` |
+| workflow `Audit`, job `npm` | advisories against the production tree that `rust-embed` compiles into the binary — the gate is set at `low`, because that tree is eight packages and two of them render note content |
 
 **After any release: `gh run view <id> --json jobs` (a queued job is a failure CI
 does not report, and a *skipped step* inside a green job is a package that was never
