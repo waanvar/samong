@@ -4,6 +4,9 @@
 /// The desktop launcher: what happens when someone double-clicks Samong.
 pub mod app;
 pub mod cli;
+/// Scoring a search against questions somebody actually asked, so a ranking
+/// change can be judged by a number rather than by an impression.
+pub mod eval;
 pub mod git;
 pub mod graph;
 pub mod indexer;

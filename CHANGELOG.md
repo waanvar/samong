@@ -8,7 +8,21 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Added
+
+- **`samong eval <questions.toml>`** — scores search against questions somebody
+  actually asked, each paired with the notes that answer it, and reports hit@k,
+  MRR, and how often a question the vault *cannot* answer gets answered anyway.
+  Written because the roadmap's similarity floor "has to be measured against real
+  vaults, not guessed", and there was nothing to measure with: every ranking
+  change so far was judged by trying a few queries and forming an impression.
+  Questions with no answer are counted on their own line rather than averaged in
+  — a change that improves every other number while making search confidently
+  answer what it cannot is worse, not better, and that is the failure that
+  misleads an agent reading through MCP. An answer key naming a note that does not
+  exist is an error, not a miss: a typo would otherwise look exactly like a search
+  failure and send someone to fix ranking that works. Format and guidance on
+  writing a set worth trusting: `docs/EVAL.md`.
 
 ## 0.4.1
 

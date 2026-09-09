@@ -230,6 +230,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong vault update [name]` | Pull the latest content for installed vaults |
 | `samong vault verify [name] [--require-signature]` | Check installed vaults are what their publishers published |
 | `samong doctor` | Report what counts as a note, what was skipped, and any ambiguous titles |
+| `samong eval <questions.toml> [--at N] [--vault <name>]` | Score search against real questions — hit@k, MRR, and how often an unanswerable question gets answered ([docs](docs/EVAL.md)) |
 | `samong update [--check]` | Update to the latest GitHub release (--check only reports) |
 | `samong-app` | The double-click launcher: finds or creates a vault, serves, opens the browser |
 
@@ -436,6 +437,14 @@ That is also why reference notes are excluded unless you ask for them — they w
 **The model is multilingual on purpose.** The nearest comparable project embeds
 with an English-only model, which quietly makes its semantic search useless for
 anyone whose notes are not in English. This one covers 100+ languages.
+
+**Judging a ranking change.** `samong eval questions.toml` scores search against
+questions somebody actually asked, paired with the notes that answer them, and
+reports hit@k, MRR, and how often a question the vault *cannot* answer gets
+answered anyway. That last number is why the similarity floor above is still
+unset: it has to be measured against real vaults rather than guessed, and this is
+the measuring. [docs/EVAL.md](docs/EVAL.md) has the file format and what makes a
+question set worth trusting.
 
 **How the two rankings combine.** Reciprocal Rank Fusion, not a weighted sum of
 scores: BM25 is unbounded and cosine similarity is −1 to 1, so mixing the raw
