@@ -433,9 +433,17 @@ most of them vendored Next.js documentation, took **11m 25s** on a laptop CPU.
 That is also why reference notes are excluded unless you ask for them — they were
 95% of that time.
 
-**The model is multilingual on purpose.** The nearest comparable project embeds
-with an English-only model, which quietly makes its semantic search useless for
-anyone whose notes are not in English. This one covers 100+ languages.
+**The model is multilingual on purpose.** `multilingual-e5-small` covers 100+
+languages, and it is what you get without configuring anything — which is the
+claim, and the whole of it. The nearest comparable project, Basic Memory,
+*defaults* to `bge-small-en-v1.5`, an English-only model, so its semantic search
+starts out blind to Thai notes; but the model is a setting there
+(`semantic_embedding_model`, alongside query/document prefix settings a model
+like E5 needs), so anyone who knows to change it can. The difference is the
+default, not the ceiling. Which of the two actually ranks Thai better is
+unmeasured: nobody has run both over the same vault, and until somebody has,
+neither of us should say. (Checked against Basic Memory in September 2026;
+defaults move.)
 
 **How the two rankings combine.** Reciprocal Rank Fusion, not a weighted sum of
 scores: BM25 is unbounded and cosine similarity is −1 to 1, so mixing the raw
