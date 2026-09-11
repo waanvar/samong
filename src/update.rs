@@ -36,6 +36,7 @@ pub fn current_version() -> &'static str {
 fn asset_target() -> Option<&'static str> {
     match (std::env::consts::ARCH, std::env::consts::OS) {
         ("x86_64", "linux") => Some("x86_64-linux"),
+        ("aarch64", "linux") => Some("aarch64-linux"),
         ("x86_64", "windows") => Some("x86_64-windows"),
         ("aarch64", "macos") => Some("aarch64-macos"),
         ("x86_64", "macos") => Some("x86_64-macos"),
@@ -51,7 +52,7 @@ pub fn latest_version() -> Result<Option<String>> {
         .repo_name(REPO_NAME)
         .build()?
         .fetch()?;
-    Ok(releases.into_iter().next().map(|r| r.version))
+    Ok(releases.into_iter().next().map(|r| r.version().to_string()))
 }
 
 /// Is `latest` a strictly newer semver than `current`?
@@ -131,7 +132,7 @@ pub fn run(check_only: bool) -> Result<()> {
             // unversioned copy so the website can link to a file directly, and
             // without this the choice between them comes down to which name sorts
             // first — a detail that must not decide what gets installed.
-            .identifier(&format!("v{latest}"))
+            .asset_identifier(format!("v{latest}"))
             .target(target)
             .current_version(current)
             .no_confirm(true)
@@ -192,6 +193,7 @@ mod tests {
         if let Some(t) = asset_target() {
             assert!([
                 "x86_64-linux",
+                "aarch64-linux",
                 "x86_64-windows",
                 "aarch64-macos",
                 "x86_64-macos",
@@ -247,7 +249,9 @@ mod tests {
         for feature in [
             "archive-zip",
             "compression-zip-deflate",
-            "compression-flate2",
+            // `compression-flate2` in 0.x; the gzip feature is named after the
+            // archive it unpacks now.
+            "compression-tar-gz",
         ] {
             assert!(
                 line.contains(feature),

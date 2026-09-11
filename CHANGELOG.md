@@ -17,6 +17,11 @@ lineage rather than pretending this is the first shape the project took.
   the hicolor icon tree and the desktop entry is the same code path as x86_64
   rather than a second one that has to be kept agreeing. Windows on ARM still has
   no archive, and the README says so.
+- **`samong update` knows about the ARM Linux archive.** The target table in the
+  updater is written out by hand, so a platform the release workflow builds for
+  is still invisible to it until the name is added — an ARM machine would have
+  been told there was no prebuilt release while one sat on the release page.
+
 - **Releases arrive with their notes.** Every release up to 0.5.0 was published
   with an empty description: the workflow passed a tag and a list of files and
   nothing else, so the page reached from the site, from `samong update`, and from
@@ -27,6 +32,26 @@ lineage rather than pretending this is the first shape the project took.
   fails the release. CI checks on every push that every released section can
   still be used that way, so a change to the file's shape is caught by the commit
   that made it instead of by the next tag.
+
+### Changed
+
+- **`self_update` 0.44 → 1.x, and `quick-xml` leaves the binary with it.** 0.44
+  depended on that parser unconditionally, for an S3 backend Samong never calls,
+  so `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` were compiled into every build
+  and carried as written-down ignores in `.cargo/audit.toml`. In 1.x the S3
+  backend is behind an optional feature this build does not enable: the parser is
+  not in the dependency graph at all. The two ignores are gone — not aged out,
+  not re-reviewed, removed along with the code they were excusing — and
+  `cargo audit` is clean with an empty ignore list.
+
+  The upgrade crosses a major version of the crate that owns the update path, the
+  module that reported success while replacing nothing through five releases, so
+  the evidence is not that the tests pass. A build labelled 0.4.9 was pointed at
+  the real release page and told to update itself: it fetched the *versioned*
+  archive rather than the unversioned alias, replaced all three binaries, and
+  each one afterwards was a different file reporting 0.5.0 — including
+  `samong-mcp`, which answered an MCP `initialize` as itself rather than as a
+  copy of the CLI, which is the exact shape the v0.3.x updater got wrong.
 
 ## 0.5.0
 

@@ -97,7 +97,13 @@ rust-embed = { version = "8.12.0", features = ["mime-guess"] }
 # entries, so `samong update` on Windows failed with "Compression method not
 # supported" on every release — every file in the archive is deflated. The
 # tar side needed `compression-flate2` for the same reason.
-self_update = { version = "0.44.0", default-features = false, features = ["reqwest", "rustls", "archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
+# 1.x, and `github` is now a feature rather than always-on. The move off 0.44
+# was not for the API: 0.44 depended on quick-xml unconditionally for its S3
+# backend, so two advisories against a parser this program never feeds landed in
+# every build and had to be carried as documented ignores in `.cargo/audit.toml`.
+# Here `s3 = ["dep:quick-xml"]` is optional and not enabled, so the parser is not
+# compiled in at all — the dependency is gone rather than upgraded.
+self_update = { version = "1.3.0", default-features = false, features = ["reqwest", "rustls", "github", "archive-tar", "archive-zip", "compression-tar-gz", "compression-zip-deflate"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 tantivy = "0.26.1"
