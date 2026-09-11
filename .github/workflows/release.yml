@@ -34,6 +34,20 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-linux
             archive: tar
+          # Linux on ARM: Raspberry Pi, the instance types most clouds now price
+          # as the default, and Asahi. A native arm64 runner rather than a cross
+          # build, so `install` of the hicolor icon tree and everything else in
+          # the packaging step below runs exactly as it does for x86_64 — one
+          # code path, not two that have to be kept agreeing.
+          #
+          # `fail-fast: false` above matters here: if this label is ever
+          # unavailable the other four archives still publish, and the queued job
+          # shows up in the `gh run view --json jobs` that docs/RELEASE-LESSONS.md
+          # requires after every release. A queued job is the failure mode that
+          # cost v0.3.0 its Intel Mac archive.
+          - os: ubuntu-24.04-arm
+            target: aarch64-linux
+            archive: tar
           - os: windows-latest
             target: x86_64-windows
             archive: zip
@@ -182,12 +196,26 @@ jobs:
           cmp "$archive" "$alias" || { echo "alias is not a copy of the archive" >&2; exit 1; }
           echo "published as $archive and $alias"
 
+      # Every release up to v0.5.0 was published with an empty description: the
+      # workflow passed files and a tag and nothing else, so the page reached
+      # from the site, from `samong update`, and from every link in a post said
+      # nothing about what changed — while CHANGELOG.md said all of it.
+      #
+      # Written in each uploading job rather than once, and deliberately: the
+      # body is the same bytes from the same source every time, so re-running a
+      # single job cannot leave the release with notes from a different version,
+      # and no job can quietly publish a release the others have described.
+      - name: The notes come out of CHANGELOG.md, not a second copy
+        shell: bash
+        run: python3 packaging/changelog-section.py "$TAG" --out RELEASE_NOTES.md
+
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           # Explicit, because a manual run is not triggered by a tag and the
           # action would otherwise have nothing to attach the files to.
           tag_name: ${{ env.TAG }}
+          body_path: RELEASE_NOTES.md
           files: |
             samong-*.zip
             samong-*.tar.gz
@@ -316,10 +344,16 @@ jobs:
           shasum -a 256 samong-mcp.mcpb > samong-mcp.mcpb.sha256
           cat samong-mcp.mcpb.sha256
 
+      # Same notes, same source. This job uploads to the release too, and an
+      # upload that carries no body is the one that could leave the page blank.
+      - name: The notes come out of CHANGELOG.md, not a second copy
+        run: python3 packaging/changelog-section.py "$TAG" --out RELEASE_NOTES.md
+
       - name: Upload the bundle to the release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
+          body_path: RELEASE_NOTES.md
           files: |
             dist/samong-mcp.mcpb
             dist/samong-mcp.mcpb.sha256

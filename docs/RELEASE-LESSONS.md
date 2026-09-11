@@ -199,8 +199,10 @@ what was on the list is part of the record:
   asserted against in a real Arch container on every push, but AUR account
   registration is closed for now, so nothing has been submitted. `makepkg -si` from
   `packaging/aur/` is the working path meanwhile, and the README says so.
-- **Still open: no `aarch64-linux` or Windows ARM64 archive.** The release matrix is
-  four targets. brew, scoop and AUR each document the hole rather than pretend.
+- ~~Still open: no `aarch64-linux` or Windows ARM64 archive.~~ — `aarch64-linux`
+  ships from 0.6.0, built on a native arm64 runner so the packaging step has one
+  code path rather than two. **Windows on ARM is still open**; brew, scoop and
+  AUR each document the hole rather than pretend.
 
 ### 5. A thin `samong-mcp` crate
 

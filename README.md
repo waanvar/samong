@@ -127,11 +127,13 @@ If the launcher fails it writes `~/.config/samong/launcher.log` and opens it.
 Grab one from [Releases](https://github.com/waanvar/samong/releases), extract,
 run. Direct links that always point at the newest release:
 [Linux](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-linux.tar.gz) ·
+[Linux ARM](https://github.com/waanvar/samong/releases/latest/download/samong-aarch64-linux.tar.gz) ·
 [Windows](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-windows.zip) ·
 [macOS Apple Silicon](https://github.com/waanvar/samong/releases/latest/download/samong-aarch64-macos.tar.gz) ·
-[macOS Intel](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-macos.tar.gz). **No Rust or Node needed** — the web UI is already inside the binary. Four
-platforms: `x86_64-linux`, `x86_64-windows`, `aarch64-macos` (Apple Silicon),
-`x86_64-macos` (Intel).
+[macOS Intel](https://github.com/waanvar/samong/releases/latest/download/samong-x86_64-macos.tar.gz). **No Rust or Node needed** — the web UI is already inside the binary. Five
+platforms: `x86_64-linux`, `aarch64-linux` (Raspberry Pi, ARM servers, Asahi),
+`x86_64-windows`, `aarch64-macos` (Apple Silicon), `x86_64-macos` (Intel).
+Windows on ARM has no archive yet.
 
 Verify what you downloaded against the `.sha256` published beside it:
 
@@ -632,7 +634,7 @@ latest `web/dist` — much faster than reinstalling on every change.
 
 ## Roadmap
 
-Done since the first public release: binaries for four platforms, an "add vault"
+Done since the first public release: binaries for five platforms, an "add vault"
 button in the web UI, connectedness-aware ranking, and optional local semantic
 search.
 

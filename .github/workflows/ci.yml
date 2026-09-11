@@ -223,6 +223,13 @@ jobs:
       - name: server.json must satisfy the registry schema
         run: python3 packaging/mcpb/validate-server-json.py server.json
 
+      # The release body is cut out of CHANGELOG.md at tag time. If an edit here
+      # breaks the heading shape that depends on, the release is where it would
+      # surface — and by then the tag exists. Checked on every push instead,
+      # which costs a second and moves the failure to the commit that caused it.
+      - name: Every released section of CHANGELOG.md can still be a release body
+        run: python3 packaging/changelog-section.py --check
+
       # The icons are generated and committed, so the committed copies have to be
       # intact. The check reads the pixels, not just the headers: the first render
       # of the 128px icon was three quarters empty while being a perfectly valid

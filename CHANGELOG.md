@@ -8,7 +8,25 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Added
+
+- **A Linux ARM64 archive**, `samong-aarch64-linux.tar.gz`. Raspberry Pi, the
+  instance types most clouds now price as the default, and Asahi had no binary at
+  all — the only way in was `cargo install` and a compiler. Built on a native
+  arm64 runner rather than cross-compiled, so the packaging step that installs
+  the hicolor icon tree and the desktop entry is the same code path as x86_64
+  rather than a second one that has to be kept agreeing. Windows on ARM still has
+  no archive, and the README says so.
+- **Releases arrive with their notes.** Every release up to 0.5.0 was published
+  with an empty description: the workflow passed a tag and a list of files and
+  nothing else, so the page reached from the site, from `samong update`, and from
+  every link in a post said nothing about what had changed — while `CHANGELOG.md`
+  said all of it. The body is now cut out of that file at tag time by
+  `packaging/changelog-section.py`, which refuses rather than publishes a blank
+  page: a missing section, or one still holding the `_Nothing yet._` placeholder,
+  fails the release. CI checks on every push that every released section can
+  still be used that way, so a change to the file's shape is caught by the commit
+  that made it instead of by the next tag.
 
 ## 0.5.0
 
