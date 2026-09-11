@@ -200,14 +200,14 @@ impl Report {
 /// Goes through [`crate::ops::search_vault`], the same path the CLI, the HTTP
 /// API and the MCP server use, so what is measured is what those return —
 /// including the semantic half when the binary was built with it.
-pub fn run(vault: &Path, set: &QuestionSet, at: usize) -> Result<Report> {
+pub fn run(vault: &Path, set: &QuestionSet, at: usize, floor: Option<f32>) -> Result<Report> {
     let notes: BTreeSet<String> = crate::vault::list_notes(vault)?
         .into_iter()
         .map(|note| note.key)
         .collect();
     set.check_against(&notes)?;
 
-    let options = crate::search::SearchOptions::with_limit(at);
+    let options = crate::search::SearchOptions::with_limit(at).with_semantic_floor(floor);
     let mut outcomes = Vec::with_capacity(set.questions.len());
     for question in &set.questions {
         let hits = crate::ops::search_vault(vault, &question.ask, &options)?;
@@ -218,6 +218,31 @@ pub fn run(vault: &Path, set: &QuestionSet, at: usize) -> Result<Report> {
         });
     }
     Ok(Report { outcomes, at })
+}
+
+/// The same question set scored once per candidate floor.
+///
+/// A floor cannot be chosen by reasoning about it: the number that helps one
+/// vault is wrong for the next, and the only honest way to pick one is to watch
+/// hit@k, MRR and the count of questions answered that should not have been move
+/// against each other as the line rises. Every run walks the same questions
+/// through the same search path, so the rows differ by the floor and nothing
+/// else.
+///
+/// `None` is scored first and on purpose: the row for "no floor at all" is what
+/// every other row has to beat to be worth shipping.
+pub fn sweep(
+    vault: &Path,
+    set: &QuestionSet,
+    at: usize,
+    floors: &[f32],
+) -> Result<Vec<(Option<f32>, Report)>> {
+    let mut rows = Vec::with_capacity(floors.len() + 1);
+    rows.push((None, run(vault, set, at, None)?));
+    for floor in floors {
+        rows.push((Some(*floor), run(vault, set, at, Some(*floor))?));
+    }
+    Ok(rows)
 }
 
 #[cfg(test)]

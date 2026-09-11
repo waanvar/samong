@@ -105,3 +105,45 @@ the vault, the question set and the build all match.
 It says nothing about speed. `hit@5` going up while a search takes four seconds is
 not an improvement anybody asked for, and this tool will not tell you that
 happened.
+
+## Choosing a similarity floor
+
+Rank fusion admits the vector store's best candidate whatever its score. The
+store always returns *something*, and RRF only reads position, so on a question
+the vault cannot really answer an unremarkable match still lands near the top.
+A similarity floor drops candidates below a cosine score before the fusion —
+`--semantic-floor 0.35` on `samong search` and on `samong eval`.
+
+There is no shipped default, and that is the point: the number depends on the
+vault and the model, so it is measured rather than reasoned about.
+
+```sh
+samong eval --floors 0.20,0.25,0.30,0.35,0.40 questions.toml
+```
+
+Each row is the same question set through the same search path, differing only in
+the floor, with `none` first — the row every other row has to beat:
+
+```
+floor         hit@1      hit@5      MRR  answered anyway
+none             …/…        …/…        …              …/…
+0.30             …/…        …/…        …              …/…
+0.40             …/…        …/…        …              …/…
+```
+
+The cells are left empty on purpose. No sweep has been run on a real vault yet,
+and a plausible-looking table here would be a benchmark nobody measured — the one
+thing this file exists to argue against.
+
+Read the columns against each other, not one at a time. A floor that lifts hit@1
+while lifting **answered anyway** has made search more confidently wrong, which is
+worse than leaving it alone — that column is why a set needs questions with no
+answer in it. The floor worth keeping is the one that drops the last column
+without moving the first three, and where the rows either side of it say roughly
+the same thing: a number that only works at exactly one value is a number fitted
+to this question set rather than to the vault.
+
+Both flags need a build with `--features semantic` and a vault that has been
+through `samong embed`. Without them the vector store is empty, the floor has
+nothing to filter, and every row comes back identical — the sweep says so rather
+than letting the table imply the floor did nothing.

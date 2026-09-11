@@ -337,7 +337,11 @@ pub fn embed_vault(
     })
 }
 
-/// Note keys ordered by semantic similarity to `text`, best first.
+/// Note keys with their similarity to `text`, best first.
+///
+/// The score comes back with the key because a caller that wants to draw a line
+/// somewhere — a similarity floor — cannot draw it from an order alone. It used
+/// to be discarded here, which is why there was nothing to threshold against.
 ///
 /// A note scores as its best-matching chunk: a long document that answers the
 /// question in one section is a good answer, and averaging over its other
@@ -346,7 +350,7 @@ pub fn embed_vault(
 /// May load the model — once per process, see [`SHARED`] — so this is still only
 /// worth calling when [`crate::vectors::exists`] says the vault has something to
 /// compare against: a vault with no vectors should not pay for a model at all.
-pub fn rank_by_similarity(vault: &Path, text: &str, limit: usize) -> Result<Vec<String>> {
+pub fn rank_by_similarity(vault: &Path, text: &str, limit: usize) -> Result<Vec<(String, f32)>> {
     let store = Store::open(vault)?;
     let entries = store.all()?;
     if entries.is_empty() {
@@ -373,7 +377,7 @@ pub fn rank_by_similarity(vault: &Path, text: &str, limit: usize) -> Result<Vec<
             .then_with(|| a.0.cmp(&b.0))
     });
     scored.truncate(limit);
-    Ok(scored.into_iter().map(|(key, _)| key).collect())
+    Ok(scored)
 }
 
 #[cfg(test)]

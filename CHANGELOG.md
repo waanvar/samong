@@ -35,6 +35,29 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Changed
 
+- **Semantic hits can be given a floor to clear.** Rank fusion reads position,
+  never score, and the vector store always returns *something* — so the best
+  candidate entered the fusion however unlike the question it was, and an
+  unremarkable match could reach position two behind a hit that plainly answers.
+  `rank_by_similarity` used to discard the cosine scores it had just computed,
+  which is why there was nothing to threshold against; it returns them now, and
+  `--semantic-floor` on `samong search` and `samong eval` drops candidates below
+  a score before the rankings are fused.
+
+  **It ships unset, and that is the feature.** The README has said since the
+  first public release that this threshold "has to be measured against real
+  vaults, not guessed", and nobody has measured one yet. `samong eval --floors
+  0.25,0.30,0.35` scores the same question set once per candidate floor and
+  prints a row for each with `none` first, so hit@1, hit@k, MRR and the count of
+  questions answered that should not have been can be read against each other —
+  a floor that lifts the first three while lifting the last has made search more
+  confidently wrong. Until a value has been through that on a real vault there is
+  no default worth shipping, so behaviour is unchanged for everyone.
+
+  A build without the `semantic` feature has no candidates to filter, so every
+  row of a sweep comes back identical. It says so rather than letting the table
+  imply the floor did nothing.
+
 - **`self_update` 0.44 → 1.x, and `quick-xml` leaves the binary with it.** 0.44
   depended on that parser unconditionally, for an S3 backend Samong never calls,
   so `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195` were compiled into every build

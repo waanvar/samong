@@ -458,10 +458,14 @@ defaults move.)
 **Judging a ranking change.** `samong eval questions.toml` scores search against
 questions somebody actually asked, paired with the notes that answer them, and
 reports hit@k, MRR, and how often a question the vault *cannot* answer gets
-answered anyway. That last number is why the similarity floor above is still
-unset: it has to be measured against real vaults rather than guessed, and this is
-the measuring. [docs/EVAL.md](docs/EVAL.md) has the file format and what makes a
-question set worth trusting.
+answered anyway. That last number is why the similarity floor is still unset: it
+has to be measured against real vaults rather than guessed, and this is the
+measuring. `samong eval --floors 0.25,0.30,0.35 questions.toml` scores the set
+once per candidate floor and prints a row for each, `none` first, so the three
+numbers can be read against each other — a floor that lifts hit@1 while lifting
+*answered anyway* has made search more confidently wrong.
+[docs/EVAL.md](docs/EVAL.md) has the file format, what makes a question set worth
+trusting, and how to read the sweep.
 
 **How the two rankings combine.** Reciprocal Rank Fusion, not a weighted sum of
 scores: BM25 is unbounded and cosine similarity is −1 to 1, so mixing the raw
@@ -638,9 +642,13 @@ Done since the first public release: binaries for five platforms, an "add vault"
 button in the web UI, connectedness-aware ranking, and optional local semantic
 search.
 
-- **A similarity floor for semantic search.** Rank fusion currently admits the
-  top semantic hit unconditionally, so an unremarkable match can still reach
-  position two. The threshold has to be measured against real vaults, not guessed.
+- **A default similarity floor for semantic search.** Rank fusion admits the top
+  semantic hit whatever its score, so an unremarkable match can still reach
+  position two. The floor itself exists — `--semantic-floor` on `search` and
+  `eval`, and `--floors` to sweep it — but it ships unset, because the threshold
+  has to be measured against real vaults rather than guessed. Nobody has run the
+  sweep on one yet; until somebody does, there is no number here worth defaulting
+  to.
 - **A smaller embedding model.** 465 MB is a lot to ask; a quantised build of the
   same model would cut it substantially.
 - A user dictionary, for words the bundled segmentation dictionary does not know.

@@ -96,6 +96,10 @@ enum Command {
         /// Maximum results to show
         #[arg(long, default_value_t = crate::search::DEFAULT_LIMIT)]
         limit: usize,
+        /// Drop semantic candidates below this cosine similarity before fusing
+        /// (see docs/EVAL.md for measuring a value worth using)
+        #[arg(long, value_name = "F")]
+        semantic_floor: Option<f32>,
     },
     /// Print every link-graph edge as "from -> to"
     Graph {
@@ -131,6 +135,17 @@ enum Command {
         /// Score a registered vault by name instead of the current directory
         #[arg(long)]
         vault: Option<String>,
+        /// Drop semantic candidates below this cosine similarity before fusing
+        #[arg(long, value_name = "F")]
+        semantic_floor: Option<f32>,
+        /// Score the set once per floor and print a row for each, starting with
+        /// no floor at all — the measurement a default is supposed to come from
+        // Comma-separated, not a greedy multi-value list: `num_args = 1..` made
+        // `--floors 0.2,0.3 questions.toml` swallow the file path as another
+        // float and fail with "invalid float literal", which reads like the
+        // numbers are wrong when it is the argument that ate the filename.
+        #[arg(long, value_name = "F", value_delimiter = ',')]
+        floors: Vec<f32>,
     },
     /// Update samong to the latest GitHub release
     Update {
@@ -874,8 +889,10 @@ fn cmd_search(
     vault_name: Option<&str>,
     all_vaults: bool,
     limit: usize,
+    semantic_floor: Option<f32>,
 ) -> Result<()> {
-    let options = crate::search::SearchOptions::with_limit(limit);
+    let options =
+        crate::search::SearchOptions::with_limit(limit).with_semantic_floor(semantic_floor);
     let mut found = false;
     if all_vaults {
         let registry = Registry::open()?;
@@ -962,7 +979,74 @@ fn print_scope_summary(scope: &Scope) -> Result<()> {
 /// The misses are printed, not just counted, because a score with nothing behind
 /// it cannot be acted on: "hit@5 is 71%" says to try something, and "these
 /// eleven questions missed, and here is what came back instead" says what.
-fn cmd_eval(vault: &Path, questions: &Path, at: usize, vault_name: Option<&str>) -> Result<()> {
+/// One row per floor, so the columns can be read down rather than across runs.
+///
+/// Prints the three numbers that move against each other: how often the answer
+/// is first, how often it is anywhere in the k asked for, and how often a
+/// question the vault cannot answer got an answer anyway. A floor that lifts the
+/// first two while lifting the third has made search more confidently wrong,
+/// which is worse than leaving it alone — the row for no floor is at the top to
+/// be compared against, not as a formality.
+fn print_sweep(rows: &[(Option<f32>, crate::eval::Report)]) -> Result<()> {
+    let Some((_, first)) = rows.first() else {
+        return Ok(());
+    };
+    let answerable = first.answerable();
+    let unanswerable = first.unanswerable();
+    println!(
+        "{} questions — {answerable} the vault should answer, {unanswerable} it should not",
+        first.outcomes.len()
+    );
+    println!(
+        "{:<10} {:>8} {:>10} {:>8} {:>16}",
+        "floor",
+        "hit@1",
+        format!("hit@{}", first.at),
+        "MRR",
+        "answered anyway"
+    );
+    for (floor, report) in rows {
+        let label = match floor {
+            Some(f) => format!("{f:.2}"),
+            None => "none".to_string(),
+        };
+        println!(
+            "{label:<10} {:>8} {:>10} {:>8.3} {:>16}",
+            format!("{}/{}", report.hits_at(1), answerable.max(1)),
+            format!("{}/{}", report.hits_at(report.at), answerable.max(1)),
+            report.mrr(),
+            format!("{}/{}", report.noise(), unanswerable.max(1)),
+        );
+    }
+    // Identical rows are the expected result here, and saying so is the point:
+    // without the feature there is no semantic candidate list, so the floor has
+    // nothing to filter and the table is the lexical ranking five times. A reader
+    // who is not told that reads it as "the floor does nothing".
+    if !cfg!(feature = "semantic") {
+        println!(
+            "\nthis build has no semantic search compiled in, so every row is the same \
+             lexical ranking and the floor had nothing to filter. Build with \
+             `--features semantic` and run `samong embed` first for these rows to differ."
+        );
+    }
+    if unanswerable == 0 {
+        println!(
+            "\nno unanswerable questions in this set — the column that catches a floor \
+             making search confidently wrong is empty, so these rows cannot tell you that. \
+             docs/EVAL.md says why a set needs them."
+        );
+    }
+    Ok(())
+}
+
+fn cmd_eval(
+    vault: &Path,
+    questions: &Path,
+    at: usize,
+    vault_name: Option<&str>,
+    semantic_floor: Option<f32>,
+    floors: &[f32],
+) -> Result<()> {
     let root = match vault_name {
         Some(name) => Registry::open()?
             .get(name)?
@@ -974,7 +1058,10 @@ fn cmd_eval(vault: &Path, questions: &Path, at: usize, vault_name: Option<&str>)
     indexer::reindex(&root, false)?;
 
     let set = crate::eval::QuestionSet::load(questions)?;
-    let report = crate::eval::run(&root, &set, at)?;
+    if !floors.is_empty() {
+        return print_sweep(&crate::eval::sweep(&root, &set, at, floors)?);
+    }
+    let report = crate::eval::run(&root, &set, at, semantic_floor)?;
 
     let answerable = report.answerable();
     println!(
@@ -1248,7 +1335,15 @@ pub fn run() -> Result<()> {
             vault: vault_name,
             all_vaults,
             limit,
-        } => cmd_search(&vault, &query, vault_name.as_deref(), all_vaults, limit)?,
+            semantic_floor,
+        } => cmd_search(
+            &vault,
+            &query,
+            vault_name.as_deref(),
+            all_vaults,
+            limit,
+            semantic_floor,
+        )?,
         Command::Graph { all_vaults } => cmd_graph(&vault, all_vaults)?,
         Command::List => {
             for note in vault::list_notes(&vault)? {
@@ -1261,7 +1356,16 @@ pub fn run() -> Result<()> {
             questions,
             at,
             vault: vault_name,
-        } => cmd_eval(&vault, &questions, at, vault_name.as_deref())?,
+            semantic_floor,
+            floors,
+        } => cmd_eval(
+            &vault,
+            &questions,
+            at,
+            vault_name.as_deref(),
+            semantic_floor,
+            &floors,
+        )?,
         Command::Vault { action } => cmd_vault(action)?,
         Command::Update { check } => crate::update::run(check)?,
     }

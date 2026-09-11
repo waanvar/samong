@@ -66,6 +66,17 @@ const RERANK_POOL_MAX: usize = MAX_LIMIT;
 pub struct SearchOptions {
     pub limit: usize,
     pub snippet_chars: usize,
+    /// Drop semantic candidates whose best chunk scores below this cosine
+    /// similarity, before the rankings are fused.
+    ///
+    /// `None` — the default — admits every candidate the vector store returns,
+    /// which is what every release up to now has done. A number here is a claim
+    /// about where "related" stops being related in a particular vault with a
+    /// particular model, and the README says plainly that such a number has to be
+    /// measured rather than guessed. `samong eval --floors` is what measures it;
+    /// until a value has been through that on a real vault, there is no default
+    /// worth shipping and the field stays empty.
+    pub semantic_floor: Option<f32>,
 }
 
 impl Default for SearchOptions {
@@ -73,6 +84,7 @@ impl Default for SearchOptions {
         Self {
             limit: DEFAULT_LIMIT,
             snippet_chars: DEFAULT_SNIPPET_CHARS,
+            semantic_floor: None,
         }
     }
 }
@@ -84,6 +96,12 @@ impl SearchOptions {
             limit: limit.clamp(1, MAX_LIMIT),
             ..Self::default()
         }
+    }
+
+    /// The same options with a semantic floor applied.
+    pub fn with_semantic_floor(mut self, floor: Option<f32>) -> Self {
+        self.semantic_floor = floor;
+        self
     }
 
     fn limit(&self) -> usize {
@@ -317,6 +335,7 @@ pub fn query_ranked(
     let pool = SearchOptions {
         limit: (wanted * RERANK_POOL_FACTOR).min(RERANK_POOL_MAX),
         snippet_chars: options.snippet_chars,
+        semantic_floor: options.semantic_floor,
     };
     let mut hits = query_with(vault, text, &pool)?;
     for hit in &mut hits {
@@ -491,10 +510,12 @@ mod tests {
         let tight = SearchOptions {
             limit: 5,
             snippet_chars: 40,
+            ..SearchOptions::default()
         };
         let wide = SearchOptions {
             limit: 5,
             snippet_chars: 300,
+            ..SearchOptions::default()
         };
         let tight_len = query_with(dir.path(), "keyword", &tight).unwrap()[0]
             .snippet

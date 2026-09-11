@@ -112,7 +112,10 @@ pub fn search_vault(
     // one bite, on the ranking whose gaps it was tuned against.
     let mut hits = crate::search::query_ranked(vault, query, options, &degrees)?;
 
-    let semantic_order = semantic_ranking(vault, query, options);
+    let semantic_order = apply_semantic_floor(
+        semantic_ranking(vault, query, options),
+        options.semantic_floor,
+    );
     if semantic_order.is_empty() {
         // Nothing to fuse with; still emit fused-scale scores.
         for (index, hit) in hits.iter_mut().enumerate() {
@@ -200,7 +203,32 @@ fn attribute(vault: &std::path::Path, hits: &mut [crate::search::SearchHit]) -> 
     Ok(())
 }
 
-/// Keys ordered by meaning, or empty when semantic search is not available here.
+/// Drop semantic candidates that scored below the floor, keeping the order.
+///
+/// Without a floor, rank fusion admits the vector store's best candidate no
+/// matter how unlike the question it is: the store always returns *something*,
+/// and RRF only looks at position. So an unremarkable match can reach position
+/// two behind a hit that plainly answers the question — the roadmap's own
+/// description of the defect.
+///
+/// A floor is the smallest fix that addresses it, and it is deliberately not the
+/// same thing as a penalty: a candidate either looks related enough to be
+/// evidence or it does not. Where that line sits depends on the vault and the
+/// model, so the value is never decided here — `samong eval --floors` measures
+/// it, and `SearchOptions::semantic_floor` is `None` until someone has.
+fn apply_semantic_floor(ranked: Vec<(String, f32)>, floor: Option<f32>) -> Vec<String> {
+    match floor {
+        Some(floor) => ranked
+            .into_iter()
+            .filter(|(_, score)| *score >= floor)
+            .map(|(key, _)| key)
+            .collect(),
+        None => ranked.into_iter().map(|(key, _)| key).collect(),
+    }
+}
+
+/// Keys with their similarity, ordered by meaning, or empty when semantic search
+/// is not available here.
 ///
 /// Fails soft on purpose: a missing model download or a half-written vector store
 /// must degrade the ranking, never break the query. Search is the one thing that
@@ -210,7 +238,7 @@ fn semantic_ranking(
     vault: &std::path::Path,
     query: &str,
     options: &crate::search::SearchOptions,
-) -> Vec<String> {
+) -> Vec<(String, f32)> {
     if !crate::vectors::exists(vault) {
         return Vec::new();
     }
@@ -228,7 +256,7 @@ fn semantic_ranking(
     _vault: &std::path::Path,
     _query: &str,
     _options: &crate::search::SearchOptions,
-) -> Vec<String> {
+) -> Vec<(String, f32)> {
     Vec::new()
 }
 
@@ -463,5 +491,43 @@ mod tests {
         assert!(resolve_key(vault, "brand/new/Note.md").is_ok());
         // Escapes are refused even though the string looks harmless in parts.
         assert!(resolve_key(vault, "../evil.md").is_err());
+    }
+
+    /// The floor decides what reaches fusion at all, and it runs in every build
+    /// — including the default one without `semantic`, where the list it filters
+    /// is always empty. Asserted here rather than behind the feature so the rule
+    /// is checked by the tests every machine runs, not only the one CI job that
+    /// compiles the model path.
+    #[test]
+    fn the_floor_drops_candidates_below_it_and_keeps_the_order() {
+        let ranked = vec![
+            ("best.md".to_string(), 0.81_f32),
+            ("near.md".to_string(), 0.42),
+            ("unremarkable.md".to_string(), 0.11),
+        ];
+
+        // No floor is the shipped default, and it must change nothing: the whole
+        // list, in the order the vector store put it in.
+        assert_eq!(
+            apply_semantic_floor(ranked.clone(), None),
+            vec!["best.md", "near.md", "unremarkable.md"]
+        );
+
+        // A floor cuts from the bottom without reordering what survives.
+        assert_eq!(
+            apply_semantic_floor(ranked.clone(), Some(0.4)),
+            vec!["best.md", "near.md"]
+        );
+
+        // Exactly at the floor is in. The line is "this related or better", and a
+        // candidate that lands on it is not evidence against itself.
+        assert_eq!(
+            apply_semantic_floor(ranked.clone(), Some(0.81)),
+            vec!["best.md"]
+        );
+
+        // A floor nothing clears leaves nothing to fuse with, which is the
+        // lexical-only path — not an error, and not an empty result.
+        assert!(apply_semantic_floor(ranked, Some(0.99)).is_empty());
     }
 }
