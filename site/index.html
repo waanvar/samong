@@ -501,6 +501,10 @@ no ambiguous titles among project notes</pre>
           <p>An agent can list, read, search, save and follow links — but it cannot erase knowledge. Deletion stays a human act.</p>
         </div>
         <div class="card">
+          <h3>And it cannot overwrite what it has not read</h3>
+          <p>Having no delete tool was only half a guarantee: saving replaces the whole file, so an agent that never opened a note could drop three years of it and be told the save succeeded. <code>read_note</code> now hands back a hash of what it gave, and overwriting an existing note requires passing that hash in. A stale hash, or none at all, is an error — and the file on disk is left exactly as it was.</p>
+        </div>
+        <div class="card">
           <h3>Results priced for context</h3>
           <p>Search returns a small number of hits by default, counted across all vaults. Every extra hit is context the agent pays for on every later turn.</p>
         </div>
@@ -520,6 +524,7 @@ no ambiguous titles among project notes</pre>
         <tr><th>What it runs on</th><td><span class="yes">One binary on your machine.</span> No account, no vendor, works offline.</td></tr>
         <tr><th>Editing</th><td>Obsidian-compatible <code>[[wikilinks]]</code>. Use Obsidian, your editor, or the built-in web UI — same files.</td></tr>
         <tr><th>Finding</th><td>Full-text search with dictionary word segmentation, a link graph, backlinks across projects.</td></tr>
+        <tr><th>Knowing it works</th><td><code>samong eval</code> scores search against questions somebody actually asked, each paired with the notes that answer it — hit@k, MRR, and how often a question the vault cannot answer gets answered anyway.</td></tr>
         <tr><th>Seeing</th><td>The web UI opens on a map of the vault; typing dims everything that does not answer you.</td></tr>
         <tr><th>Licence</th><td>Apache-2.0. Fork it, ship it commercially, embed it. The name and logo are not covered — rename what you ship.</td></tr>
       </table>
