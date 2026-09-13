@@ -28,7 +28,9 @@ ask = "how do we rotate the signing key"
 answers = []                          # nothing in this vault answers it
 ```
 
-`answers` are vault-relative paths, exactly as `samong list` prints them. Several
+`answers` are vault-relative paths, exactly as `samong list` prints them — the
+same keys `samong search` prints in front of each hit. Not titles: a title is a
+display name, and `README.md` and `docs/README.md` share one. Several answers
 are allowed: a question with two notes that answer it counts as found when either
 one comes back, scored at whichever placed better.
 

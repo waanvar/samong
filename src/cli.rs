@@ -107,7 +107,7 @@ enum Command {
         #[arg(long)]
         all_vaults: bool,
     },
-    /// List every note in the vault
+    /// List every note's key — the identity used by `answers`, links and MCP
     List,
     /// Watch the vault and keep the index up to date automatically
     Watch,
@@ -1345,9 +1345,19 @@ pub fn run() -> Result<()> {
             semantic_floor,
         )?,
         Command::Graph { all_vaults } => cmd_graph(&vault, all_vaults)?,
+        // The key, not the title. A title is a display name and is not unique:
+        // a vault with `README.md` and `docs/README.md` printed `README` twice,
+        // and nothing in the output said which line was which file. Worse, the
+        // one place that consumes this list — the `answers` of an eval question
+        // set — matches on keys, so every title copied out of here was rejected
+        // as naming no note, by an error that named this command as the place to
+        // get them. Keys are what `samong search` prints and what the MCP server
+        // returns, so this is now the same identifier everywhere.
         Command::List => {
-            for note in vault::list_notes(&vault)? {
-                println!("{}", note.title);
+            let mut notes = vault::list_notes(&vault)?;
+            notes.sort_by(|a, b| a.key.cmp(&b.key));
+            for note in notes {
+                println!("{}", note.key);
             }
         }
         Command::Watch => watch::run(&vault)?,

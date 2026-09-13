@@ -35,6 +35,18 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Changed
 
+- **`samong list` prints keys, not titles.** A title is a display name and is not
+  unique: a vault holding `README.md` and `docs/README.md` got two lines reading
+  `README`, and nothing said which was which. The `answers` of an eval question
+  set — the one place that consumes this list — match on keys, so every key
+  copied out of `samong list` was rejected as naming no note in the vault, by an
+  error message that named `samong list` as the place to get them. Keys are what
+  `samong search` prints in front of each hit and what the MCP server returns, so
+  one identifier now runs through all of them. Found by the first person to write
+  a real question set, against the vault of another project; the test added with
+  the fix builds a set out of the command's own output and scores it, which is
+  the loop that was never closed.
+
 - **Semantic hits can be given a floor to clear.** Rank fusion reads position,
   never score, and the vector store always returns *something* — so the best
   candidate entered the fusion however unlike the question it was, and an

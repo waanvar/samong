@@ -61,6 +61,14 @@ And four ways green means nothing at all:
    `h2` and a three-versions-behind `dompurify` inside binaries that had been
    published for weeks under a completely green CI. That is why `Audit` has a
    `schedule:` and nothing else here does.
+10. **An error message that names the wrong place to look.** `samong eval` rejected
+   an answer key with *"Answer keys are vault-relative paths, as printed by
+   `samong list`"* — and `samong list` printed titles, not paths. Everything a
+   reader could do with that sentence led back to the output that caused the
+   error, so the loop closed on itself and looked like their mistake. A wrong
+   pointer costs more than no pointer: it spends the reader's trust before it
+   spends their time. Anything a message tells someone to run has to be run, once,
+   against a real vault — which is now a test rather than a habit.
 
 ## The defects
 
@@ -77,6 +85,7 @@ And four ways green means nothing at all:
 | v0.3.0 | The tag was moved locally and never re-pushed, so the published build predated the website advertising it. |
 | v0.3.0–v0.4.0 | **`cargo publish` was never automated, and the reason was misread as "no token".** The `publish` job ran `cargo package --list --locked` without `--allow-dirty` and failed on the 55 gitignored files of `web/dist` that the crate is *supposed* to carry — before reaching the token gate at all. Every release to crates.io was published by hand for a fault nobody had read. |
 | v0.4.0 | **The `aur` PKGBUILD installed into `/usr/share/icons/hicolor` without declaring `hicolor-icon-theme`.** namcap reported it on every run and the job stayed green; see shape 6. The directory hierarchy would have had no owner and `Icon=samong` nothing to resolve against. |
+| v0.5.0 | **`samong list` and `samong eval` disagreed about what a note is called.** `list` printed each note's title; `eval` matched `answers` on its key. A question set built exactly as the docs and the error message said to build it was refused for naming no note in the vault — and a vault holding `README.md` and `docs/README.md` got two lines reading `README`, naming neither. Found by a user writing the first real question set, which is one step further out than any test reached; see shape 10. |
 | v0.4.0 | **Every `generate.py` asked `api.github.com` unauthenticated.** 60 requests per hour *per IP* on shared runners, so the Homebrew tap bump failed five times in a row with a 403 that looked like a bug in whatever was running it. `GITHUB_TOKEN` is automatic; no secret was needed. The header goes to `api.github.com` only — asset URLs redirect to `objects.githubusercontent.com`, which rejects an `Authorization` it did not expect. |
 
 ### Caught one step before publishing

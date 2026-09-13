@@ -152,3 +152,53 @@ fn a_miss_prints_what_came_back_instead() {
         "the miss names what came back instead: {stdout}"
     );
 }
+
+/// Every line `samong list` prints has to work as an answer key.
+///
+/// It did not. `list` printed each note's *title* while `eval` matched on its
+/// *key*, so a question set built the way the error message told you to build it
+/// — "vault-relative paths, as printed by `samong list`" — was rejected for
+/// naming no note in the vault. The two commands disagreed about what a note is
+/// called, and the one that was wrong was the one telling you where to look.
+///
+/// This walks the whole list rather than checking one line, and it does it
+/// through the CLI rather than by comparing two functions: the defect lived in
+/// the gap between the binary's output and the binary's input, which is a place
+/// a unit test cannot stand.
+#[test]
+fn every_line_of_samong_list_is_a_usable_answer_key() {
+    let (_root, vault, config) = fixture();
+    // Two notes that share a title. `list` printed "README" twice here, which
+    // named neither file — the output was not just wrong for eval, it was
+    // ambiguous on its own terms.
+    fs::write(vault.join("README.md"), "# README\n\nroot readme\n").unwrap();
+    fs::write(vault.join("ops/README.md"), "# README\n\nops readme\n").unwrap();
+
+    let listed = samong(&vault, &config).arg("list").output().unwrap();
+    assert!(listed.status.success());
+    let keys: Vec<String> = String::from_utf8_lossy(&listed.stdout)
+        .lines()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(keys.len(), 4, "four notes, four lines: {keys:?}");
+    assert!(
+        keys.contains(&"README.md".to_string()) && keys.contains(&"ops/README.md".to_string()),
+        "the duplicate titles are told apart: {keys:?}"
+    );
+
+    let questions: String = keys
+        .iter()
+        .map(|key| format!("[[question]]\nask = \"readme\"\nanswers = [\"{key}\"]\n\n"))
+        .collect();
+    fs::write(vault.join("questions.toml"), questions).unwrap();
+
+    let output = samong(&vault, &config)
+        .args(["eval", "questions.toml"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "eval rejected a key that `samong list` printed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

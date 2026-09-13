@@ -223,7 +223,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong orphans` / `samong broken` | Unlinked notes / links to missing notes |
 | `samong search <q> [--vault <name>\|--all-vaults] [--limit N]` | Full-text search |
 | `samong graph [--all-vaults]` | Link-graph edges |
-| `samong list` | List every note |
+| `samong list` | Every note's key, one per line — the identity `answers`, links and the MCP server use |
 | `samong reindex [--full]` | Sync the index (changed files only / everything) |
 | `samong embed [--reference]` | Embed notes for semantic search (needs `--features semantic`) |
 | `samong pack <dir> [--include-reference]` | Copy the publishable part of the vault out — notes and manifest, never the index |
