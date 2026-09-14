@@ -61,9 +61,16 @@ Four ways in, in the order that costs you least trouble.
 **macOS and Linux** — [waanvar/homebrew-samong](https://github.com/waanvar/homebrew-samong):
 
 ```sh
+brew trust waanvar/samong
 brew tap waanvar/samong
 brew install samong
 ```
+
+The `brew trust` line is not optional and not caution for its own sake: since
+Homebrew 6.0 a third-party tap is not loaded until it is trusted, and `brew tap`
+on an untrusted tap fails with `invalid syntax in tap` — an error about the
+formula, for a formula that is fine. `brew trust --formula waanvar/samong/samong`
+trusts this one formula rather than the whole tap.
 
 **Windows** — [waanvar/scoop-samong](https://github.com/waanvar/scoop-samong):
 

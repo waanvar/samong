@@ -8,7 +8,15 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **The Homebrew instructions say `brew trust` first.** Homebrew 6.0 does not
+  load a third-party tap until it is trusted, and `brew tap waanvar/samong` on an
+  untrusted tap does not say so plainly: it reports `Invalid formula` once per
+  platform it simulates and then `Cannot tap: invalid syntax in tap!`, an error
+  about syntax for a file whose syntax is correct. The README and the site now
+  carry the trust step and the reason, so the first thing a new install meets is
+  not that message.
 
 ## 0.6.0
 
