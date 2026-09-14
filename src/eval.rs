@@ -86,7 +86,11 @@ impl QuestionSet {
         for question in &self.questions {
             for answer in &question.answers {
                 if !notes.contains(answer) {
-                    unknown.push(format!("{answer:?} (for {:?})", question.ask));
+                    // `{}` inside literal quotes rather than `{:?}`: Debug
+                    // escapes grapheme-extended chars, which is most of the Thai
+                    // script's vowels and tone marks. Both halves carry them —
+                    // the keys of this vault are Thai too.
+                    unknown.push(format!("\"{answer}\" (for \"{}\")", question.ask));
                 }
             }
         }

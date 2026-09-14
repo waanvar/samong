@@ -202,3 +202,59 @@ fn every_line_of_samong_list_is_a_usable_answer_key() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+/// Thai has to survive the report, in both directions.
+///
+/// The output went through `{:?}`, and Rust's Debug for a string escapes every
+/// grapheme-extended char — which is nearly every Thai vowel and tone mark. A
+/// question came back as "ปร\u{e31}บเป\u{e47}น" on the one line a reader has to
+/// recognise to act on it, and a mistyped answer key the same way. For a search
+/// engine whose reason to exist is Thai segmentation, the report is the last
+/// place that should be unreadable in Thai.
+#[test]
+fn thai_survives_the_report_unescaped() {
+    let (_root, vault, config) = fixture();
+
+    // A miss: the note that answers it is not what "deploying" retrieves.
+    fs::write(
+        vault.join("questions.toml"),
+        "[[question]]\n\
+         ask = \"ปรับเป็นภาษาไทยหรือยัง\"\n\
+         answers = [\"ops/tomcat-jdbc.md\"]\n",
+    )
+    .unwrap();
+    let output = samong(&vault, &config)
+        .args(["eval", "questions.toml"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("ปรับเป็นภาษาไทยหรือยัง"),
+        "the question is printed as written: {stdout}"
+    );
+    assert!(
+        !stdout.contains("\\u{"),
+        "nothing in the report is escaped: {stdout}"
+    );
+
+    // And a broken answer key, where the key itself is Thai as well.
+    fs::write(
+        vault.join("questions.toml"),
+        "[[question]]\n\
+         ask = \"ตั้งค่าฐานข้อมูลยังไง\"\n\
+         answers = [\"ops/การตั้งค่า.md\"]\n",
+    )
+    .unwrap();
+    let output = samong(&vault, &config)
+        .args(["eval", "questions.toml"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success(), "a bad answer key must fail");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ops/การตั้งค่า.md") && stderr.contains("ตั้งค่าฐานข้อมูลยังไง"),
+        "both halves stay readable: {stderr}"
+    );
+    assert!(!stderr.contains("\\u{"), "nothing escaped: {stderr}");
+}

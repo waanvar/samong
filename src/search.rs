@@ -76,6 +76,11 @@ pub struct SearchOptions {
     /// measured rather than guessed. `samong eval --floors` is what measures it;
     /// until a value has been through that on a real vault, there is no default
     /// worth shipping and the field stays empty.
+    ///
+    /// Whatever lands here will be a high number, not the 0.2–0.4 the word
+    /// "similarity" suggests: `intfloat/multilingual-e5-small` packs cosine into
+    /// a narrow band where unrelated text still scores about 0.75. A floor below
+    /// that band filters nothing while looking like it is switched on.
     pub semantic_floor: Option<f32>,
 }
 

@@ -96,8 +96,9 @@ enum Command {
         /// Maximum results to show
         #[arg(long, default_value_t = crate::search::DEFAULT_LIMIT)]
         limit: usize,
-        /// Drop semantic candidates below this cosine similarity before fusing
-        /// (see docs/EVAL.md for measuring a value worth using)
+        /// Drop semantic candidates below this cosine similarity before fusing.
+        /// e5 scores sit high — unrelated text still reaches ~0.75 — so useful
+        /// values start around 0.8 (see docs/EVAL.md for measuring one)
         #[arg(long, value_name = "F")]
         semantic_floor: Option<f32>,
     },
@@ -136,10 +137,13 @@ enum Command {
         #[arg(long)]
         vault: Option<String>,
         /// Drop semantic candidates below this cosine similarity before fusing
+        /// (e5 scores sit high; useful values start around 0.8)
         #[arg(long, value_name = "F")]
         semantic_floor: Option<f32>,
         /// Score the set once per floor and print a row for each, starting with
-        /// no floor at all — the measurement a default is supposed to come from
+        /// no floor at all — the measurement a default is supposed to come from.
+        /// Try 0.70,0.75,0.80,0.84,0.88,0.92: identical rows usually mean the
+        /// range sits below every score, not that the floor does nothing
         // Comma-separated, not a greedy multi-value list: `num_args = 1..` made
         // `--floors 0.2,0.3 questions.toml` swallow the file path as another
         // float and fail with "invalid float literal", which reads like the
@@ -1107,7 +1111,11 @@ fn cmd_eval(
     }
     println!("\n{} to look at:", misses.len());
     for outcome in misses {
-        println!("  {:?}", outcome.ask);
+        // Quoted with `{}`, not `{:?}`. Rust's Debug for a string escapes every
+        // grapheme-extended char, and Thai vowels and tone marks are exactly
+        // that — a question came out as "ปร\u{e31}บเป\u{e47}น", which is the one
+        // line a reader has to recognise to act on the miss.
+        println!("  \"{}\"", outcome.ask);
         if outcome.answerable() {
             println!("    wanted: {}", outcome.expected.join(", "));
         } else {

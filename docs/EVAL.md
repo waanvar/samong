@@ -114,14 +114,27 @@ Rank fusion admits the vector store's best candidate whatever its score. The
 store always returns *something*, and RRF only reads position, so on a question
 the vault cannot really answer an unremarkable match still lands near the top.
 A similarity floor drops candidates below a cosine score before the fusion —
-`--semantic-floor 0.35` on `samong search` and on `samong eval`.
+`--semantic-floor 0.84` on `samong search` and on `samong eval`.
 
 There is no shipped default, and that is the point: the number depends on the
 vault and the model, so it is measured rather than reasoned about.
 
 ```sh
-samong eval --floors 0.20,0.25,0.30,0.35,0.40 questions.toml
+samong eval --floors 0.70,0.75,0.80,0.84,0.88,0.92 questions.toml
 ```
+
+**Start high.** Samong embeds with `intfloat/multilingual-e5-small`, and the e5
+family compresses cosine into a narrow band near the top: two passages with
+nothing to do with each other still score around 0.75, and a real match around
+0.85–0.92. A floor of 0.3 — the number the word "similarity" suggests — sits
+below the entire distribution and filters nothing at all.
+
+That failure is silent in the only way that matters: **every row of the sweep
+comes back identical**, which reads exactly like "the floor does not change
+anything" rather than "these floors are all below the lowest score there is". If
+a sweep prints the same numbers on every line, widen the range upward before
+concluding the feature is inert. It is the first sweep ever run on this tool that
+wasted a round this way.
 
 Each row is the same question set through the same search path, differing only in
 the floor, with `none` first — the row every other row has to beat:
@@ -129,8 +142,8 @@ the floor, with `none` first — the row every other row has to beat:
 ```
 floor         hit@1      hit@5      MRR  answered anyway
 none             …/…        …/…        …              …/…
-0.30             …/…        …/…        …              …/…
-0.40             …/…        …/…        …              …/…
+0.80             …/…        …/…        …              …/…
+0.88             …/…        …/…        …              …/…
 ```
 
 The cells are left empty on purpose. No sweep has been run on a real vault yet,

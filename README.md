@@ -460,7 +460,7 @@ questions somebody actually asked, paired with the notes that answer them, and
 reports hit@k, MRR, and how often a question the vault *cannot* answer gets
 answered anyway. That last number is why the similarity floor is still unset: it
 has to be measured against real vaults rather than guessed, and this is the
-measuring. `samong eval --floors 0.25,0.30,0.35 questions.toml` scores the set
+measuring. `samong eval --floors 0.75,0.80,0.85,0.90 questions.toml` scores the set
 once per candidate floor and prints a row for each, `none` first, so the three
 numbers can be read against each other — a floor that lifts hit@1 while lifting
 *answered anyway* has made search more confidently wrong.

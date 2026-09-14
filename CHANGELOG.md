@@ -35,6 +35,27 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Changed
 
+- **`samong eval` stops mangling Thai.** The report and the broken-answer-key
+  error both went through `{:?}`, and Rust's `Debug` for a string escapes every
+  grapheme-extended character — which is nearly every Thai vowel and tone mark. A
+  question printed as `"ปร\u{e31}บเป\u{e47}น"` on the one line a reader has to
+  recognise to act on the miss, and a mistyped key the same way, keys in this
+  vault being Thai too. For a search engine whose reason to exist is Thai
+  segmentation, the report was the last place that should have been unreadable in
+  Thai. Both now print the text inside literal quotes.
+
+- **The floor values in the docs were in a range that does nothing.** Every
+  example — `docs/EVAL.md`, the README, the flag's own help — suggested 0.2 to
+  0.4, the numbers the word "similarity" invites. Samong embeds with
+  `intfloat/multilingual-e5-small`, which packs cosine into a narrow band near the
+  top: unrelated text still scores about 0.75, a real match 0.85–0.92. Every one
+  of those floors sat below the entire distribution and filtered nothing, and the
+  failure is silent in the worst way — each row of the sweep comes back identical,
+  which reads as "the floor changes nothing" rather than "these floors are below
+  the lowest score there is". The first sweep ever run on a real vault lost a
+  round to exactly that. The examples now start at 0.70, and the places a reader
+  meets the flag say why.
+
 - **`samong list` prints keys, not titles.** A title is a display name and is not
   unique: a vault holding `README.md` and `docs/README.md` got two lines reading
   `README`, and nothing said which was which. The `answers` of an eval question
