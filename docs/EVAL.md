@@ -137,18 +137,52 @@ concluding the feature is inert. It is the first sweep ever run on this tool tha
 wasted a round this way.
 
 Each row is the same question set through the same search path, differing only in
-the floor, with `none` first — the row every other row has to beat:
+the floor, with `none` first — the row every other row has to beat.
+
+## The first sweep, and what it does and does not settle
+
+Run on 2026-09-14 against the vault of a Java/Next.js project: 38 notes, mostly
+architecture documentation written in Thai and English together, and 21 questions
+its author had actually asked while working on it — 15 the vault answers, 6 it
+does not.
 
 ```
 floor         hit@1      hit@5      MRR  answered anyway
-none             …/…        …/…        …              …/…
-0.80             …/…        …/…        …              …/…
-0.88             …/…        …/…        …              …/…
+none          11/15      15/15    0.867              6/6
+0.70          11/15      15/15    0.867              6/6
+0.75          11/15      15/15    0.867              6/6
+0.80          11/15      15/15    0.867              6/6
+0.84          11/15      15/15    0.867              5/6
+0.88          12/15      15/15    0.900              1/6
+0.92          15/15      15/15    1.000              1/6
 ```
 
-The cells are left empty on purpose. No sweep has been run on a real vault yet,
-and a plausible-looking table here would be a benchmark nobody measured — the one
-thing this file exists to argue against.
+The same set with the `semantic` feature absent — lexical retrieval alone —
+scores **15/15, MRR 1.000, answered anyway 1/6**.
+
+Read those two together, because the second is the finding. Semantic retrieval
+with no floor **took four correct notes off the top spot** and made the vault
+answer every one of the six questions it has no answer to, up from one. This is
+the defect the roadmap had described in the abstract since the first public
+release: RRF reads position and never score, the vector store always returns
+something, so its best candidate enters the fusion however unlike the question it
+is. The cost of that had never been a number before.
+
+It is also why **no default ships from this table.** Lexical alone already scores
+the maximum on this set, so no floor can beat it — only approach it, and the 0.92
+row reaching exactly the lexical numbers is the tell: that floor is high enough to
+discard essentially every semantic candidate, which is the feature switched off by
+another name. A set where semantic retrieval never once helps measures only half
+the trade: it locates where the harm stops and says nothing about where the
+benefit lives. Picking the top of that range and calling it measured would be a
+guess wearing the costume of a measurement, which is the one thing this file
+exists to argue against.
+
+What the set is missing is questions lexical retrieval loses: asked in the other
+language from the note that answers them, in the words of the symptom rather than
+the words of the document, or with an abbreviation nobody wrote down. Those are
+the questions a floor has to be careful not to throw away, and until a set
+contains some, the floor stays unset.
 
 Read the columns against each other, not one at a time. A floor that lifts hit@1
 while lifting **answered anyway** has made search more confidently wrong, which is

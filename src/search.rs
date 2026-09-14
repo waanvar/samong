@@ -81,6 +81,12 @@ pub struct SearchOptions {
     /// "similarity" suggests: `intfloat/multilingual-e5-small` packs cosine into
     /// a narrow band where unrelated text still scores about 0.75. A floor below
     /// that band filters nothing while looking like it is switched on.
+    ///
+    /// The first sweep on a real vault is written up in `docs/EVAL.md`. It
+    /// measured the cost of leaving this empty — four correct notes knocked off
+    /// the top spot, and every unanswerable question answered anyway — without
+    /// settling what to fill it with, because on that vault words alone already
+    /// scored the maximum and no floor could do better than approach it.
     pub semantic_floor: Option<f32>,
 }
 

@@ -35,6 +35,18 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Changed
 
+- **The similarity floor has been measured once, and still ships unset.**
+  `docs/EVAL.md` now carries a real sweep instead of a table of blanks: 38 notes,
+  21 questions their author had actually asked, `multilingual-e5-small`. It put a
+  number on a defect the roadmap had only described — semantic retrieval with no
+  floor knocked four correct notes off the top spot and answered all six questions
+  the vault cannot answer, against one for words alone. It did not produce a
+  default. Lexical retrieval already scored the maximum on that set, so every
+  floor could only approach it, and the highest tried matched the lexical numbers
+  exactly, which is the feature switched off by another name. A set in which
+  meaning-based search never wins measures one side of a trade; the write-up says
+  so, and says what kind of question the set is missing.
+
 - **`samong eval` stops mangling Thai.** The report and the broken-answer-key
   error both went through `{:?}`, and Rust's `Debug` for a string escapes every
   grapheme-extended character — which is nearly every Thai vowel and tone mark. A
