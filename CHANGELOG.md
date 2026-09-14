@@ -8,6 +8,13 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.6.0
+
+Release notes, an ARM Linux build, and the first numbers the search has ever
+been given.
+
 ### Added
 
 - **A Linux ARM64 archive**, `samong-aarch64-linux.tar.gz`. Raspberry Pi, the
