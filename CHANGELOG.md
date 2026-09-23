@@ -8,6 +8,12 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.6.1
+
+A TLS fix for the updater, published the day 0.6.0 was.
+
 ### Fixed
 
 - **`rustls` 0.23.42 → 0.23.45, for RUSTSEC-2026-0285.** TLS 1.3 handshake
