@@ -8,7 +8,24 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **`rustls` 0.23.42 → 0.23.45, for RUSTSEC-2026-0285.** TLS 1.3 handshake
+  messages were accepted across encryption level boundaries (medium, 5.3). The
+  advisory was published on 14 September — the same day 0.6.0 was tagged — so
+  `cargo audit` was clean when the release went out and the binaries on the
+  release page have carried it since. The scheduled `Audit` run found it the
+  following Monday, which is the entire reason that workflow has a `schedule:`
+  and nothing else in this repository does.
+
+  The reachable path is the updater: `samong update` is the only thing here that
+  speaks TLS, as a client fetching from GitHub. The local server has no TLS of
+  its own. Exploiting it needs a position on that connection.
+
+  `cargo update -p rustls` alone lands on 0.23.43, which the advisory still
+  covers; `--precise 0.23.45` is what actually clears it, and it carries
+  `aws-lc-rs`, `aws-lc-sys` and `rustls-webpki` forward with it. Lockfile only —
+  no direct dependency changed, so `THIRD-PARTY.md` is untouched.
 
 ## 0.6.0
 

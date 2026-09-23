@@ -60,7 +60,10 @@ And four ways green means nothing at all:
    it rots in the advisory database. When the check was finally written it found
    `h2` and a three-versions-behind `dompurify` inside binaries that had been
    published for weeks under a completely green CI. That is why `Audit` has a
-   `schedule:` and nothing else here does.
+   `schedule:` and nothing else here does. It has since earned that on its own:
+   `RUSTSEC-2026-0285` against `rustls` was published on the day v0.6.0 was
+   tagged, so the pre-tag audit was clean and the release shipped with it. The
+   Monday run found it. No push would have.
 10. **An error message that names the wrong place to look.** `samong eval` rejected
    an answer key with *"Answer keys are vault-relative paths, as printed by
    `samong list`"* — and `samong list` printed titles, not paths. Everything a
