@@ -8,8 +8,8 @@
 # .sha256 file each release publishes. Editing them by hand means the package
 # silently lags upstream.
 pkgname=samong-bin
-_archive=samong-v0.5.0-x86_64-linux
-pkgver=0.5.0
+_archive=samong-v0.6.1-x86_64-linux
+pkgver=0.6.1
 pkgrel=1
 pkgdesc="Local-first, Obsidian-compatible knowledge base with full-text search that handles languages written without spaces between words"
 arch=('x86_64')
@@ -27,7 +27,7 @@ conflicts=('samong')
 # whose checksum was published.
 options=('!strip' '!debug')
 source=("$_archive.tar.gz::https://github.com/waanvar/samong/releases/download/v$pkgver/$_archive.tar.gz")
-sha256sums=('5190962c02d9e3a5ad758a896045d1e57478cb6d09eb013afdcb90ae1a459caf')
+sha256sums=('60ba434d8ebcdd3d7bf244a32db1585725b46f991cd0fa63b7aeaabfbd20eca6')
 
 package() {
   cd "$srcdir/$_archive"
