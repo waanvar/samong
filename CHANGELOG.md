@@ -8,7 +8,27 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
-_Nothing yet._
+### Added
+
+- **`--explain` on `samong search` and `samong eval`.** The cosine scores behind
+  semantic ranking were computed and then reduced to an order, so no command
+  could show them — and the first similarity floor swept on a real vault was swept
+  in a range below every score the model produces, which no amount of reading the
+  output could have revealed. `search --explain` prints, under each hit, its place
+  by words, its place and cosine by meaning, and whether the floor dropped it, then
+  one line saying whether meaning took part at all: "not in this build", "this vault
+  has no embeddings" and a fused ranking that agreed with the words all look the
+  same otherwise, and need different fixes.
+
+  `eval --explain` prints each question's right-answer cosine and closest-candidate
+  cosine, then the two ranges a floor is chosen from. Where every right answer
+  scores above every unanswerable question's closest match it names the band a
+  floor can sit in; where they overlap it says so and gives the overlap rather than
+  a number. Right answers meaning never surfaced are counted, not dropped.
+
+  One code path: `search_vault` is now the explained search with the evidence
+  thrown away, so the explanation cannot describe a different order from the one
+  returned — a test compares the two.
 
 ## 0.6.1
 

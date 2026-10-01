@@ -101,6 +101,10 @@ enum Command {
         /// values start around 0.8 (see docs/EVAL.md for measuring one)
         #[arg(long, value_name = "F")]
         semantic_floor: Option<f32>,
+        /// Show what each result was ranked on: its place by words, its place
+        /// and cosine by meaning, and what the floor dropped
+        #[arg(long)]
+        explain: bool,
     },
     /// Print every link-graph edge as "from -> to"
     Graph {
@@ -150,6 +154,10 @@ enum Command {
         // numbers are wrong when it is the argument that ate the filename.
         #[arg(long, value_name = "F", value_delimiter = ',')]
         floors: Vec<f32>,
+        /// Print the cosine of each right answer and of each unanswerable
+        /// question's closest candidate — the ranges a floor is chosen from
+        #[arg(long)]
+        explain: bool,
     },
     /// Update samong to the latest GitHub release
     Update {
@@ -876,15 +884,183 @@ fn cmd_embed(_vault: &std::path::Path, _reference: bool) -> Result<()> {
 fn print_hits(hits: Vec<crate::search::SearchHit>, prefix: Option<&str>) -> bool {
     let found = !hits.is_empty();
     for hit in hits {
-        match prefix {
-            Some(name) => println!("{name}/{}: {}", hit.key, hit.snippet),
-            None => println!("{}: {}", hit.key, hit.snippet),
-        }
-        if let Some(source) = &hit.source {
-            println!("  ↳ from {}", source.label());
-        }
+        print_hit(&hit, prefix);
     }
     found
+}
+
+fn print_hit(hit: &crate::search::SearchHit, prefix: Option<&str>) {
+    match prefix {
+        Some(name) => println!("{name}/{}: {}", hit.key, hit.snippet),
+        None => println!("{}: {}", hit.key, hit.snippet),
+    }
+    if let Some(source) = &hit.source {
+        println!("  ↳ from {}", source.label());
+    }
+}
+
+/// The hits, each followed by what it was ranked on, then one line about the
+/// semantic side as a whole.
+///
+/// The per-hit line answers "why is this here"; the closing line answers the
+/// question the per-hit lines cannot — whether meaning took part at all, and
+/// where the floor cut. Without it, a lexical-only ranking and a fused one look
+/// the same, and so does a floor that dropped nothing and a floor that dropped
+/// everything.
+fn print_explained(
+    explained: &crate::ops::Explained,
+    prefix: Option<&str>,
+    options: &crate::search::SearchOptions,
+) -> bool {
+    use crate::ops::Meaning;
+    let pool = explained.candidates.len();
+    for (hit, trace) in &explained.hits {
+        print_hit(hit, prefix);
+        let words = match trace.lexical_rank {
+            Some(rank) => format!("words #{rank}"),
+            None => "words —".to_string(),
+        };
+        let meaning = match (explained.meaning, trace.semantic_rank, trace.cosine) {
+            (Meaning::Used, Some(rank), Some(cosine)) => {
+                format!(" · meaning #{rank}, cosine {cosine:.3}")
+            }
+            (Meaning::Used, None, Some(cosine)) => {
+                format!(" · meaning —, cosine {cosine:.3} below the floor")
+            }
+            (Meaning::Used, _, None) if pool > 0 => {
+                format!(" · meaning — (not among the {pool} closest)")
+            }
+            _ => String::new(),
+        };
+        println!("  {words}{meaning}");
+    }
+    match explained.meaning {
+        Meaning::NotCompiled => println!(
+            "meaning: not in this build — ranked by words and links only \
+             (build with `--features semantic`)"
+        ),
+        Meaning::NotEmbedded => println!(
+            "meaning: this vault has no embeddings — ranked by words and links only \
+             (`samong embed` adds them)"
+        ),
+        Meaning::Used if pool == 0 => {
+            println!("meaning: no candidates came back — ranked by words and links only")
+        }
+        Meaning::Used => {
+            let closest = explained.candidates[0].1;
+            let furthest = explained.candidates[pool - 1].1;
+            let cut = match options.semantic_floor {
+                None => "no floor".to_string(),
+                Some(floor) => {
+                    let kept = explained
+                        .candidates
+                        .iter()
+                        .filter(|(_, score)| *score >= floor)
+                        .count();
+                    format!("floor {floor:.2} kept {kept}, dropped {}", pool - kept)
+                }
+            };
+            println!(
+                "meaning: {pool} candidate(s), cosine {closest:.3} closest to {furthest:.3}; {cut}"
+            );
+        }
+    }
+    !explained.hits.is_empty()
+}
+
+/// The cosine ranges a similarity floor is chosen from, question by question.
+///
+/// A sweep shows what each floor *did*. This shows where the numbers sit that
+/// made it so: every right answer's cosine and every unanswerable question's
+/// closest candidate, with the gap between the two ranges if there is one. It
+/// exists because the first floor ever swept on a real vault was swept in a
+/// range below every score the model produces, and nothing printed a score.
+fn print_cosine_spread(report: &crate::eval::Report) {
+    use crate::ops::Meaning;
+    println!();
+    match report.meaning {
+        Meaning::NotCompiled => {
+            println!(
+                "--explain: this build has no semantic search, so there are no cosines to show."
+            );
+            return;
+        }
+        Meaning::NotEmbedded => {
+            println!(
+                "--explain: this vault has no embeddings, so there are no cosines to show — \
+                 `samong embed` first."
+            );
+            return;
+        }
+        Meaning::Used => {}
+    }
+    let pool = report.at * 3;
+    println!("cosine before any floor — answer: the right note · closest: the best candidate");
+    println!("{:>8} {:>8}   question", "answer", "closest");
+    for outcome in &report.outcomes {
+        let answer = match outcome.answer_cosine {
+            Some(score) => format!("{score:.3}"),
+            None => "—".to_string(),
+        };
+        let closest = match outcome.best_cosine {
+            Some(score) => format!("{score:.3}"),
+            None => "—".to_string(),
+        };
+        let note = match (outcome.answerable(), outcome.answer_cosine) {
+            (false, _) => "  (no answer in the vault)".to_string(),
+            (true, None) => format!("  (right note not among the {pool} closest)"),
+            (true, Some(_)) => String::new(),
+        };
+        println!("{answer:>8} {closest:>8}   \"{}\"{note}", outcome.ask);
+    }
+
+    let spread = crate::eval::CosineSpread::of(report);
+    let range = |values: &[f32]| -> Option<(f32, f32)> {
+        let low = values.iter().copied().reduce(f32::min)?;
+        let high = values.iter().copied().reduce(f32::max)?;
+        Some((low, high))
+    };
+    println!();
+    let answerable = report.answerable();
+    match range(&spread.answers) {
+        Some((low, high)) => println!(
+            "right answers           {low:.3} – {high:.3}   ({} of {answerable} found by meaning)",
+            spread.answers.len()
+        ),
+        None if answerable > 0 => {
+            println!("right answers           none were among the semantic candidates")
+        }
+        None => {}
+    }
+    match range(&spread.unanswerable) {
+        Some((low, high)) => println!(
+            "no answer, closest      {low:.3} – {high:.3}   ({} question(s))",
+            spread.unanswerable.len()
+        ),
+        None => println!(
+            "no answer, closest      —   (the set has no unanswerable questions to measure)"
+        ),
+    }
+    match spread.gap() {
+        Some((noise, answer)) => println!(
+            "\non this set, a floor above {noise:.3} and no higher than {answer:.3} keeps every \
+             right answer meaning found and drops the closest candidate of every question the \
+             vault cannot answer. Words can still answer those questions; the floor only \
+             touches the semantic side."
+        ),
+        None => {
+            if let (Some((answer_low, _)), Some((_, noise_high))) =
+                (range(&spread.answers), range(&spread.unanswerable))
+            {
+                println!(
+                    "\nthe ranges overlap between {answer_low:.3} and {noise_high:.3}: no floor on \
+                     this set keeps every right answer and drops every unanswerable question's \
+                     closest match, so any value in that band is a trade — the sweep's rows \
+                     show which way it goes."
+                );
+            }
+        }
+    }
 }
 
 fn cmd_search(
@@ -894,18 +1070,27 @@ fn cmd_search(
     all_vaults: bool,
     limit: usize,
     semantic_floor: Option<f32>,
+    explain: bool,
 ) -> Result<()> {
     let options =
         crate::search::SearchOptions::with_limit(limit).with_semantic_floor(semantic_floor);
+    let search = |path: &Path, prefix: Option<&str>| -> Result<bool> {
+        if explain {
+            let explained = crate::ops::search_vault_explained(path, query, &options)?;
+            Ok(print_explained(&explained, prefix, &options))
+        } else {
+            Ok(print_hits(
+                crate::ops::search_vault(path, query, &options)?,
+                prefix,
+            ))
+        }
+    };
     let mut found = false;
     if all_vaults {
         let registry = Registry::open()?;
         for (name, path) in registry.list()? {
             indexer::reindex(&path, false)?;
-            found |= print_hits(
-                crate::ops::search_vault(&path, query, &options)?,
-                Some(&name),
-            );
+            found |= search(&path, Some(&name))?;
         }
     } else if let Some(name) = vault_name {
         let registry = Registry::open()?;
@@ -913,10 +1098,10 @@ fn cmd_search(
             .get(name)?
             .with_context(|| format!("vault \"{name}\" is not registered"))?;
         indexer::reindex(&path, false)?;
-        found = print_hits(crate::ops::search_vault(&path, query, &options)?, None);
+        found = search(&path, None)?;
     } else {
         indexer::reindex(vault, false)?;
-        found = print_hits(crate::ops::search_vault(vault, query, &options)?, None);
+        found = search(vault, None)?;
     }
     if !found {
         println!("no results");
@@ -1050,6 +1235,7 @@ fn cmd_eval(
     vault_name: Option<&str>,
     semantic_floor: Option<f32>,
     floors: &[f32],
+    explain: bool,
 ) -> Result<()> {
     let root = match vault_name {
         Some(name) => Registry::open()?
@@ -1063,7 +1249,16 @@ fn cmd_eval(
 
     let set = crate::eval::QuestionSet::load(questions)?;
     if !floors.is_empty() {
-        return print_sweep(&crate::eval::sweep(&root, &set, at, floors)?);
+        let rows = crate::eval::sweep(&root, &set, at, floors)?;
+        print_sweep(&rows)?;
+        // Cosines are taken before the floor, so the `none` row's are the same
+        // as every other row's; printing them once is printing them all.
+        if explain {
+            if let Some((_, report)) = rows.first() {
+                print_cosine_spread(report);
+            }
+        }
+        return Ok(());
     }
     let report = crate::eval::run(&root, &set, at, semantic_floor)?;
 
@@ -1106,10 +1301,9 @@ fn cmd_eval(
             false => !outcome.returned.is_empty(),
         })
         .collect();
-    if misses.is_empty() {
-        return Ok(());
+    if !misses.is_empty() {
+        println!("\n{} to look at:", misses.len());
     }
-    println!("\n{} to look at:", misses.len());
     for outcome in misses {
         // Quoted with `{}`, not `{:?}`. Rust's Debug for a string escapes every
         // grapheme-extended char, and Thai vowels and tone marks are exactly
@@ -1125,6 +1319,9 @@ fn cmd_eval(
             Some(_) => println!("    got:    {}", outcome.returned.join(", ")),
             None => println!("    got:    nothing"),
         }
+    }
+    if explain {
+        print_cosine_spread(&report);
     }
     Ok(())
 }
@@ -1344,6 +1541,7 @@ pub fn run() -> Result<()> {
             all_vaults,
             limit,
             semantic_floor,
+            explain,
         } => cmd_search(
             &vault,
             &query,
@@ -1351,6 +1549,7 @@ pub fn run() -> Result<()> {
             all_vaults,
             limit,
             semantic_floor,
+            explain,
         )?,
         Command::Graph { all_vaults } => cmd_graph(&vault, all_vaults)?,
         // The key, not the title. A title is a display name and is not unique:
@@ -1376,6 +1575,7 @@ pub fn run() -> Result<()> {
             vault: vault_name,
             semantic_floor,
             floors,
+            explain,
         } => cmd_eval(
             &vault,
             &questions,
@@ -1383,6 +1583,7 @@ pub fn run() -> Result<()> {
             vault_name.as_deref(),
             semantic_floor,
             &floors,
+            explain,
         )?,
         Command::Vault { action } => cmd_vault(action)?,
         Command::Update { check } => crate::update::run(check)?,

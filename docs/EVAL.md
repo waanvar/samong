@@ -184,6 +184,35 @@ the words of the document, or with an abbreviation nobody wrote down. Those are
 the questions a floor has to be careful not to throw away, and until a set
 contains some, the floor stays unset.
 
+## Reading the cosines directly
+
+A sweep shows what each floor *did*. `--explain` shows the numbers it did it to:
+
+```sh
+samong eval questions.toml --explain
+samong eval questions.toml --floors 0.80,0.84,0.88 --explain
+```
+
+For every question it prints the cosine of the right answer, if meaning found it
+among its candidates, and the cosine of the closest candidate. Then the two ranges
+that matter: where right answers score, and how close the vault came to answering
+the questions it cannot. If every right answer scores above every unanswerable
+question's closest match, it names the band a floor can sit in and lose nothing on
+the semantic side. If the ranges overlap, it says so and gives the overlap — any
+floor inside it trades a right answer for a quieter wrong one, and the sweep's rows
+show which way.
+
+The cosines are taken before any floor, so they are the same whichever floor was
+asked for. A right answer that was not among the candidates at all is counted
+separately: no floor can help that question, and leaving it out would make the
+ranges look cleaner than the vault is.
+
+`samong search <q> --explain` does the same for one query: each hit's place by
+words, its place and cosine by meaning, whether the floor dropped it, and one line
+saying whether meaning took part at all — "not in this build" and "this vault has
+no embeddings" rank exactly like a fused search that happened to agree with the
+words, and they need different fixes.
+
 Read the columns against each other, not one at a time. A floor that lifts hit@1
 while lifting **answered anyway** has made search more confidently wrong, which is
 worse than leaving it alone — that column is why a set needs questions with no

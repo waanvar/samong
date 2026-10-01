@@ -113,6 +113,13 @@ pub struct Outcome {
     pub expected: Vec<String>,
     /// Keys the search returned, best first.
     pub returned: Vec<String>,
+    /// Cosine of the closest semantic candidate, before any floor. `None` when
+    /// meaning took no part — see [`Report::meaning`] for why.
+    pub best_cosine: Option<f32>,
+    /// Cosine of the best-scoring correct answer among the semantic candidates,
+    /// before any floor. `None` for a question with no answer, or when no
+    /// correct answer was among the candidates at all.
+    pub answer_cosine: Option<f32>,
 }
 
 impl Outcome {
@@ -146,6 +153,9 @@ pub struct Report {
     pub outcomes: Vec<Outcome>,
     /// The `k` in hit@k, as asked for on the command line.
     pub at: usize,
+    /// Whether meaning took part. Identical for every question in a run: it
+    /// depends on the build and the vault, not on what was asked.
+    pub meaning: crate::ops::Meaning,
 }
 
 impl Report {
@@ -213,15 +223,83 @@ pub fn run(vault: &Path, set: &QuestionSet, at: usize, floor: Option<f32>) -> Re
 
     let options = crate::search::SearchOptions::with_limit(at).with_semantic_floor(floor);
     let mut outcomes = Vec::with_capacity(set.questions.len());
+    let mut meaning = crate::ops::Meaning::NotCompiled;
     for question in &set.questions {
-        let hits = crate::ops::search_vault(vault, &question.ask, &options)?;
+        // The explained path is the same search; it only keeps the cosines that
+        // the plain one reduces to an order.
+        let explained = crate::ops::search_vault_explained(vault, &question.ask, &options)?;
+        meaning = explained.meaning;
+        let best_cosine = explained.candidates.first().map(|(_, score)| *score);
+        let answer_cosine = explained
+            .candidates
+            .iter()
+            .filter(|(key, _)| question.answers.contains(key))
+            .map(|(_, score)| *score)
+            .reduce(f32::max);
         outcomes.push(Outcome {
             ask: question.ask.clone(),
             expected: question.answers.clone(),
-            returned: hits.into_iter().map(|hit| hit.key).collect(),
+            returned: explained.hits.into_iter().map(|(hit, _)| hit.key).collect(),
+            best_cosine,
+            answer_cosine,
         });
     }
-    Ok(Report { outcomes, at })
+    Ok(Report {
+        outcomes,
+        at,
+        meaning,
+    })
+}
+
+/// How the cosines of right answers and of unanswerable questions sit against
+/// each other — the measurement a floor is actually chosen from.
+///
+/// A sweep says *what happened* at each candidate floor. This says *why*: where
+/// each correct answer scored, and how close the vault came to answering the
+/// questions it cannot. The two ranges either leave a gap, in which a floor
+/// keeps every right answer's semantic match and drops every unanswerable
+/// question's best one, or they overlap, and any floor inside the overlap is a
+/// trade. Taken before any floor, so it is the same whichever floor was asked
+/// for.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CosineSpread {
+    /// Cosines of correct answers that were among the semantic candidates.
+    pub answers: Vec<f32>,
+    /// Answerable questions whose correct answer was not among the candidates.
+    pub answers_missing: usize,
+    /// Best candidate cosine on each question the vault cannot answer.
+    pub unanswerable: Vec<f32>,
+}
+
+impl CosineSpread {
+    pub fn of(report: &Report) -> Self {
+        let mut spread = CosineSpread {
+            answers: Vec::new(),
+            answers_missing: 0,
+            unanswerable: Vec::new(),
+        };
+        for outcome in &report.outcomes {
+            if outcome.answerable() {
+                match outcome.answer_cosine {
+                    Some(score) => spread.answers.push(score),
+                    None => spread.answers_missing += 1,
+                }
+            } else if let Some(score) = outcome.best_cosine {
+                spread.unanswerable.push(score);
+            }
+        }
+        spread
+    }
+
+    /// The open interval a floor can sit in to keep every right answer's
+    /// semantic match and drop every unanswerable question's best one, as
+    /// `(highest unanswerable, lowest answer)`. `None` when the ranges overlap
+    /// or either side is empty.
+    pub fn gap(&self) -> Option<(f32, f32)> {
+        let lowest_answer = self.answers.iter().copied().reduce(f32::min)?;
+        let highest_noise = self.unanswerable.iter().copied().reduce(f32::max)?;
+        (highest_noise < lowest_answer).then_some((highest_noise, lowest_answer))
+    }
 }
 
 /// The same question set scored once per candidate floor.
@@ -258,6 +336,8 @@ mod tests {
             ask: "q".to_string(),
             expected: expected.iter().map(|s| s.to_string()).collect(),
             returned: returned.iter().map(|s| s.to_string()).collect(),
+            best_cosine: None,
+            answer_cosine: None,
         }
     }
 
@@ -283,6 +363,7 @@ mod tests {
     fn a_question_with_no_answer_counts_as_noise_only_when_something_came_back() {
         let report = Report {
             at: 5,
+            meaning: crate::ops::Meaning::NotCompiled,
             outcomes: vec![
                 outcome(&[], &[]),       // right: nothing to say, said nothing
                 outcome(&[], &["x.md"]), // wrong: answered anyway
@@ -301,6 +382,7 @@ mod tests {
     fn unanswerable_questions_do_not_drag_the_mean_down() {
         let with_gaps = Report {
             at: 5,
+            meaning: crate::ops::Meaning::NotCompiled,
             outcomes: vec![
                 outcome(&["a.md"], &["a.md"]),
                 outcome(&[], &[]),
@@ -315,6 +397,7 @@ mod tests {
     fn hits_at_k_counts_position_not_presence() {
         let report = Report {
             at: 5,
+            meaning: crate::ops::Meaning::NotCompiled,
             outcomes: vec![outcome(&["a.md"], &["x.md", "y.md", "a.md"])],
         };
         assert_eq!(report.hits_at(1), 0);
@@ -355,5 +438,64 @@ mod tests {
         let set: QuestionSet = toml::from_str("[[question]]\nask = \"anything?\"\n").unwrap();
         assert!(set.questions[0].answers.is_empty());
         assert_eq!(set.questions.len(), 1);
+    }
+
+    fn cosines(expected: &[&str], best: Option<f32>, answer: Option<f32>) -> Outcome {
+        Outcome {
+            best_cosine: best,
+            answer_cosine: answer,
+            ..outcome(expected, &[])
+        }
+    }
+
+    fn report_of(outcomes: Vec<Outcome>) -> Report {
+        Report {
+            at: 5,
+            meaning: crate::ops::Meaning::Used,
+            outcomes,
+        }
+    }
+
+    /// When every right answer scores above every unanswerable question's best
+    /// candidate, the gap between them is where a floor can sit and lose nothing.
+    #[test]
+    fn a_clean_separation_reports_the_gap_a_floor_can_sit_in() {
+        let spread = CosineSpread::of(&report_of(vec![
+            cosines(&["a.md"], Some(0.91), Some(0.90)),
+            cosines(&["b.md"], Some(0.88), Some(0.87)),
+            cosines(&[], Some(0.82), None),
+            cosines(&[], Some(0.79), None),
+        ]));
+        assert_eq!(spread.gap(), Some((0.82, 0.87)));
+        assert_eq!(spread.answers_missing, 0);
+    }
+
+    /// Overlap is the common case and must not be dressed up as a gap: any
+    /// floor inside it gives up a right answer to silence a wrong one.
+    #[test]
+    fn overlapping_ranges_have_no_gap() {
+        let spread = CosineSpread::of(&report_of(vec![
+            cosines(&["a.md"], Some(0.91), Some(0.84)),
+            cosines(&[], Some(0.86), None),
+        ]));
+        assert_eq!(spread.gap(), None);
+    }
+
+    /// A correct answer meaning never surfaced is counted, not dropped: it is
+    /// evidence that the floor cannot help that question either way, and a
+    /// spread that hid it would look tidier than the vault is.
+    #[test]
+    fn an_answer_outside_the_candidates_is_counted_as_missing() {
+        let spread = CosineSpread::of(&report_of(vec![
+            cosines(&["a.md"], Some(0.90), None),
+            cosines(&["b.md"], Some(0.88), Some(0.88)),
+        ]));
+        assert_eq!(spread.answers, vec![0.88]);
+        assert_eq!(spread.answers_missing, 1);
+        assert_eq!(
+            spread.gap(),
+            None,
+            "no unanswerable questions, no gap to report"
+        );
     }
 }

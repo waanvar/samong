@@ -221,7 +221,7 @@ with `--no-open` (the old `samong-server --port 8080` form still works).
 | `samong delete <title>` | Delete + warn about dangling backlinks |
 | `samong links <title> [--all-vaults]` | Forward links + backlinks (incl. cross-vault) |
 | `samong orphans` / `samong broken` | Unlinked notes / links to missing notes |
-| `samong search <q> [--vault <name>\|--all-vaults] [--limit N]` | Full-text search |
+| `samong search <q> [--vault <name>\|--all-vaults] [--limit N] [--explain]` | Full-text search; `--explain` shows what each hit was ranked on |
 | `samong graph [--all-vaults]` | Link-graph edges |
 | `samong list` | Every note's key, one per line — the identity `answers`, links and the MCP server use |
 | `samong reindex [--full]` | Sync the index (changed files only / everything) |

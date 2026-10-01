@@ -103,6 +103,69 @@ pub fn search_vault(
     query: &str,
     options: &crate::search::SearchOptions,
 ) -> Result<Vec<crate::search::SearchHit>> {
+    Ok(search_vault_explained(vault, query, options)?
+        .hits
+        .into_iter()
+        .map(|(hit, _)| hit)
+        .collect())
+}
+
+/// Whether meaning took part in a search, and if not, why not.
+///
+/// The three cases look identical from the ranking alone — a purely lexical
+/// order — and they call for three different things: nothing, `samong embed`,
+/// or a different build. An explanation that cannot tell them apart sends
+/// someone to tune a floor that has nothing to filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Meaning {
+    /// This binary was built without the `semantic` feature.
+    NotCompiled,
+    /// The feature is here, but nobody has run `samong embed` on this vault.
+    NotEmbedded,
+    /// Semantic candidates were asked for. The list can still be empty if the
+    /// model failed to load, which is warned about where it happens.
+    Used,
+}
+
+/// Where one hit's place in the results came from.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct HitTrace {
+    /// 1-based position in the lexical ranking (relevance × connectedness).
+    pub lexical_rank: Option<usize>,
+    /// 1-based position among the semantic candidates that cleared the floor.
+    pub semantic_rank: Option<usize>,
+    /// Cosine similarity of the note's best chunk, whether or not it cleared
+    /// the floor. `None` means the note was not among the candidates at all.
+    pub cosine: Option<f32>,
+}
+
+/// A search, and the evidence each result was ranked on.
+pub struct Explained {
+    pub hits: Vec<(crate::search::SearchHit, HitTrace)>,
+    pub meaning: Meaning,
+    /// Every semantic candidate with its cosine, best first, *before* the floor.
+    /// The full list rather than only what was kept, because choosing a floor
+    /// means seeing what sits on both sides of it.
+    pub candidates: Vec<(String, f32)>,
+}
+
+/// [`search_vault`], keeping what the ranking was built from.
+///
+/// The same code path rather than a second one that recomputes the scores:
+/// an explanation assembled separately is an explanation that can drift from
+/// the ranking it claims to explain. `search_vault` is this with the traces
+/// dropped.
+///
+/// It exists because the cosine scores used to be computed and thrown away
+/// here, reduced to an order. The first sweep of a similarity floor on a real
+/// vault then tried 0.20–0.40 against a model whose unrelated text scores about
+/// 0.75, and every row came back identical — a whole round spent learning a
+/// number that one printed score would have shown.
+pub fn search_vault_explained(
+    vault: &std::path::Path,
+    query: &str,
+    options: &crate::search::SearchOptions,
+) -> Result<Explained> {
     let degrees = Graph::open(vault)
         .and_then(|graph| graph.degrees())
         .unwrap_or_default();
@@ -112,24 +175,46 @@ pub fn search_vault(
     // one bite, on the ranking whose gaps it was tuned against.
     let mut hits = crate::search::query_ranked(vault, query, options, &degrees)?;
 
-    let semantic_order = apply_semantic_floor(
-        semantic_ranking(vault, query, options),
-        options.semantic_floor,
-    );
-    if semantic_order.is_empty() {
-        // Nothing to fuse with; still emit fused-scale scores.
-        for (index, hit) in hits.iter_mut().enumerate() {
-            hit.score = 1.0 / (RRF_K + index as f32 + 1.0);
-        }
-        attribute(vault, &mut hits)?;
-        return Ok(hits);
-    }
+    let meaning = meaning_for(vault);
+    let candidates = semantic_ranking(vault, query, options);
+    let cosine: std::collections::HashMap<String, f32> = candidates.iter().cloned().collect();
+    let semantic_order = apply_semantic_floor(candidates.clone(), options.semantic_floor);
 
     let lexical_rank: std::collections::HashMap<String, usize> = hits
         .iter()
         .enumerate()
         .map(|(index, hit)| (hit.key.clone(), index))
         .collect();
+    let semantic_rank: std::collections::HashMap<String, usize> = semantic_order
+        .iter()
+        .enumerate()
+        .map(|(index, key)| (key.clone(), index))
+        .collect();
+    let trace_of = |key: &str| HitTrace {
+        lexical_rank: lexical_rank.get(key).map(|rank| rank + 1),
+        semantic_rank: semantic_rank.get(key).map(|rank| rank + 1),
+        cosine: cosine.get(key).copied(),
+    };
+
+    if semantic_order.is_empty() {
+        // Nothing to fuse with; still emit fused-scale scores.
+        for (index, hit) in hits.iter_mut().enumerate() {
+            hit.score = 1.0 / (RRF_K + index as f32 + 1.0);
+        }
+        attribute(vault, &mut hits)?;
+        let hits = hits
+            .into_iter()
+            .map(|hit| {
+                let trace = trace_of(&hit.key);
+                (hit, trace)
+            })
+            .collect();
+        return Ok(Explained {
+            hits,
+            meaning,
+            candidates,
+        });
+    }
 
     // Candidates the words missed entirely.
     //
@@ -150,11 +235,6 @@ pub fn search_vault(
         options.snippet_chars,
     )?);
 
-    let semantic_rank: std::collections::HashMap<&str, usize> = semantic_order
-        .iter()
-        .enumerate()
-        .map(|(index, key)| (key.as_str(), index))
-        .collect();
     for hit in hits.iter_mut() {
         // Missing from one ranking contributes nothing from that side rather than
         // a penalty: being found by one of two methods is not evidence against.
@@ -163,7 +243,7 @@ pub fn search_vault(
             .map(|rank| 1.0 / (RRF_K + *rank as f32 + 1.0))
             .unwrap_or(0.0);
         let meaning = semantic_rank
-            .get(hit.key.as_str())
+            .get(&hit.key)
             .map(|rank| 1.0 / (RRF_K + *rank as f32 + 1.0))
             .unwrap_or(0.0);
         hit.score = lexical + meaning;
@@ -177,7 +257,32 @@ pub fn search_vault(
     // The union is larger than what was asked for.
     hits.truncate(options.limit.clamp(1, crate::search::MAX_LIMIT));
     attribute(vault, &mut hits)?;
-    Ok(hits)
+    let hits = hits
+        .into_iter()
+        .map(|hit| {
+            let trace = trace_of(&hit.key);
+            (hit, trace)
+        })
+        .collect();
+    Ok(Explained {
+        hits,
+        meaning,
+        candidates,
+    })
+}
+
+#[cfg(feature = "semantic")]
+fn meaning_for(vault: &std::path::Path) -> Meaning {
+    if crate::vectors::exists(vault) {
+        Meaning::Used
+    } else {
+        Meaning::NotEmbedded
+    }
+}
+
+#[cfg(not(feature = "semantic"))]
+fn meaning_for(_vault: &std::path::Path) -> Meaning {
+    Meaning::NotCompiled
 }
 
 /// Mark the hits that are somebody else's work.
