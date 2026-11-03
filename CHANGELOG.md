@@ -30,6 +30,19 @@ lineage rather than pretending this is the first shape the project took.
   thrown away, so the explanation cannot describe a different order from the one
   returned — a test compares the two.
 
+- **`docs/DESIGN.md`, the interface written down.** What each colour means, the
+  tokens for both themes, type, layout, the components to reuse, and a recipe for
+  the few shapes a new screen can take — so a screen added later, by anyone, is
+  built from the same palette and frame as the rest. It is read off the code
+  rather than aspired to, and `tests/design_system.rs` holds it there: the token
+  table is compared with the stylesheet cell by cell, colour literals outside the
+  token blocks fail, as do colour transitions and animations that ignore
+  reduced motion. The four vault hues were written out in three files that agreed
+  only by care; they are now checked against each other. `docs/AI-AGENT.md` has
+  the same pattern as a recipe for other projects. What the test cannot judge —
+  whether a new screen chose the right meaning for a colour — is still a matter of
+  reading the document.
+
 ## 0.6.1
 
 A TLS fix for the updater, published the day 0.6.0 was.
