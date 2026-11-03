@@ -30,6 +30,30 @@ lineage rather than pretending this is the first shape the project took.
   thrown away, so the explanation cannot describe a different order from the one
   returned — a test compares the two.
 
+- **`samong-mcp` tells the client how to use the notes when it connects.** The
+  working loop — search before starting, read the vault's `START` note, keep what
+  decision notes say must not break, save decisions, leave a handoff note when
+  stopping mid-task, never put a secret value in a note — lived only in a
+  project's `CLAUDE.md`, which one provider's tools read. An agent from another
+  provider connected to the same notes and was told nothing about them. The loop
+  now goes out in MCP's `instructions` field, which reaches any client that
+  honours it whatever model is behind it. A client that ignores the field still
+  sees nothing, so this does not replace the project's instruction file; it covers
+  the gap the file cannot. Tests hold the text under 2,000 bytes, since every
+  session pays for it, and fail if it names a tool that does not exist.
+
+- **`AGENTS.md` instead of `CLAUDE.md`, in this repository and in the recipe.**
+  The project's instructions now live in one file most agents read; `CLAUDE.md`
+  is a single `@AGENTS.md` import, and a test fails if that line goes, since
+  Claude would then lose every instruction without anything else noticing. The
+  MSRV check moved with the text — and now fails on a file that states no
+  version, where before it would have passed against the emptied `CLAUDE.md`
+  while checking nothing. `docs/AI-AGENT.md` has the provider-neutral recipe and
+  templates for a vault's `START` note, decision notes and handoff notes. The
+  `status` and `superseded_by` lines in those templates are a convention for now:
+  Samong indexes frontmatter as text and does not yet mark superseded notes in
+  results.
+
 - **`docs/DESIGN.md`, the interface written down.** What each colour means, the
   tokens for both themes, type, layout, the components to reuse, and a recipe for
   the few shapes a new screen can take — so a screen added later, by anyone, is
