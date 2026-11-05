@@ -3,6 +3,10 @@
 Read `CONTRIBUTING.md` first; it is the contract for what gets merged. This file
 only adds what an agent cannot infer from the tree.
 
+Then read `notes/START.md`: open pull requests and their merge order, branches
+with unfinished work, proposals not yet built, and measurements already taken.
+It is where work left by an earlier session — of any provider — is picked up.
+
 It is the one copy of these instructions, whichever provider's agent reads it.
 `CLAUDE.md` imports it rather than repeating it: two copies drift, and an agent
 from another provider would be working to rules that one side had already
