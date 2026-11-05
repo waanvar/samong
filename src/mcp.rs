@@ -67,6 +67,46 @@ pub fn handle_line(line: &str) -> Option<String> {
     )
 }
 
+/// How to use this server, sent to the client in `initialize`.
+///
+/// The working loop — search before you start, save what you decided, leave a
+/// handoff when you stop — used to live only in a project's `CLAUDE.md`, which is
+/// read by one provider's tools. Switch to another provider halfway through a
+/// project and the new agent connects to the same notes with no idea it should
+/// look at them, so the decisions recorded for feature A are not consulted while
+/// it builds feature B. MCP's `instructions` field reaches every client that
+/// honours it, whatever model is behind it, which makes this the one place the
+/// loop is stated where the provider does not matter.
+///
+/// It is written for any project, because this server serves any vault. Every
+/// session pays for it in tokens, so it stays short; a test holds it under a
+/// ceiling and checks that every tool it names exists.
+pub const INSTRUCTIONS: &str = "\
+Samong holds this project's memory as Markdown notes kept in the repository. \
+It outlasts any one session, model or AI provider: treat it as what the people \
+before you decided.
+
+Before you start a task:
+- search_notes for the topic, and for the paths of files you expect to change. \
+Hits are vault/path; pass that to read_note unchanged.
+- If the vault has a note named START, read it first.
+- Read the decision notes covering the area and keep what they say must not \
+break. If a note says it was superseded, follow it to the note that replaced it.
+- Before building or changing an interface, search for the project's design \
+notes and follow them rather than inventing a look.
+
+While you work, and before you stop:
+- After a decision or a hard-won fix, save_note a decision note: context, \
+options considered, why this one, what must not break and which tests guard it, \
+the file paths involved.
+- If the work is unfinished when you stop, save_note a handoff note: what is \
+done, what is left, the branch, the next step, what was tried and failed.
+- To change a note, read_note it first and send its base_hash. If an old \
+decision turned out wrong, write a new note that links to it and says what \
+changed.
+- Never write a secret value into a note; notes are committed to git. Say \
+where a secret lives, not what it is.";
+
 fn initialize_result(params: &Value) -> Value {
     // Echo the client's protocol version; the lenient choice keeps us
     // compatible across spec revisions of this small method set.
@@ -74,10 +114,15 @@ fn initialize_result(params: &Value) -> Value {
         .get("protocolVersion")
         .and_then(Value::as_str)
         .unwrap_or("2024-11-05");
+    // `instructions` arrived in the 2025-03-26 revision. It is sent whatever
+    // version was negotiated: a client on an older revision ignores a field it
+    // does not know, and one that does know it should not lose it to a version
+    // string.
     json!({
         "protocolVersion": version,
         "capabilities": { "tools": {} },
-        "serverInfo": { "name": "samong-mcp", "version": env!("CARGO_PKG_VERSION") }
+        "serverInfo": { "name": "samong-mcp", "version": env!("CARGO_PKG_VERSION") },
+        "instructions": INSTRUCTIONS
     })
 }
 
@@ -523,6 +568,64 @@ mod tests {
         assert_eq!(v["result"]["protocolVersion"], "2025-03-26");
         assert_eq!(v["result"]["serverInfo"]["name"], "samong-mcp");
         assert!(v["result"]["capabilities"]["tools"].is_object());
+    }
+
+    /// Without this, an agent from a provider whose tools never read the
+    /// project's `CLAUDE.md` connects and is told nothing about the notes.
+    #[test]
+    fn initialize_tells_every_client_how_to_use_the_notes() {
+        for version in ["2025-03-26", "2024-11-05"] {
+            let response = handle_line(&request(
+                "initialize",
+                json!({ "protocolVersion": version }),
+            ))
+            .unwrap();
+            let v: Value = serde_json::from_str(&response).unwrap();
+            let text = v["result"]["instructions"]
+                .as_str()
+                .unwrap_or_else(|| panic!("no instructions for protocol {version}"));
+            for must in [
+                "search_notes",
+                "save_note",
+                "handoff",
+                "superseded",
+                "secret",
+            ] {
+                assert!(text.contains(must), "instructions never mention {must}");
+            }
+        }
+    }
+
+    /// Every session pays for these words. A ceiling keeps additions honest.
+    #[test]
+    fn instructions_stay_short() {
+        assert!(
+            INSTRUCTIONS.len() < 2000,
+            "instructions are {} bytes; every session pays for them",
+            INSTRUCTIONS.len()
+        );
+    }
+
+    /// A renamed tool would leave the instructions pointing an agent at a tool
+    /// that does not exist — the failure would be a confused agent, not an error.
+    #[test]
+    fn every_tool_the_instructions_name_exists() {
+        let tools = tool_names();
+        let named: Vec<&str> = INSTRUCTIONS
+            .split(|c: char| !(c.is_ascii_lowercase() || c == '_'))
+            .filter(|w| w.contains('_') && !w.starts_with('_') && !w.ends_with('_'))
+            .collect();
+        assert!(named.len() >= 3, "found only {named:?}");
+        for word in named {
+            // base_hash is a parameter of save_note, not a tool.
+            if word == "base_hash" {
+                continue;
+            }
+            assert!(
+                tools.iter().any(|t| t == word),
+                "instructions name {word}, which is not a tool"
+            );
+        }
     }
 
     #[test]

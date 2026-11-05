@@ -4,7 +4,7 @@
 //! reads that field rather than a number of its own — so a bump there is followed
 //! automatically by the compiler the job installs. The prose is not so lucky:
 //! `README.md` promises a version to anyone deciding whether they can build this,
-//! and `CLAUDE.md` states one to every agent that works on the repo. Nothing binds
+//! and `AGENTS.md` states one to every agent that works on the repo. Nothing binds
 //! either to `Cargo.toml`.
 //!
 //! That is the same shape of defect the `msrv` job was added to close, one file
@@ -83,14 +83,40 @@ fn readme_states_the_msrv_that_cargo_enforces() {
 /// Agents are told the toolchain here and do not read Cargo.toml to check it, so
 /// a stale number sends them to reproduce a build on a compiler this crate no
 /// longer supports.
+///
+/// The instructions moved from `CLAUDE.md` to `AGENTS.md`, which every provider
+/// reads. A loop over the versions mentioned passes on a file that mentions none,
+/// so it would have gone on passing against the emptied `CLAUDE.md` while checking
+/// nothing; hence the count.
 #[test]
 fn the_agent_instructions_state_the_msrv_that_cargo_enforces() {
     let msrv = declared_msrv();
-    for m in rust_versions_mentioned(&repo_file("CLAUDE.md")) {
+    let mentioned = rust_versions_mentioned(&repo_file("AGENTS.md"));
+    assert!(
+        !mentioned.is_empty(),
+        "AGENTS.md no longer states a Rust version; agents are told the toolchain there"
+    );
+    for m in mentioned {
         assert_eq!(
             parts(&m),
             parts(&msrv),
-            "CLAUDE.md says Rust {m}, Cargo.toml says {msrv}"
+            "AGENTS.md says Rust {m}, Cargo.toml says {msrv}"
         );
     }
+}
+
+/// Claude Code reads `CLAUDE.md`, not `AGENTS.md`. If the import line goes, Claude
+/// loses every instruction without anything failing — the shape of defect this
+/// file exists for.
+#[test]
+fn claude_md_imports_the_shared_instructions_and_adds_none_of_its_own() {
+    let claude = repo_file("CLAUDE.md");
+    assert!(
+        claude.lines().any(|l| l.trim() == "@AGENTS.md"),
+        "CLAUDE.md must import @AGENTS.md on a line of its own"
+    );
+    assert!(
+        !claude.contains("## "),
+        "CLAUDE.md has grown sections of its own; put them in AGENTS.md so every provider sees them"
+    );
 }

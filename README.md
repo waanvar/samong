@@ -591,7 +591,8 @@ pick a client that speaks MCP, then pick the model.
 If a binary is not on `PATH`, use its full path instead of `samong-mcp` — the
 `PATH` a GUI client inherits is often not the one your terminal has.
 
-Full setup, a verification step and a `CLAUDE.md` recipe:
+Full setup, a verification step, an `AGENTS.md` recipe that every provider's
+agent reads, and note templates for decisions and handoffs:
 [docs/AI-AGENT.md](docs/AI-AGENT.md)
 
 ## Architecture
