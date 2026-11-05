@@ -24,10 +24,10 @@ process ที่มัน spawn แล้วสองเทสต์ไปใ�
 `search::tests::rebuild_replaces_previous_documents` ด้วย
 "Directory not empty" ระหว่าง `rebuild()` สาเหตุคือ watcher thread ของ tantivy ที่
 `query()` เริ่มไว้และอยู่ต่อหลังค้นเสร็จ แล้วสร้างไฟล์ล็อกในไดเรกทอรีของ index
-ขณะที่ rebuild กำลังลบมัน — แก้ใน waanvar/samong#12 (`open_reader` ใช้
+ขณะที่ rebuild กำลังลบมัน — แก้ใน waanvar/samong#12 (merge แล้ว `2aec45f`) (`open_reader` ใช้
 `ReloadPolicy::Manual`) เทสต์ phase12 สร้าง vault สามอันแล้วค้นในโปรเซสเดียวกัน
-**อาจเป็น race เดียวกันนี้** ยังไม่ได้พิสูจน์ทั้งสองสมมติฐาน: ถ้าหลัง #12 merge แล้ว
-phase12 ยังล้มอยู่ ให้กลับไปดูเรื่อง `set_var`
+**อาจเป็น race เดียวกันนี้** ยังไม่ได้พิสูจน์ทั้งสองสมมติฐาน: #12 merge แล้ว ถ้า
+phase12 ยังล้มอยู่หลังจากนี้ ให้กลับไปดูเรื่อง `set_var`
 
 **ขั้นต่อไป**
 1. ทำซ้ำก่อน: รัน `cargo test --locked --test phase12` เป็น loop ภายใต้โหลด

@@ -55,8 +55,9 @@ Unreleased บน main)"
 ## 4. อยู่บน main แต่ยังไม่ปล่อย (Unreleased) — ห้ามเคลมว่าปล่อยแล้ว
 
 - `--explain` บน `search` และ `eval`
-- (ถ้า PR merge แล้ว) `docs/DESIGN.md`, MCP `instructions`, `AGENTS.md`,
-  dependency ที่แก้ advisory, race ใน search — ดู [[open-prs]]
+- `docs/DESIGN.md`, MCP `instructions`, `AGENTS.md`, dependency ที่แก้ advisory
+  (รวม `dompurify` critical), race ใน search, SessionStart hook — merge แล้วแต่
+  ยังไม่ได้ปล่อย ดู [[open-prs]]
 
 ## 5. ข้อจำกัดที่ต้องพูดตรงๆ (เพิ่ม)
 

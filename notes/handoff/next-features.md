@@ -44,12 +44,12 @@ call ไม่ต้องมีบัญชี และไม่สร้า�
 
 ดู [[unmerged-branches]]
 
-## 5. SessionStart hook สำหรับ cloud session
+## 5. SessionStart hook สำหรับ cloud session — ทำแล้ว (#13)
 
-- cloud session ของ Claude Code ไม่มี `samong-mcp` ใน `PATH` จึงต่อ Samong ไม่ได้
-  ตั้งแต่ต้น (`.mcp.json` ของ repo นี้ชี้ไปที่ `samong-mcp`) agent ใน cloud จึงใช้
-  ความจำในโฟลเดอร์นี้ผ่าน MCP ไม่ได้ อ่านไฟล์ตรงๆ ได้อย่างเดียว
-- ทำ: hook ที่ build และติดตั้ง `samong-mcp` ตอนเริ่ม session
+`.claude/hooks/session-start.sh` รัน `.devcontainer/setup.sh` ใน cloud session
+ที่ยังไม่รู้: Claude Code เริ่ม MCP server ก่อนหรือหลัง hook เสร็จ ถ้าก่อน session
+แรกบน container ว่างจะยังต่อ `samong` ไม่ติด session ถัดไปควรได้ เพราะ container
+ถูก cache หลัง hook เสร็จ — ยืนยันได้จาก session ถัดไปที่เปิดหลัง merge
 
 ## ข้อที่จงใจไม่เสนอ
 

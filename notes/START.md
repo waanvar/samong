@@ -24,7 +24,7 @@ Samong: knowledge base แบบ local-first สำหรับโน้ต Mark
 
 ## งานค้าง (handoff)
 
-- [[open-prs]] — PR ที่เปิดอยู่และลำดับการ merge
+- [[open-prs]] — PR ชุด 5 พ.ย. ที่ merge แล้ว และสิ่งที่เจอระหว่างทาง (ยังไม่ได้ปล่อย release)
 - [[unmerged-branches]] — branch ที่มีงานแต่ยังไม่มี PR
 - [[next-features]] — ฟีเจอร์ที่เสนอแล้วยังไม่ได้ทำ พร้อมเหตุผล
 - [[flaky-phase12]] — เทสต์ที่ล้มเป็นบางครั้ง
