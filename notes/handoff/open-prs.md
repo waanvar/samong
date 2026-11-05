@@ -16,9 +16,13 @@ branch: claude/audit-2026-11, claude/pensive-carson-5znch8, claude/provider-neut
 3. **waanvar/samong#9** `claude/provider-neutral-memory` → base เป็น branch ของ #8
    MCP `instructions`, `AGENTS.md`, template โน้ต หลัง #8 merge ให้เปลี่ยน base เป็น
    `main` (GitHub เปลี่ยนให้เองถ้าลบ branch ของ #8 ตอน merge)
-4. PR ของโฟลเดอร์ `notes/` นี้ — base เป็น branch ของ #9 ทำแบบเดียวกัน
+4. **waanvar/samong#11** `claude/memory-notes` — โฟลเดอร์ `notes/` นี้ base เป็น
+   branch ของ #9 ทำแบบเดียวกัน
+5. **waanvar/samong#12** `claude/index-reader-no-watcher` → `main` แก้ race ที่การค้น
+   ทำให้ reindex ถัดไปล้ม ("Directory not empty") อิสระจากสายข้างบน merge เมื่อไหร่
+   ก็ได้ มีการแก้ของ #10 อยู่ข้างในแล้ว และถูก merge เข้า #11 แล้ว
 
-ทั้งสี่ซ้อนกันเพราะแก้ `CLAUDE.md` / `CHANGELOG.md` ร่วมกัน PR ที่ merge แล้วถูก
+#8–#11 ซ้อนกันเพราะแก้ `CLAUDE.md` / `CHANGELOG.md` ร่วมกัน PR ที่ merge แล้วถูก
 squash (ดู `git log` ของ main: `(#7)`) ถ้า squash อันล่าง อันบนจะยังมี commit เดิม
 อยู่ใน branch — diff หลังเปลี่ยน base ควรเหลือเฉพาะของตัวเอง ถ้าไม่ใช่ ให้ merge
 `main` เข้า branch นั้น ห้าม rebase branch ของคนอื่น
