@@ -10,7 +10,7 @@ use tantivy::schema::{
 };
 use tantivy::snippet::SnippetGenerator;
 use tantivy::tokenizer::{LowerCaser, RemoveLongFilter, TextAnalyzer};
-use tantivy::{doc, Index, IndexWriter, Term};
+use tantivy::{doc, Index, IndexReader, IndexWriter, ReloadPolicy, Term};
 
 use crate::thai::ThaiTokenizer;
 use crate::vault::BRAIN_DIR;
@@ -236,6 +236,26 @@ pub fn apply(vault: &Path, upserts: &[IndexedNote], removals: &[String]) -> Resu
     Ok(())
 }
 
+/// A reader that never watches the index for changes.
+///
+/// tantivy's default reload policy starts a thread per directory that polls
+/// `meta.json` and, on its very first pass, reloads the searcher — which takes
+/// `.tantivy-meta.lock`, a file created inside the index directory. The thread
+/// outlives the query that started it. A `rebuild` that follows a search then
+/// races it: `remove_dir_all` lists the directory, the watcher creates its lock
+/// file, and the removal fails with "Directory not empty". CI hit exactly that in
+/// `rebuild_replaces_previous_documents`.
+///
+/// Every query here opens a fresh reader and drops it before returning, so there
+/// is nothing a reload could ever serve: the watcher was cost and risk with no use.
+fn open_reader(index: &Index) -> Result<IndexReader> {
+    index
+        .reader_builder()
+        .reload_policy(ReloadPolicy::Manual)
+        .try_into()
+        .context("creating index reader")
+}
+
 /// Rebuild the full-text index from scratch for the given notes.
 pub fn rebuild(vault: &Path, notes: &[IndexedNote]) -> Result<()> {
     let dir = index_dir(vault);
@@ -294,7 +314,7 @@ pub fn hits_for_keys(
     let path_field = schema.get_field("path")?;
     let title_field = schema.get_field("title")?;
     let body_field = schema.get_field("body")?;
-    let searcher = index.reader().context("creating index reader")?.searcher();
+    let searcher = open_reader(&index)?.searcher();
 
     let mut out = Vec::with_capacity(keys.len());
     for key in keys {
@@ -382,7 +402,7 @@ pub fn query_with(vault: &Path, text: &str, options: &SearchOptions) -> Result<V
         .get_field("body")
         .context("schema missing body field")?;
 
-    let reader = index.reader().context("creating index reader")?;
+    let reader = open_reader(&index)?;
     let searcher = reader.searcher();
 
     let query_parser = QueryParser::for_index(&index, vec![title_field, body_field]);
@@ -696,6 +716,34 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         rebuild(dir.path(), &[note("Deployment Runbook", "body text")]).unwrap();
         assert_eq!(query(dir.path(), "runbook").unwrap().len(), 1);
+    }
+
+    /// The watcher thread a default reader starts writes into the index directory
+    /// after the query has returned, which is what let a following `rebuild`
+    /// fail with "Directory not empty". Asserted by thread name rather than by
+    /// provoking the race, which needs timing no test should depend on: a query
+    /// must leave no watcher behind at all.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_query_leaves_no_index_watcher_running() {
+        fn watchers() -> usize {
+            fs::read_dir("/proc/self/task")
+                .unwrap()
+                .filter_map(|t| fs::read_to_string(t.ok()?.path().join("comm")).ok())
+                // Thread names are cut to 15 bytes: this is tantivy's
+                // "thread-tantivy-meta-file-watcher".
+                .filter(|name| name.starts_with("thread-tantivy-"))
+                .count()
+        }
+        let dir = tempfile::tempdir().unwrap();
+        rebuild(dir.path(), &[note("A", "alpha content")]).unwrap();
+        query(dir.path(), "alpha").unwrap();
+        hits_for_keys(dir.path(), &["A.md".to_string()], 40).unwrap();
+        assert_eq!(
+            watchers(),
+            0,
+            "a search left an index watcher thread running"
+        );
     }
 
     #[test]
