@@ -30,6 +30,20 @@ lineage rather than pretending this is the first shape the project took.
   thrown away, so the explanation cannot describe a different order from the one
   returned — a test compares the two.
 
+### Fixed
+
+- **A search could make the next reindex fail with "Directory not empty".**
+  Every query opened its index reader with tantivy's default reload policy,
+  which starts a thread that watches `meta.json` and, on its first pass,
+  reloads — taking a lock file inside the index directory. The thread outlived
+  the query. A full rebuild that came soon after removed the directory while
+  that file was being created, and failed. CI hit it once in
+  `rebuild_replaces_previous_documents`; the window is narrow and it did not
+  reproduce locally, but five queries were measured leaving five watcher threads
+  running. Each query opens a fresh reader and drops it, so a reload could never
+  serve anything: readers are now opened with no watcher, and a test fails if a
+  search leaves one behind.
+
 ## 0.6.1
 
 A TLS fix for the updater, published the day 0.6.0 was.
