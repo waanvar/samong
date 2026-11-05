@@ -45,6 +45,19 @@ deliberately stops short of it.
   merely exercises the new code.
 - **New dependency → update `THIRD-PARTY.md`** in the same commit.
 
+## Before you touch the interface
+
+Read `docs/DESIGN.md` first — for a new screen, a menu, a button, or a colour.
+It is the design system as built: what each colour means, the tokens, type,
+layout, the components to reuse by class name, and a recipe for the four shapes
+a new screen can take. A request phrased only as process ("add a page that
+lists X") still gets an interface that follows it; do not invent a layout,
+colour, font, icon set or component library the document does not have.
+
+`tests/design_system.rs` fails when the document's token table and
+`web/src/styles.css` disagree, so a token change is a change to both in the
+same commit.
+
 ## Things that will be declined, so do not propose them
 
 - A delete tool on the MCP server, or writable reference notes.
