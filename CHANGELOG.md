@@ -45,6 +45,18 @@ lineage rather than pretending this is the first shape the project took.
 
 ### Fixed
 
+- **A search could make the next reindex fail with "Directory not empty".**
+  Every query opened its index reader with tantivy's default reload policy,
+  which starts a thread that watches `meta.json` and, on its first pass,
+  reloads — taking a lock file inside the index directory. The thread outlived
+  the query. A full rebuild that came soon after removed the directory while
+  that file was being created, and failed. CI hit it once in
+  `rebuild_replaces_previous_documents`; the window is narrow and it did not
+  reproduce locally, but five queries were measured leaving five watcher threads
+  running. Each query opens a fresh reader and drops it, so a reload could never
+  serve anything: readers are now opened with no watcher, and a test fails if a
+  search leaves one behind.
+
 - **Twenty advisories against the dependency set, and one critical one in the
   web UI.** The `Audit` workflow failed on `main` at every run from 1 October —
   the push that day and five scheduled Monday runs after it — and nothing else
