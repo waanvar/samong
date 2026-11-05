@@ -39,6 +39,11 @@ Samong: knowledge base แบบ local-first สำหรับโน้ต Mark
 - [[tokenizer-beyond-thai]] — tokenizer กับภาษาอื่นนอกจากไทย
   (CJK, Hindi, Lao, Khmer, Burmese, Vietnamese) ผลวัดจริงและทางแก้ที่เสนอ
 
+## ร่างที่รอเจ้าของนำไปใช้ (drafts)
+
+- [[samong-context-skill-update]] — แก้ skill `samong-context` นอก repo ที่ยังอ้าง
+  v0.3.6 และเคลมว่าตัดคำญี่ปุ่น/จีนได้ (ไม่จริง)
+
 ## วิธีเขียนโน้ตใหม่ในโฟลเดอร์นี้
 
 ตาม template ใน `docs/AI-AGENT.md` ใส่ path ของไฟล์ที่เกี่ยวข้องไว้ในเนื้อโน้ตเสมอ

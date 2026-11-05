@@ -27,6 +27,10 @@ squash (ดู `git log` ของ main: `(#7)`) ถ้า squash อันล�
 อยู่ใน branch — diff หลังเปลี่ยน base ควรเหลือเฉพาะของตัวเอง ถ้าไม่ใช่ ให้ merge
 `main` เข้า branch นั้น ห้าม rebase branch ของคนอื่น
 
+6. **waanvar/samong#13** `claude/session-start-hook` → `main` SessionStart hook ที่รัน
+   `.devcontainer/setup.sh` ใน cloud session ของ Claude Code ทำให้ `samong-mcp` มีตั้งแต่
+   เริ่ม session อิสระจากสายข้างบน มีการแก้ของ #10 อยู่ข้างในแล้ว
+
 ## สถานะ ณ 2026-11-05
 
 - CI ของ #8 และ #9 เคยแดงที่ job `cargo` และ `npm` ของ workflow `Audit` เท่านั้น
