@@ -30,6 +30,36 @@ lineage rather than pretending this is the first shape the project took.
   thrown away, so the explanation cannot describe a different order from the one
   returned — a test compares the two.
 
+### Fixed
+
+- **Twenty advisories against the dependency set, and one critical one in the
+  web UI.** The `Audit` workflow failed on `main` at every run from 1 October —
+  the push that day and five scheduled Monday runs after it — and nothing else
+  in the repository went red, so for five weeks the only signal was a check that
+  had stopped being read. The advisories behind it were published between August
+  and late October. A red `Audit` on an unrelated pull request was the same
+  failure, not that pull request's.
+
+  - `dompurify` 3.4.17 (critical, DOM XSS bypasses). It sanitises rendered
+    Markdown in the web UI, which ships inside the binary, so a note pulled in
+    from someone else's vault is exactly the input it exists to defend against.
+  - `self_update` 1.3.3, which moves `zip` from 8 to 9: `zip` 8 extracted
+    symlinks and SUID bits as the archive gave them, and extracting a release
+    archive is what `samong update` does. The `Cargo.toml` floor is raised to
+    1.3.3 so a resolve without `--locked` cannot land on the old one.
+  - `rustls` 0.23.46, `rustls-webpki` 0.103.16, `webpki-roots` and
+    `webpki-root-certs` 1.0.11 — the updater's TLS and the roots it trusts,
+    including distrusted intermediates still accepted.
+  - `zstd` 0.13.4, `zstd-safe` 7.4.0, `zstd-sys` 2.1.2, through `tantivy`.
+  - `quinn-proto` 0.11.19 and `chacha20` 0.10.2 (yanked). `quinn-proto` is in the
+    lockfile but compiled into no build; it is updated so the audit says
+    nothing that needs a footnote.
+
+  Two warnings remain and do not fail the audit: `lru` (unsound) and `paste`
+  (unmaintained), both through `tantivy`, neither with a fixed release. `vite`,
+  a build tool not embedded in the binary, has a high advisory that the audit's
+  `--omit=dev` does not cover; it is left for a change of its own.
+
 ## 0.6.1
 
 A TLS fix for the updater, published the day 0.6.0 was.
