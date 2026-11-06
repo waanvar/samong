@@ -163,6 +163,7 @@ And four ways green means nothing at all:
 | CI job `msrv` | a dependency quietly raising the floor above the `rust-version` the README promises — default features *and* `semantic`, which is where the floor moves first |
 | `tests/msrv.rs` | `README.md` and `CLAUDE.md` naming a Rust version that `Cargo.toml` no longer says |
 | workflow `Audit`, job `cargo` | advisories against the pinned `Cargo.lock`; ignored ones must carry a written reason in `.cargo/audit.toml` |
+| workflow `Tag release` | a release that cannot start because its tag cannot be pushed from where the work was done — a cloud session's git credential is refused on tags. Tags from the repository's own token, after checking the version against `Cargo.toml` and `CHANGELOG.md`, then dispatches `Release` |
 | workflow `Audit`, job `npm` | advisories against the production tree that `rust-embed` compiles into the binary — the gate is set at `low`, because that tree is eight packages and two of them render note content |
 
 **After any release: `gh run view <id> --json jobs` (a queued job is a failure CI
