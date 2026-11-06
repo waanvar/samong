@@ -17,9 +17,24 @@ branch:
 | 5 | waanvar/samong#9 | `6a59086` | MCP `instructions`, `AGENTS.md`, template โน้ต |
 | 6 | waanvar/samong#11 | (PR ของโฟลเดอร์ `notes/` นี้) | ความจำของการทำงาน |
 
-ทั้งหมดยังอยู่ใต้ Unreleased ใน `CHANGELOG.md` — **ยังไม่มี release ที่มีของเหล่านี้**
-release ถัดไปควรออกเร็ว เพราะ v0.6.1 ที่ผู้ใช้โหลดอยู่ยังมี `dompurify` ที่มี
-advisory ระดับ critical
+**ปล่อยแล้วใน v0.7.0 (2026-11-06)** — release commit `3c1517e` (#14), tag ชี้ที่
+`142b737` (main หลัง #15 ซึ่งต่างกันแค่ไฟล์ workflow) ตรวจหลังปล่อยแล้ว: archive
+ห้าแพลตฟอร์ม + `.mcpb` บนหน้า release, crates.io 0.7.0, MCP registry 0.7.0
+`isLatest`, ไบนารี Linux ที่ดาวน์โหลดจริงผ่าน sha256 รายงาน 0.7.0 ค้นไทยถูก และ
+ค้นแล้ว reindex --full ผ่าน 20/20
+
+ค้างหลังปล่อย:
+- **winget ล้ม** "The forked repository could not be synced with the upstream
+  commits" เหมือน 0.6.0 และ 0.6.1 — fork ของ `microsoft/winget-pkgs` ต้อง sync
+  ด้วยมือ แล้วรัน job winget ใหม่ (Actions → Release → re-run failed jobs)
+- **AUR ไม่ได้ push** — step `Push to the AUR` ถูกข้ามเพราะไม่มี `AUR_SSH_KEY`
+  (เหมือนรุ่นก่อน)
+- ลอง `samong update` จาก 0.6.1 บนเครื่องจริงหนึ่งครั้ง — `zip` ขึ้น major
+
+**tag ของรุ่นนี้ไม่ได้มาจาก git push** cloud session push tag ไม่ได้ (403) และ push
+จากเครื่องเจ้าของสองรอบไม่ถึง GitHub จึงเพิ่ม `.github/workflows/tag-release.yml`
+(#15): สั่งด้วย `version` แล้วมันตรวจกับ Cargo.toml และ CHANGELOG สร้าง tag และสั่ง
+`release.yml` ให้ — รุ่นถัดไปใช้ทางนี้ได้เลย
 
 ## สิ่งที่ต้องรู้ซึ่งไม่อยู่ในโค้ด
 
@@ -42,9 +57,8 @@ advisory ระดับ critical
 
 ## ขั้นต่อไป
 
-- ปล่อย release ถัดไป (ดู `docs/RELEASE-LESSONS.md` ก่อน)
-- หลังปล่อย ลอง `samong update` กับ release จริงด้วยมือครั้งหนึ่ง เพราะเส้นทาง
-  ที่แตก archive จริงจาก GitHub ไม่ได้ถูกเทสต์ใน CI และ `zip` เพิ่งขึ้น major
+- sync fork ของ winget-pkgs แล้ว re-run job winget ของ release v0.7.0
+- ลอง `samong update` จาก 0.6.1 ด้วยมือครั้งหนึ่ง
 - ลบ branch ที่ merge แล้วได้: `claude/audit-2026-11`, `claude/session-start-hook`,
   `claude/pensive-carson-5znch8`, `claude/index-reader-no-watcher`,
   `claude/provider-neutral-memory`, `claude/memory-notes` และของเก่าใน
