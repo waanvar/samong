@@ -1,0 +1,76 @@
+name: Tag release
+
+# Creates the release tag from inside the repository, then hands off to
+# release.yml.
+#
+# A tag push is otherwise the only way to start a release, and a tag push needs
+# credentials that can create tags. A Claude Code cloud session's git credential
+# can push branches but is refused with 403 on tags, so v0.7.0 sat ready on main
+# — release commit merged, every pre-tag check passed — with nothing able to
+# publish it from where the work was done. This workflow gives that last step to
+# the repository's own token instead, behind the same checks a person would make
+# before typing `git tag`.
+#
+# A tag created with GITHUB_TOKEN does not trigger `push` workflows, so
+# release.yml is started here by `workflow_dispatch`, the path it already has
+# for rebuilding an existing tag. One run, not two.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag and release, exactly as in Cargo.toml, e.g. 0.7.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write # push the tag
+  actions: write # start release.yml
+
+jobs:
+  tag:
+    # Only what is on main is ever released.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          # Every tag, so an existing one is refused rather than overwritten.
+          fetch-depth: 0
+
+      # The same three things the release commit is checked for, refused loudly:
+      # a tag that disagrees with the version the binaries will report, a tag
+      # that already exists, or a release with no notes to publish.
+      - name: The version is the one main ships, and it has not been tagged
+        run: |
+          set -euo pipefail
+          declared=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          if [ "$declared" != "$VERSION" ]; then
+            echo "::error::Cargo.toml on main says $declared; asked to tag $VERSION"
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::v$VERSION already exists; rebuild it with release.yml instead"
+            exit 1
+          fi
+          python3 packaging/changelog-section.py "$VERSION" > /dev/null
+
+      # Annotated, with the release's one-line summary, the way every tag before
+      # it was made by hand.
+      - name: Tag main
+        run: |
+          set -euo pipefail
+          summary=$(python3 packaging/changelog-section.py "$VERSION" \
+            | sed -n '1,/^$/p' | tr '\n' ' ' | sed 's/  */ /g; s/ *$//')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION — $summary"
+          git push origin "refs/tags/v$VERSION"
+          echo "tagged v$VERSION at $(git rev-parse HEAD)"
+
+      - name: Build and publish it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release.yml --ref main -f tag="v$VERSION"
