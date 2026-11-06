@@ -8,6 +8,14 @@ lineage rather than pretending this is the first shape the project took.
 
 ## Unreleased
 
+_Nothing yet._
+
+## 0.7.0
+
+Twenty dependency advisories closed, one of them critical and in the web UI; a
+race between search and reindex fixed; and an MCP server that tells any client
+how to use the notes, whichever model is behind it.
+
 ### Added
 
 - **`--explain` on `samong search` and `samong eval`.** The cosine scores behind
